@@ -76,11 +76,27 @@ function optionalText(value, label, maxLength) {
   return requiredText(value, label, maxLength);
 }
 
+function normalizeProposalAliases(value) {
+  const normalized = { ...value };
+  // DeepSeek occasionally uses display-oriented aliases despite the fixed schema.
+  // Map only unambiguous equivalents; these aliases never become foreign keys.
+  if (normalized.plan_year == null && normalized.year != null && Number.isInteger(Number(normalized.year))) normalized.plan_year = Number(normalized.year);
+  if (normalized.planned_clutches == null && normalized.target_clutches != null && Number.isInteger(Number(normalized.target_clutches))) normalized.planned_clutches = Number(normalized.target_clutches);
+  if (normalized.goal == null && typeof normalized.rationale === "string") normalized.goal = normalized.rationale;
+  if (normalized.project_name == null && typeof normalized.pairing_id === "string") normalized.project_name = normalized.pairing_id;
+  delete normalized.year;
+  delete normalized.target_clutches;
+  delete normalized.rationale;
+  delete normalized.pairing_id;
+  return normalized;
+}
+
 function validateProposal(value, analysisType, index) {
   const label = `recommendations[${index}].proposal_payload`;
   if (value == null) return { action: "none" };
   if (!isObject(value)) throw new Error(`${label} must be an object.`);
-  const action = value.action == null ? "none" : requiredText(value.action, `${label}.action`, 32);
+  const normalized = normalizeProposalAliases(value);
+  const action = normalized.action == null ? "none" : requiredText(normalized.action, `${label}.action`, 32);
   if (!["none", "create_annual_plan"].includes(action)) throw new Error(`${label}.action is invalid.`);
   if (["investment", "strategy_score"].includes(analysisType) && action !== "none") {
     throw new Error(`${label}.action must be none for ${analysisType}.`);
@@ -89,34 +105,34 @@ function validateProposal(value, analysisType, index) {
   const allowed = action === "create_annual_plan"
     ? new Set(["action", "plan_year", "female_snake_id", "male_snake_id", "route_id", "priority", "project_name", "goal", "mode", "planned_clutches"])
     : new Set(["action", "target_sex", "target_gene_ids", "review_after"]);
-  requireOnlyKeys(value, allowed, label);
+  requireOnlyKeys(normalized, allowed, label);
 
   if (action === "none") {
     const payload = { action };
-    if (value.target_sex != null) {
-      if (!["F", "M", "any"].includes(value.target_sex)) throw new Error(`${label}.target_sex is invalid.`);
-      payload.target_sex = value.target_sex;
+    if (normalized.target_sex != null) {
+      if (!["F", "M", "any"].includes(normalized.target_sex)) throw new Error(`${label}.target_sex is invalid.`);
+      payload.target_sex = normalized.target_sex;
     }
-    if (value.target_gene_ids != null) payload.target_gene_ids = stringArray(value.target_gene_ids, `${label}.target_gene_ids`);
-    if (value.review_after != null) payload.review_after = optionalText(value.review_after, `${label}.review_after`, 80);
+    if (normalized.target_gene_ids != null) payload.target_gene_ids = stringArray(normalized.target_gene_ids, `${label}.target_gene_ids`);
+    if (normalized.review_after != null) payload.review_after = optionalText(normalized.review_after, `${label}.review_after`, 80);
     return payload;
   }
 
   if (!["pairing", "annual_plan"].includes(analysisType)) throw new Error(`${label}.action is not allowed here.`);
-  if (!Number.isInteger(value.plan_year) || value.plan_year < 2000 || value.plan_year > 2200) throw new Error(`${label}.plan_year is invalid.`);
-  if (!["A", "B", "R", "C", "G"].includes(value.priority)) throw new Error(`${label}.priority is invalid.`);
-  if (!Number.isInteger(value.planned_clutches) || value.planned_clutches < 0 || value.planned_clutches > 20) throw new Error(`${label}.planned_clutches is invalid.`);
+  if (!Number.isInteger(normalized.plan_year) || normalized.plan_year < 2000 || normalized.plan_year > 2200) throw new Error(`${label}.plan_year is invalid.`);
+  if (!["A", "B", "R", "C", "G"].includes(normalized.priority)) throw new Error(`${label}.priority is invalid.`);
+  if (!Number.isInteger(normalized.planned_clutches) || normalized.planned_clutches < 0 || normalized.planned_clutches > 20) throw new Error(`${label}.planned_clutches is invalid.`);
   return {
     action,
-    plan_year: value.plan_year,
-    female_snake_id: requiredText(value.female_snake_id, `${label}.female_snake_id`, 80),
-    male_snake_id: requiredText(value.male_snake_id, `${label}.male_snake_id`, 80),
-    route_id: optionalText(value.route_id, `${label}.route_id`, 120),
-    priority: value.priority,
-    project_name: requiredText(value.project_name, `${label}.project_name`, 160),
-    goal: requiredText(value.goal, `${label}.goal`, 600),
-    mode: requiredText(value.mode, `${label}.mode`, 80),
-    planned_clutches: value.planned_clutches
+    plan_year: normalized.plan_year,
+    female_snake_id: requiredText(normalized.female_snake_id, `${label}.female_snake_id`, 80),
+    male_snake_id: requiredText(normalized.male_snake_id, `${label}.male_snake_id`, 80),
+    route_id: optionalText(normalized.route_id, `${label}.route_id`, 120),
+    priority: normalized.priority,
+    project_name: requiredText(normalized.project_name, `${label}.project_name`, 160),
+    goal: requiredText(normalized.goal, `${label}.goal`, 600),
+    mode: requiredText(normalized.mode, `${label}.mode`, 80),
+    planned_clutches: normalized.planned_clutches
   };
 }
 
