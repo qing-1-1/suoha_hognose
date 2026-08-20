@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <title>Suoha Hognose · Breeding OS · Supabase</title>
 <style>
 :root{
@@ -21,6 +21,7 @@ button,input,select{font:inherit}
 button{color:inherit}
 ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#273142;border-radius:999px}
 .sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);z-index:40;border-right:1px solid var(--line);background:rgba(8,11,16,.94);backdrop-filter:blur(22px);padding:18px 12px;display:flex;flex-direction:column}
+.mobileNav{display:none}
 .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 18px}
 .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:900;color:#080b0f;background:linear-gradient(145deg,#ffd491,#b6783d 65%,#78502d);box-shadow:0 0 36px rgba(232,183,109,.14)}
 .brand strong{font-size:14px}.brand span{display:block;color:#59677a;font-size:9px;text-transform:uppercase;letter-spacing:1.3px;margin-top:3px}
@@ -123,11 +124,12 @@ button{color:inherit}
 .labGrid{display:grid;grid-template-columns:.8fr 1.2fr;gap:12px}.selector{display:flex;flex-direction:column;gap:9px}.selectBlock label{display:block;font-size:7.5px;color:#607084;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}.selectBlock select{width:100%;border:1px solid var(--line);background:#0b1017;color:#dbe3ec;border-radius:10px;padding:10px;outline:none;font-size:9px}
 .pairVisual{display:grid;grid-template-columns:1fr 50px 1fr;align-items:center;gap:8px;margin-top:12px}.pairSnake{border:1px solid var(--line);background:#0b1118;border-radius:12px;padding:11px;min-height:90px}.pairSnake b{font-size:9px}.pairSnake span{display:block;color:#68768a;font-size:7.5px;margin-top:4px;line-height:1.4}.cross{width:42px;height:42px;margin:auto;border:1px solid rgba(169,133,255,.25);border-radius:50%;display:grid;place-items:center;color:#bea7ff;background:rgba(169,133,255,.055)}
 .matchGauge{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center}.gauge{width:115px;height:115px;border-radius:50%;display:grid;place-items:center;position:relative}.gauge:after{content:"";position:absolute;inset:14px;background:#10161f;border-radius:50%;border:1px solid var(--line)}.gaugeIn{z-index:2;text-align:center}.gaugeIn strong{font-size:27px}.gaugeIn span{display:block;color:#637185;font-size:7px}.reasons{display:flex;flex-direction:column;gap:7px}.reason{display:flex;gap:8px;border:1px solid var(--line);border-radius:9px;padding:8px;background:#0b1118}.reason i{width:7px;height:7px;border-radius:50%;margin-top:3px;flex:0 0 auto}.reason b{font-size:8px}.reason span{display:block;color:#667488;font-size:7.5px;margin-top:2px;line-height:1.4}.warning{border:1px solid rgba(241,166,90,.2);background:rgba(241,166,90,.045);border-radius:10px;padding:9px;color:#a88c68;font-size:8px;line-height:1.5;margin-top:10px}
+.analysisSplit{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.aiPanel .cardHead{background:linear-gradient(90deg,rgba(169,133,255,.07),transparent)}.aiBadge{border:1px solid rgba(169,133,255,.28);background:rgba(169,133,255,.08);border-radius:999px;padding:4px 7px;color:#cbb9ff;font-size:7.5px}.analysisEmpty{border:1px dashed var(--line2);border-radius:9px;padding:10px;color:#718096;font-size:8px;line-height:1.5}.aiRecommendation{border:1px solid rgba(169,133,255,.2);border-radius:11px;padding:10px;background:rgba(169,133,255,.035);margin-bottom:8px}.aiRecommendation:last-child{margin-bottom:0}.aiRecommendationHead{display:flex;align-items:flex-start;gap:7px}.aiRecommendation h4{font-size:9px;margin:0}.aiRecommendation p{font-size:8px;color:#8290a2;line-height:1.5;margin:6px 0}.aiMeta{display:flex;gap:5px;flex-wrap:wrap;color:#8190a3;font-size:7px}.aiMeta span{border:1px solid var(--line);border-radius:999px;padding:3px 5px}.aiActions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.aiActions button{border:1px solid var(--line);background:#101720;color:#aab5c3;border-radius:7px;padding:5px 7px;font-size:7.5px;cursor:pointer}.aiActions button.primary{color:#d7c2ff;border-color:rgba(169,133,255,.35);background:rgba(169,133,255,.08)}.factPanel{border:1px solid var(--line);border-radius:10px;padding:10px;background:#0b1118;font-size:8px;line-height:1.55;color:#8190a3}.factPanel b{color:#dce4ed}.aiRunStatus{min-height:16px;margin:8px 0 0;color:#8e9aac;font-size:8px}.aiRunStatus.error{color:#ef9f9a}
 
 .drawer{position:fixed;right:-390px;top:0;bottom:0;width:380px;z-index:100;background:rgba(10,14,20,.98);border-left:1px solid var(--line2);box-shadow:-30px 0 70px rgba(0,0,0,.4);backdrop-filter:blur(20px);transition:.23s;padding:18px}.drawer.open{right:0}.drawerClose{position:absolute;right:14px;top:14px;border:1px solid var(--line);background:#111822;border-radius:8px;color:#8390a3;width:30px;height:30px;cursor:pointer}.drawer h2{font-size:17px;margin:52px 0 4px}.drawer p{font-size:9px;color:#778599}.drawerFacts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:16px}.drawerFact{border:1px solid var(--line);border-radius:9px;padding:9px;background:#0c1219}.drawerFact label{font-size:7px;color:#566477;text-transform:uppercase}.drawerFact strong{display:block;font-size:9px;margin-top:4px}.drawerSection{border-top:1px solid var(--line);padding-top:13px;margin-top:14px}.drawerSection b{font-size:8.5px}.drawerSection div{font-size:8.5px;color:#788598;line-height:1.55;margin-top:6px}
 
-@media(max-width:1200px){:root{--sidebar:205px}.grid2,.productionHero,.labGrid{grid-template-columns:1fr}.inspector{min-height:auto}.kpis{grid-template-columns:1fr 1fr}.investGrid{grid-template-columns:1fr}}
-@media(max-width:760px){:root{--sidebar:0px}.sidebar{display:none}.main{margin-left:0}.topbar{padding:0 10px}.content{padding:14px 10px 32px}.kpis,.gridEqual,.grid3{grid-template-columns:1fr}.pageHead{align-items:flex-start;flex-direction:column}.maturityStrip{grid-template-columns:repeat(3,1fr)}.donutWrap{grid-template-columns:1fr}.routeShell{min-height:560px}#routeSvg{height:560px}.investGrid{grid-template-columns:1fr}.drawer{width:92vw}.yearCtl label{display:none}}
+@media(max-width:1200px){:root{--sidebar:205px}.grid2,.productionHero,.labGrid,.analysisSplit{grid-template-columns:1fr}.inspector{min-height:auto}.kpis{grid-template-columns:1fr 1fr}.investGrid{grid-template-columns:1fr}}
+@media(max-width:760px){:root{--sidebar:0px}.sidebar{display:none}.mobileNav{position:fixed;z-index:45;left:0;right:0;bottom:0;display:flex;gap:4px;overflow-x:auto;padding:7px 8px;background:rgba(8,11,16,.96);border-top:1px solid var(--line);backdrop-filter:blur(16px)}.mobileNav .navItem{flex:0 0 auto;width:auto;margin:0;padding:6px 8px}.mobileNav .navText small{display:none}.main{margin-left:0;padding-bottom:56px}.topbar{padding:0 10px}.content{padding:14px 10px 32px}.kpis,.gridEqual,.grid3{grid-template-columns:1fr}.pageHead{align-items:flex-start;flex-direction:column}.maturityStrip{grid-template-columns:repeat(3,1fr)}.donutWrap{grid-template-columns:1fr}.routeShell{min-height:560px}#routeSvg{height:560px}.investGrid{grid-template-columns:1fr}.drawer{width:92vw}.yearCtl label{display:none}}
 
 /* ===== Supabase Auth + Admin ===== */
 .hidden{display:none!important}
@@ -166,6 +168,7 @@ body.can-write .adminNav{display:flex}
 .adminInfo strong{display:block;font-size:11px;margin-top:5px}
 .adminInfo span{display:block;font-size:7.5px;color:#6c798c;margin-top:3px}
 .adminActions{display:flex;gap:7px;flex-wrap:wrap}
+.geneEditor{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}.geneEditorHead{display:flex;align-items:flex-end;gap:10px;margin-bottom:8px}.geneEditorHead h4{margin:0;font-size:10px}.geneEditorHead p{margin:3px 0 0;color:#718096;font-size:8px;line-height:1.45}.geneEditorHead .spacer{flex:1}.geneEditorRows{display:flex;flex-direction:column;gap:7px}.geneEditorRow{display:grid;grid-template-columns:minmax(130px,1.25fr) 104px 72px minmax(90px,.9fr) 30px;gap:6px;align-items:center;border:1px solid var(--line);border-radius:9px;background:#0b1118;padding:7px}.geneEditorRow input,.geneEditorRow select{width:100%;min-width:0;border:1px solid var(--line);background:#111923;color:#dbe2ea;border-radius:7px;padding:6px;font-size:8px}.geneEditorRow button{border:1px solid rgba(239,126,120,.28);background:rgba(239,126,120,.06);color:#ef9f9a;border-radius:7px;height:29px;cursor:pointer}.geneEditorEmpty{border:1px dashed var(--line2);border-radius:9px;padding:10px;color:#718096;font-size:8px}.geneEditorHelp{margin:7px 0 0;color:#718096;font-size:7.5px;line-height:1.5}
 .rowActions{display:flex;gap:5px}
 .iconBtn{border:1px solid var(--line);background:#0d141d;color:#8d9bad;border-radius:7px;padding:5px 7px;font-size:7.5px;cursor:pointer}
 .iconBtn:hover{border-color:var(--line2);color:#fff}
@@ -178,7 +181,7 @@ body.can-write .adminNav{display:flex}
 .toast.error{border-color:rgba(239,126,120,.28);color:#efaca8}
 .drawerActions{display:flex;gap:7px;margin-top:14px}
 .configWarning{border:1px solid rgba(241,166,90,.22);background:rgba(241,166,90,.055);color:#c69d6a;border-radius:10px;padding:10px;font-size:8px;line-height:1.5;margin-bottom:12px}
-@media(max-width:760px){.formGrid,.adminHero{grid-template-columns:1fr}.formField.full{grid-column:auto}}
+@media(max-width:760px){.formGrid,.adminHero{grid-template-columns:1fr}.formField.full{grid-column:auto}.geneEditorRow{grid-template-columns:1fr 1fr 72px 30px}.geneEditorRow .geneSource{display:none}}
 
 
 /* ===== Private App Login Gate ===== */
@@ -206,13 +209,47 @@ radial-gradient(780px 420px at 80% 80%,rgba(169,133,255,.10),transparent 65%),
 .authGateMessage{min-height:17px;margin-top:7px;font-size:8px;color:#ef9f9a;line-height:1.45}
 .authGateMessage.ok{color:#86dca9}
 body.auth-locked{overflow:hidden}
-body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked .drawer{visibility:hidden}
+body.auth-locked .sidebar,body.auth-locked .mobileNav,body.auth-locked .main,body.auth-locked .drawer{visibility:hidden}
 .passwordHint{font-size:7.5px;color:#667488;line-height:1.5;margin-top:6px}
+
+/* ===== DESIGN.md visual system: gallery-like, restrained, action-blue only ===== */
+:root{--bg:#f5f5f7;--panel:#fff;--panel2:#fafafc;--line:#e0e0e0;--line2:rgba(0,0,0,.14);--text:#1d1d1f;--muted:#7a7a7a;--soft:#333;--gold:#0066cc;--violet:#0066cc;--green:#0066cc;--pink:#0066cc;--blue:#0066cc;--orange:#0066cc;--red:#c11f1f;--sidebar:0px}
+html,body{background:#f5f5f7;color:#1d1d1f;font-family:"SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+body{background:#f5f5f7;font-size:17px;line-height:1.47;letter-spacing:-.224px}
+button{font-family:"SF Pro Text",system-ui,-apple-system,sans-serif;transition:transform .18s ease,background-color .18s ease,border-color .18s ease,color .18s ease}
+button:active{transform:scale(.95)}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0071e3;outline-offset:2px}
+::-webkit-scrollbar-thumb{background:#d2d2d7}
+.sidebar{inset:0 0 auto 0;width:100%;height:44px;min-height:44px;padding:0 max(20px,calc((100vw - 1440px)/2));border:0;background:#000;backdrop-filter:none;display:flex;flex-direction:row;align-items:center;gap:2px;overflow:hidden}
+.brand{padding:0 22px 0 0;gap:8px}.logo{width:24px;height:24px;border-radius:50%;background:#fff;color:#000;box-shadow:none;font-size:11px}.brand strong{font-size:12px;font-weight:600;color:#fff;letter-spacing:-.12px}.brand span,.navLabel{display:none}
+.navItem{width:auto;border:0;border-radius:0;margin:0;padding:13px 10px;color:#ccc;gap:0;font-size:12px;line-height:1;background:transparent}.navItem:hover,.navItem.active{border:0;background:transparent;color:#fff}.navItem.active{color:#2997ff}.navIcon{display:none}.navText b{font-size:12px;font-weight:400;letter-spacing:-.12px}.navText small{display:none}
+.sideBottom{margin:0 0 0 auto}.status{border:0;border-radius:0;background:transparent;padding:0}.statusTop{display:none}.status strong{display:none}.status small{font-size:10px;color:#ccc;line-height:1}.live{display:inline-block;background:#2997ff;box-shadow:none;margin-right:6px}
+.main{margin:44px 0 0;min-height:calc(100vh - 44px)}.topbar{height:52px;top:44px;padding:0 max(24px,calc((100vw - 1440px)/2));border-bottom:1px solid rgba(0,0,0,.08);background:rgba(245,245,247,.82);backdrop-filter:saturate(180%) blur(20px);gap:14px}.crumb{font-size:14px;color:#7a7a7a;letter-spacing:-.224px}.crumb b{color:#1d1d1f;font-size:21px;font-weight:600;letter-spacing:.231px}.yearCtl{border:0;border-radius:0;background:transparent;padding:0;gap:8px}.yearCtl label{font-size:12px;color:#7a7a7a;letter-spacing:-.12px;text-transform:none}.yearCtl select{border:0;border-radius:999px;background:#fff;color:#1d1d1f;padding:7px 12px;font-size:14px}.topBtn,.pillBtn,.primaryBtn{border:1px solid #0066cc;background:#0066cc;color:#fff;border-radius:999px;padding:9px 16px;font-size:14px;font-weight:400;letter-spacing:-.224px}.topBtn:hover,.pillBtn:hover,.pillBtn.active,.primaryBtn:hover{border-color:#0066cc;background:#0066cc;color:#fff}.dangerBtn{border:1px solid #c11f1f;background:#fff;color:#c11f1f;border-radius:999px;padding:9px 16px;font-size:14px}.linkBtn{color:#0066cc;font-size:14px}.linkBtn:hover{color:#0066cc}
+.content{max-width:1440px;padding:48px 24px 80px}.page{animation:pageReveal .42s cubic-bezier(.2,.7,.2,1)}@keyframes pageReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}.pageHead{margin:14px 0 32px;align-items:flex-start}.eyebrow{font-size:12px;color:#7a7a7a;letter-spacing:-.12px;margin-bottom:8px}.pageHead h1{font-family:"SF Pro Display",system-ui,-apple-system,sans-serif;font-size:40px;line-height:1.1;font-weight:600;letter-spacing:-.374px}.pageHead p{font-size:17px;line-height:1.47;color:#7a7a7a;margin-top:10px;max-width:760px;letter-spacing:-.374px}
+.kpis{gap:20px;margin-bottom:24px}.kpi{min-height:140px;border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:24px;box-shadow:none}.kpi:after{display:none}.kpiTop{font-size:12px;color:#7a7a7a;letter-spacing:-.12px;text-transform:none}.kpiIcon{width:32px;height:32px;border:0;border-radius:50%;background:#f5f5f7;color:#0066cc}.kpiNum{font-family:"SF Pro Display",system-ui,sans-serif;font-size:40px;font-weight:600;letter-spacing:-.374px;margin:18px 0 4px}.kpiFoot{font-size:14px;color:#7a7a7a}.gold,.violet{color:#0066cc}
+.grid2,.gridEqual,.grid3,.analysisSplit{gap:20px}.card{border:1px solid #e0e0e0;border-radius:18px;background:#fff;box-shadow:none}.cardHead{padding:20px 24px;border-bottom:1px solid #f0f0f0}.cardHead h3{font-size:17px;font-weight:600;letter-spacing:-.374px}.cardHead p{font-size:14px;color:#7a7a7a;line-height:1.43;margin-top:4px}.cardBody{padding:24px}.cardTag{font-size:12px;border:0;border-radius:999px;padding:6px 10px;background:#f5f5f7;color:#333}.miniCard,.fact,.drawerFact,.reason{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:16px}.miniCard h4{font-size:14px}.miniCard p,.fact,.reason span{font-size:14px;color:#7a7a7a;line-height:1.43}.fact label,.formField label{font-size:12px;color:#7a7a7a;letter-spacing:-.12px;text-transform:none}.fact strong{font-size:17px;color:#1d1d1f}
+.routeTabs{gap:8px;margin-bottom:20px}.routeTab{border:1px solid #e0e0e0;background:#fff;color:#333;border-radius:999px;padding:9px 14px;font-size:14px}.routeTab.active{border-color:#0066cc;background:#fff;color:#0066cc}.routeShell{min-height:650px;background:#272729;background-image:none}.routeTools{top:20px;left:20px;right:20px}.routeChip,.routeYear{border:0;border-radius:999px;background:rgba(255,255,255,.14);backdrop-filter:blur(20px);padding:9px 14px;color:#fff;font-size:12px}.routeYear{color:#fff}.routeEdge.next,.routeEdge.gap{stroke:#2997ff}.routeEdge.hot{filter:none}.legend{left:20px;bottom:20px;border:0;border-radius:999px;background:rgba(255,255,255,.12);padding:8px 12px;color:#fff;font-size:12px}.inspectHero{padding:24px;background:#fff;border-bottom:1px solid #f0f0f0}.inspectIcon{border:0;border-radius:50%;background:#f5f5f7;color:#0066cc}.inspectHero h2{font-size:24px;font-weight:600;letter-spacing:-.374px}.inspectHero p,.inspectNote{font-size:14px;color:#7a7a7a}.scoreTrack{background:#f0f0f0}.scoreTrack i{background:#0066cc}.inspectBody{padding:24px}.keyBadge{border:0;border-radius:999px;background:#f5f5f7;color:#333;font-size:12px}.related{border:1px solid #e0e0e0;border-radius:11px;background:#fff;padding:12px}.related b{font-size:14px}.related span{font-size:12px;color:#7a7a7a}
+.chartArea{height:250px}.axis{fill:#7a7a7a;font-size:12px}.gridLine{stroke:#e0e0e0}.lineA{stroke:#0066cc}.lineB{stroke:#1d1d1f}.pt{fill:#fff;stroke:#0066cc}.donut:after{background:#fff;border:0}.donutCenter span,.legendLine{font-size:14px;color:#7a7a7a}.legendLine b{color:#1d1d1f}.barRow{grid-template-columns:120px 1fr 50px;font-size:14px}.barRow label,.barRow span{color:#7a7a7a}.barTrack{height:6px;background:#f0f0f0}.barTrack i{background:#0066cc}.maturityStrip{gap:12px}.yearTile{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:16px}.yearTile:hover,.yearTile.active{border-color:#0066cc;background:#fff}.yearTile b{font-size:14px}.yearTile strong{font-size:28px;font-weight:600}.yearTile span{font-size:12px;color:#7a7a7a}
+.tableWrap{max-height:540px}.dataTable{font-size:14px}.dataTable th{background:#fafafc;color:#7a7a7a;font-size:12px;letter-spacing:-.12px;padding:14px 16px}.dataTable td{padding:15px 16px;border-bottom:1px solid #f0f0f0;color:#333}.dataTable tbody tr:hover td{background:#f5f5f7;color:#1d1d1f}.badge{border:0;background:#f5f5f7;color:#333;padding:5px 8px;font-size:12px}.sexF,.sexM,.ready,.future,.scoreBadge{border:0;background:#f5f5f7;color:#333}.toolbar{gap:12px}.search,.filter,.selectBlock select{border:1px solid rgba(0,0,0,.08);border-radius:999px;background:#fff;color:#1d1d1f;padding:11px 16px;font-size:14px}.search:focus,.filter:focus{border-color:#0066cc}
+.yearBreedingHead{padding:24px;background:#fafafc;border-bottom:1px solid #f0f0f0}.yearBreedingHead h3{font-size:21px;font-weight:600;letter-spacing:.231px}.yearBreedingHead p,.planGoal{font-size:14px;color:#7a7a7a}.planSummaryChip,.parentChip,.planMode,.planStatus{border:1px solid #e0e0e0;border-radius:999px;background:#fff;padding:7px 10px}.planSummaryChip label{font-size:10px;color:#7a7a7a}.planSummaryChip strong{font-size:14px}.breedingPlanList{padding:8px 24px 16px}.breedingPlanRow{border-bottom:1px solid #f0f0f0;padding:16px 0}.breedingPlanRow:hover{background:transparent}.priorityBox{border:0;border-radius:50%;background:#f5f5f7;color:#0066cc}.priorityA,.priorityB,.priorityR,.priorityG,.priorityC{border:0;background:#f5f5f7;color:#0066cc}.pairProject{font-size:17px;color:#1d1d1f}.parentChip{font-size:12px;color:#333}.parentChip:hover{border-color:#0066cc;color:#0066cc}.crossTiny{color:#7a7a7a}.planMode,.planStatus{font-size:12px;color:#333}.statusReady,.statusFuture,.statusGap{border:0;background:#f5f5f7;color:#333}
+.productionHero{gap:20px}.bigPlan{min-height:330px;background:#272729;color:#fff}.bigPlan:after{display:none}.planYear{font-family:"SF Pro Display",system-ui,sans-serif;font-size:80px;font-weight:600;letter-spacing:-.28px}.planLabel{color:#ccc;font-size:12px;letter-spacing:-.12px}.planFocus{font-size:28px;font-weight:400;line-height:1.14}.planText{font-size:17px;color:#ccc;line-height:1.47}.cap{border:1px solid rgba(255,255,255,.22);background:transparent;border-radius:11px;padding:10px 12px}.cap label{font-size:10px;color:#ccc}.cap strong{font-size:17px}.heroPlanPreview{border-color:rgba(255,255,255,.22)}.heroPlanPreviewHead b{font-size:12px;color:#ccc}.heroPlanPreviewHead span{font-size:12px;color:#ccc}.heroPair{border-color:rgba(255,255,255,.22);background:transparent;border-radius:11px}.heroPairPr{border:0;border-radius:50%;background:#fff;color:#1d1d1f}.heroPair b{font-size:14px}.heroPair span{font-size:12px;color:#ccc}.pipeline{gap:12px}.pipe{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:16px}.pipeYear{font-size:14px;color:#7a7a7a}.pipe b{font-size:14px}.pipe span{font-size:12px;color:#7a7a7a}.pipeState{font-size:12px;color:#0066cc}
+.investGrid{gap:20px}.investCard{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:24px}.rank{border:0;border-radius:50%;background:#f5f5f7;color:#0066cc}.investCard h3{font-size:17px}.investTag,.investThesis{font-size:14px;color:#7a7a7a}.investScore{font-size:32px;color:#0066cc;font-weight:600}.investMeta div{border:1px solid #e0e0e0;border-radius:11px;background:#fff;padding:12px}.investMeta label{font-size:10px;color:#7a7a7a}.investMeta span{font-size:14px}.criteria span{font-size:12px;border:0;border-radius:999px;background:#f5f5f7;color:#333;padding:6px 8px}.gapMap{background:#272729;background-image:none}.gapNode{border:1px solid rgba(255,255,255,.25);border-radius:11px;background:#272729;color:#ccc;font-size:12px}.gapNode b,.gapNode.core b{font-size:14px;color:#fff}.gapNode.core{border-color:#2997ff;box-shadow:none}.gapLine{background:#2997ff}
+.labGrid{gap:20px}.selector{gap:16px}.selectBlock label{font-size:12px;color:#7a7a7a;letter-spacing:-.12px;text-transform:none}.pairVisual{gap:14px;margin-top:20px}.pairSnake{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:18px;min-height:110px}.pairSnake b{font-size:14px}.pairSnake span{font-size:12px;color:#7a7a7a}.cross{border:0;background:#f5f5f7;color:#0066cc}.gauge:after{background:#fff;border:0}.gaugeIn strong{font-size:34px}.gaugeIn span{font-size:10px;color:#7a7a7a}.warning{border:0;border-radius:11px;background:#f5f5f7;color:#333;font-size:14px;line-height:1.43}.analysisSplit{margin-top:20px}.aiPanel{background:#272729;border-color:#272729;color:#fff}.aiPanel .cardHead{background:transparent;border-color:rgba(255,255,255,.18)}.aiPanel .cardHead p{color:#ccc}.aiPanel .pillBtn{background:#0066cc;border-color:#0066cc}.aiRecommendation{border:1px solid rgba(255,255,255,.2);border-radius:11px;background:transparent;padding:16px}.aiRecommendation h4{font-size:17px}.aiRecommendation p,.aiMeta{font-size:12px;color:#ccc}.aiMeta span,.aiBadge{border:0;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:12px}.aiActions button{border:1px solid #2997ff;border-radius:999px;background:transparent;color:#2997ff;padding:7px 11px;font-size:12px}.aiActions button.primary{border-color:#0066cc;background:#0066cc;color:#fff}.analysisEmpty{border:1px solid rgba(255,255,255,.25);border-radius:11px;color:#ccc;font-size:14px}.factPanel{border:0;border-radius:11px;background:#f5f5f7;color:#333;font-size:14px;line-height:1.47}.factPanel b{color:#1d1d1f}.aiRunStatus{font-size:14px;color:#ccc}
+.drawer{background:#fff;border-left:1px solid #e0e0e0;box-shadow:none;padding:24px}.drawerClose,.modalClose{border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;width:44px;height:44px}.drawer h2{font-size:34px;font-weight:600;letter-spacing:-.374px}.drawer p,.drawerSection div{font-size:14px;color:#7a7a7a}.drawerSection{border-color:#f0f0f0}.modalBackdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(12px)}.modalPanel{border:1px solid #e0e0e0;border-radius:18px;background:#fff;box-shadow:none}.modalHead{padding:20px 24px;border-color:#f0f0f0}.modalHead h3{font-size:21px}.modalHead p{font-size:14px;color:#7a7a7a}.modalBody{padding:24px}.formGrid{gap:17px}.formField input,.formField select,.formField textarea{border:1px solid rgba(0,0,0,.12);border-radius:11px;background:#fff;color:#1d1d1f;padding:12px;font-size:14px}.formField textarea{min-height:100px}.modalActions{gap:12px;margin-top:24px}.geneEditor{border-color:#f0f0f0}.geneEditorHead h4{font-size:17px}.geneEditorHead p,.geneEditorHelp{font-size:14px;color:#7a7a7a}.geneEditorRow{border:1px solid #e0e0e0;border-radius:11px;background:#fff;padding:10px}.geneEditorRow input,.geneEditorRow select{border:1px solid rgba(0,0,0,.12);border-radius:8px;background:#fff;color:#1d1d1f;font-size:12px}.geneEditorRow button{border:0;border-radius:50%;background:#f5f5f7;color:#c11f1f}.geneEditorEmpty{border:1px dashed #e0e0e0;border-radius:11px;color:#7a7a7a;font-size:14px}.adminInfo{border:1px solid #e0e0e0;border-radius:18px;background:#fff;padding:20px}.adminInfo label{font-size:12px;color:#7a7a7a}.adminInfo strong{font-size:17px}.adminInfo span{font-size:12px;color:#7a7a7a}.adminTab,.iconBtn{border:1px solid #e0e0e0;border-radius:999px;background:#fff;color:#333;padding:8px 12px;font-size:12px}.adminTab.active{border-color:#0066cc;background:#fff;color:#0066cc}.authBadge{border:0;border-radius:999px;background:#fff;color:#333;padding:7px 10px;font-size:12px}.authBadge i,.dbStatus.online i{background:#0066cc;box-shadow:none}.authBadge b{color:#1d1d1f;font-size:12px}.authBadge span{color:#7a7a7a}.configWarning{border:0;border-radius:11px;background:#f5f5f7;color:#333;font-size:14px}
+.authGate{background:#f5f5f7}.authGateCard{border:1px solid #e0e0e0;border-radius:18px;background:#fff;box-shadow:none}.authGateHero{padding:32px;border-color:#f0f0f0}.authGateLogo{border-radius:50%;background:#1d1d1f;color:#fff}.authGateHero h1{font-family:"SF Pro Display",system-ui,sans-serif;font-size:28px;font-weight:600;letter-spacing:-.374px}.authGateHero p,.authGateFoot,.passwordHint{font-size:14px;color:#7a7a7a}.authGateBody{padding:28px 32px 32px}.authGateBody .formField label{font-size:12px}.authGateBody .formField input{font-size:14px}.authGateActions .primaryBtn{padding:11px 22px}.authGateMessage{font-size:14px;color:#c11f1f}.authGateMessage.ok{color:#0066cc}
+.toast{right:24px;bottom:24px;min-width:280px;border:1px solid #e0e0e0;border-radius:11px;background:#fff;padding:14px 16px;color:#1d1d1f;font-size:14px;box-shadow:none}.toast.error{border-color:#c11f1f;color:#c11f1f}
+.appIntro{position:fixed;inset:0;z-index:700;display:grid;place-items:center;background:#000;color:#fff;transition:opacity .55s ease,visibility .55s ease}.appIntro.leave{opacity:0;visibility:hidden}.introMark{text-align:center}.introOrb{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;font-family:"SF Pro Display",system-ui,sans-serif;font-size:21px;font-weight:600;animation:introOrb .85s cubic-bezier(.2,.8,.2,1) both}.introMark strong{display:block;font-family:"SF Pro Display",system-ui,sans-serif;font-size:28px;font-weight:600;letter-spacing:-.374px;animation:introText .7s .18s both}.introMark span{display:block;margin-top:6px;color:#ccc;font-size:12px;letter-spacing:-.12px;animation:introText .7s .3s both}.introLine{width:62px;height:1px;background:#2997ff;margin:22px auto 0;animation:introLine 1.15s .36s both}@keyframes introOrb{from{transform:scale(.45);opacity:0}to{transform:scale(1);opacity:1}}@keyframes introText{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes introLine{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.successPulse{position:fixed;z-index:650;left:50%;top:50%;display:grid;place-items:center;gap:12px;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(.76);transition:opacity .2s ease,transform .34s cubic-bezier(.2,.8,.2,1)}.successPulse.show{opacity:1;transform:translate(-50%,-50%) scale(1)}.successDisc{width:76px;height:76px;border-radius:50%;background:#0066cc;display:grid;place-items:center;position:relative}.successDisc:before{content:"";width:20px;height:11px;border-left:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(-45deg) translate(1px,-2px)}.successPulse p{margin:0;padding:7px 12px;border-radius:999px;background:#1d1d1f;color:#fff;font-size:14px;max-width:280px;text-align:center}.successPulse.show .successDisc{animation:successPop .72s cubic-bezier(.2,.85,.25,1)}@keyframes successPop{0%{transform:scale(.5)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+@media(max-width:833px){.sidebar{padding:0 12px;overflow-x:auto}.brand{padding-right:10px}.navItem{padding:13px 8px}.sideBottom{display:none}.content{padding:32px 16px 64px}.topbar{padding:0 16px}.pageHead h1{font-size:34px}.pageHead p{font-size:17px}.kpis{grid-template-columns:1fr 1fr}.grid2,.productionHero,.labGrid,.analysisSplit{grid-template-columns:1fr}.mobileNav{display:none}}
+@media(max-width:640px){.sidebar{gap:0}.brand strong,.navItem:nth-of-type(5),.navItem:nth-of-type(6){display:none}.navItem{padding:13px 7px}.topbar{gap:8px}.crumb span{display:none}.crumb b{font-size:17px}.yearCtl label,.topBtn{display:none}.content{padding:24px 12px 56px}.pageHead{margin-bottom:24px}.pageHead h1{font-size:28px}.kpis{grid-template-columns:1fr;gap:12px}.kpi{min-height:118px;padding:20px}.kpiNum{font-size:34px}.cardHead,.cardBody{padding:18px}.gridEqual,.grid3{grid-template-columns:1fr}.maturityStrip{grid-template-columns:repeat(2,1fr)}.analysisSplit{gap:12px}.dataTable{font-size:12px}.dataTable th,.dataTable td{padding:12px}.appIntro .introMark strong{font-size:24px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="auth-locked">
+
+<div class="appIntro" id="appIntro" aria-hidden="true"><div class="introMark"><div class="introOrb">S</div><strong>Suoha Hognose</strong><span>Breeding OS</span><i class="introLine"></i></div></div>
+<div class="successPulse" id="successPulse" role="status" aria-live="polite"><div class="successDisc"></div><p id="successMessage">已保存</p></div>
 
 <div class="authGate" id="authGate">
   <div class="authGateCard">
@@ -264,13 +301,22 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked .drawer{visibi
   <button class="navItem" data-page="lab"><span class="navIcon">⌬</span><span class="navText"><b>配对实验室</b><small>Pairing sandbox</small></span></button>
 
   <button class="navItem adminNav" data-page="admin"><span class="navIcon">⚙</span><span class="navText"><b>数据管理</b><small>Authorized CRUD</small></span></button>
-  <div class="sideBottom"><div class="status"><div class="statusTop"><span>Database</span><i class="live"></i></div><strong id="sideSnakeCount">32</strong><small id="sideSnakeMeta">个体已载入<br>23F / 9M · Excel snapshot</small></div></div>
+  <div class="sideBottom"><div class="status"><div class="statusTop"><span>Database</span><i class="live"></i></div><strong id="sideSnakeCount">—</strong><small id="sideSnakeMeta">等待已认证数据库数据</small></div></div>
 </aside>
+
+<nav class="mobileNav" aria-label="移动端导航">
+  <button class="navItem active" data-page="routes"><span class="navIcon">⌁</span><span class="navText"><b>路线</b><small>Routes</small></span></button>
+  <button class="navItem" data-page="population"><span class="navIcon">◫</span><span class="navText"><b>种群</b><small>Population</small></span></button>
+  <button class="navItem" data-page="production"><span class="navIcon">↗</span><span class="navText"><b>产出</b><small>Production</small></span></button>
+  <button class="navItem" data-page="investment"><span class="navIcon">◇</span><span class="navText"><b>投资</b><small>Investment</small></span></button>
+  <button class="navItem" data-page="lab"><span class="navIcon">⌬</span><span class="navText"><b>配对</b><small>Lab</small></span></button>
+  <button class="navItem adminNav" data-page="admin"><span class="navIcon">⚙</span><span class="navText"><b>管理</b><small>Admin</small></span></button>
+</nav>
 
 <main class="main">
 <header class="topbar">
   <div class="crumb"><span>Suoha</span><span>/</span><b id="crumb">繁殖路线</b></div><div class="spacer"></div>
-  <div class="yearCtl"><label>Planning year</label><select id="globalYear"><option>2026</option><option>2027</option><option selected>2028</option><option>2029</option><option>2030</option><option>2031</option></select></div>
+  <div class="yearCtl"><label>Planning year</label><select id="globalYear" aria-label="Planning year"></select></div>
   <button class="topBtn" id="topSnake">★ 高价值个体</button>
   <div class="authWrap">
     <div class="authBadge hidden" id="authBadge"><i></i><b id="authName">—</b><span id="authRole">viewer</span></div>
@@ -315,19 +361,22 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked .drawer{visibi
     </div>
     <div class="breedingPlanList" id="annualPlanList"></div>
   </div>
-  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>2026–2031 容量</h3><p>成熟母蛇 vs 建议窝数</p></div></div><div class="cardBody"><div class="chartArea" id="prodChart"></div></div></div><div class="card"><div class="cardHead"><div><h3>所选年份项目配额</h3><p>优先旗舰与桥梁项目</p></div></div><div class="cardBody" id="quota"></div></div></div>
+  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>规划范围容量</h3><p>成熟母蛇 vs 已录入计划窝数</p></div></div><div class="cardBody"><div class="chartArea" id="prodChart"></div></div></div><div class="card"><div class="cardHead"><div><h3>所选年份项目配额</h3><p>优先旗舰与桥梁项目</p></div></div><div class="cardBody" id="quota"></div></div></div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>年度执行层级</h3><p>A 必须优先 / B 条件允许 / C 主动留白</p></div></div><div class="cardBody"><div class="grid3" id="checklist"></div></div></div>
+  <div class="analysisSplit"><div class="card"><div class="cardHead"><div><h3>固定规则检查</h3><p>基于实时成熟状态、现有计划与路线依赖</p></div></div><div class="cardBody" id="annualFacts"></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 年度规划草案</h3><p>只生成草案；接受后才可写入规划场景</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runAnnualAiBtn">生成草案</button></div><div class="cardBody" id="annualAi"></div></div></div>
 </section>
 
 <section class="page" id="page-investment">
   <div class="pageHead"><div><div class="eyebrow">Genetic capital allocation</div><h1>未来投资计划</h1><p>把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。</p></div></div>
   <div class="kpis" id="investKpis"></div><div class="investGrid" id="investCards"></div>
-  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>最大结构性缺口</h3><p>糖霜 / 焦糖 · 2F / 0M</p></div></div><div class="gapMap" id="gapMap"></div></div><div class="card"><div class="cardHead"><div><h3>投资原则</h3><p>新增一条蛇前先回答四个问题</p></div></div><div class="cardBody"><div class="reasons" id="principles"></div></div></div></div>
+  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>最大结构性缺口</h3><p>由当前种群实时计算</p></div></div><div class="gapMap" id="gapMap"></div></div><div class="card"><div class="cardHead"><div><h3>投资原则</h3><p>新增一条蛇前先回答四个问题</p></div></div><div class="cardBody"><div class="reasons" id="principles"></div></div></div></div>
+  <div class="analysisSplit"><div class="card"><div class="cardHead"><div><h3>固定结构结论</h3><p>仅由当前种群、性别与状态计算</p></div></div><div class="cardBody" id="investmentFacts"></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 投资建议</h3><p>不包含外部市场判断，除非被明确输入</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runInvestmentAiBtn">生成建议</button></div><div class="cardBody" id="investmentAi"></div></div></div>
 </section>
 
 <section class="page" id="page-lab">
-  <div class="pageHead"><div><div class="eyebrow">Pairing sandbox</div><h1>配对实验室</h1><p>先用现有非结构化基因名称做繁殖策略匹配，帮助筛选组合；这里不会伪造精确后代概率，等 genotype 字典完成后再升级为正式遗传计算器。</p></div></div>
-  <div class="labGrid"><div class="card"><div class="cardHead"><div><h3>选择父母</h3><p>真实库存个体</p></div></div><div class="cardBody"><div class="selector"><div class="selectBlock"><label>Female</label><select id="labF"></select></div><div class="selectBlock"><label>Male</label><select id="labM"></select></div></div><div class="pairVisual" id="pairVisual"></div><div class="warning">策略分考虑同系列、成熟时间、枢纽角色和基因关键词连接。因为“隐 / 66隐 / 50隐 / 超康 / 超北”等尚未拆为结构化 genotype，这里不输出虚假的精确概率。</div></div></div><div class="card"><div class="cardHead"><div><h3>策略匹配结果</h3><p>为什么值得配 / 为什么暂时不值得配</p></div><div class="spacer"></div><span class="cardTag" id="labYear"></span></div><div class="cardBody" id="labResult"></div></div></div>
+  <div class="pageHead"><div><div class="eyebrow">Pairing sandbox</div><h1>配对实验室</h1><p>固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；不会伪造未经遗传计算引擎验证的后代概率。</p></div></div>
+  <div class="labGrid"><div class="card"><div class="cardHead"><div><h3>选择父母</h3><p>真实库存个体</p></div></div><div class="cardBody"><div class="selector"><div class="selectBlock"><label>Female</label><select id="labF"></select></div><div class="selectBlock"><label>Male</label><select id="labM"></select></div></div><div class="pairVisual" id="pairVisual"></div><div class="warning">固定规则只读取 snake_genes、成熟状态、个体状态与现有计划。组合形态由原子基因派生；不输出未经遗传计算引擎验证的精确后代概率。</div></div></div><div class="card"><div class="cardHead"><div><h3>固定规则结果</h3><p>事实与确定性约束，不是 AI 判断</p></div><div class="spacer"></div><span class="cardTag" id="labYear"></span></div><div class="cardBody" id="labResult"></div></div></div>
+  <div class="card aiPanel" style="margin-top:12px"><div class="cardHead"><div><h3>AI 配对建议</h3><p>结果带有模型、时间、置信度和人工审核状态</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runPairingAiBtn">分析当前配对</button></div><div class="cardBody" id="pairingAi"></div></div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>系统推荐候选</h3><p>按当前年份和策略匹配分排序</p></div></div><div class="cardBody"><div class="tableWrap"><table class="dataTable"><thead><tr><th>母蛇</th><th>公蛇</th><th>系列关系</th><th>成熟</th><th>策略分</th><th>用途</th></tr></thead><tbody id="labRows"></tbody></table></div></div></div>
 </section>
 
@@ -388,18 +437,12 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked .drawer{visibi
 <div class="drawer" id="drawer"><button class="drawerClose" id="drawerClose">×</button><div id="drawerContent"></div></div>
 
 <script>
-const STATIC_DATA={"snakes":[],"routes":{},"investments":[],"production":{
-"2026":{"f":3,"m":4,"focus":"启动年","routes":["极端红品质线","紫食 / Mai Tai 早期准备"],"planned":2,"note":"只安排成熟、状态合适的核心母蛇，不追求满负荷。"},
-"2027":{"f":10,"m":9,"focus":"扩产年","routes":["极端红","Mai Tai","巧克力"],"planned":6,"note":"开始形成多项目并行，但仍以验证公蛇表现和建立 F1 留种为主。"},
-"2028":{"f":23,"m":9,"focus":"组合爆发","routes":["酸雨","Mai Tai","巧克力","紫食","极端红","其他桥梁"],"planned":11,"note":"母蛇容量大幅增加，公蛇和项目优先级成为主要约束。"},
-"2029":{"f":23,"m":9,"focus":"F1 留种年","routes":["酸雨 F1","巧克力 F1","薰衣草 F1"],"planned":12,"note":"开始把关键留种纳入年度容量，不能只按可繁母蛇数量排计划。"},
-"2030":{"f":23,"m":9,"focus":"二代推进","routes":["极端红 F2","跨系回交准备"],"planned":12,"note":"逐步进入 F2 / 回交阶段，血缘与留种结构的重要性超过单窝产量。"},
-"2031":{"f":23,"m":9,"focus":"旗舰兑现","routes":["酸雨 F2","巧克力 F2","薰衣草 F2"],"planned":13,"note":"如果前两代留种顺利，开始兑现真正的多代项目价值。"}
-}};
-let DATA=JSON.parse(JSON.stringify(STATIC_DATA));
-let snakeById=Object.fromEntries(DATA.snakes.map(s=>[s.id,s]));
-const state={page:"routes",year:2028,route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
-const STATIC_ANNUAL_PLANS={};
+// Business data is loaded only from Supabase after authentication.  Do not add
+// fallback stock, routes, plans, or investment fixtures here.
+const EMPTY_DATA=()=>({snakes:[],routes:{},investments:[]});
+let DATA=EMPTY_DATA();
+let snakeById={};
+const state={page:"routes",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
 let ANNUAL_PLANS={};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>"¥"+Number(n||0).toLocaleString("zh-CN"), mature=s=>Number(String(s.mature).slice(0,4)), ready=s=>mature(s)<=state.year;
@@ -409,16 +452,26 @@ function setPage(p){state.page=p;$$(".page").forEach(x=>x.classList.toggle("acti
 $$(".navItem").forEach(x=>x.onclick=()=>setPage(x.dataset.page));
 $("#globalYear").onchange=e=>{state.year=Number(e.target.value);renderAll()};
 function syncYear(y){state.year=Number(y);$("#globalYear").value=String(y);renderAll()}
+function planningYears(){const years=[...REMOTE_RAW.plans.map(x=>Number(x.plan_year)),...REMOTE_RAW.nodes.map(x=>Number(x.planned_year)),...DATA.snakes.map(x=>mature(x))].filter(Number.isFinite).filter(y=>y>0);return [...new Set(years)].sort((a,b)=>a-b)}
+function setPlanningYears(){const years=planningYears();const selected=years.includes(state.year)?state.year:(years.includes(new Date().getFullYear())?new Date().getFullYear():years[0]||new Date().getFullYear());state.year=selected;$("#globalYear").innerHTML=years.length?years.map(y=>`<option value="${y}" ${y===selected?"selected":""}>${y}</option>`).join(""):`<option value="${selected}">${selected}</option>`}
 
 const NS="http://www.w3.org/2000/svg";
-function nodeOf(r){if(r.kind)return {...r};const s=snakeById[r.id];return {...r,kind:"snake",label:s.gene,sub:`${s.series} · ${s.sex==="F"?"♀":"♂"}`,year:mature(s),score:s.score,detail:""}}
+function nodeOf(r){if(r.kind)return {...r};const s=snakeById[r.id];if(!s)return {...r,kind:"missing",label:r.id,sub:"关联个体不存在",year:0,score:0,detail:"请检查路线节点引用。"};return {...r,kind:"snake",label:s.gene,sub:`${s.series} · ${s.sex==="F"?"♀":"♂"}`,year:mature(s),score:s.score,detail:""}}
 function visible(n){if(!state.showF2&&n.kind==="offspring"&&n.id.endsWith("2"))return false;if(!state.showFuture&&n.year>state.year)return false;return true}
 function locked(n){return n.year>state.year}
 function E(n,a={}){const x=document.createElementNS(NS,n);Object.entries(a).forEach(([k,v])=>x.setAttribute(k,v));return x}
 function curve(a,b){const sx=a.x+95,sy=a.y,tx=b.x-95,ty=b.y,m=(sx+tx)/2;return `M${sx},${sy} C${m},${sy} ${m},${ty} ${tx},${ty}`}
 function routeTabs(){const b=$("#routeTabs");b.innerHTML="";Object.entries(DATA.routes).forEach(([id,r])=>{const x=document.createElement("button");x.className="routeTab"+(state.route===id?" active":"");x.textContent=r.name;x.onclick=()=>{state.route=id;state.selected=null;renderRoute()};b.appendChild(x)})}
 function renderRoute(){
-  routeTabs();const rr=DATA.routes[state.route],nodes=rr.nodes.map(nodeOf),map=Object.fromEntries(nodes.map(n=>[n.id,n]));
+  routeTabs();const rr=DATA.routes[state.route];
+  if(!rr){
+    $("#routeKpis").innerHTML="";
+    $("#routeYear").textContent="等待数据库路线数据";
+    $("#routeEdges").innerHTML="";$("#routeNodes").innerHTML="";
+    $("#inspector").innerHTML='<div class="inspectHero"><h2>暂无路线数据</h2><p>请确认当前账号拥有已认证读取权限，并在 Supabase 中配置 breeding_routes、route_nodes 与 route_edges。</p></div>';
+    return;
+  }
+  const nodes=rr.nodes.map(nodeOf),map=Object.fromEntries(nodes.map(n=>[n.id,n]));
   const rs=DATA.snakes.filter(ready),rf=rs.filter(s=>s.sex==="F").length,rm=rs.filter(s=>s.sex==="M").length;
   const allF=DATA.snakes.filter(s=>s.sex==="F").length,allM=DATA.snakes.filter(s=>s.sex==="M").length,totalN=DATA.snakes.length;
   const ex=rr.edges.filter(([a,b])=>map[a]&&map[b]&&!locked(map[a])&&!locked(map[b])).length;
@@ -429,13 +482,13 @@ function renderRoute(){
   nodes.forEach(n=>{if(!visible(n))return;const g=E("g",{transform:`translate(${n.x},${n.y})`,class:`routeNode ${locked(n)?"locked":""} ${(state.high&&(n.score||0)<92)?"dim":""}`,"data-node":n.id});drawNode(g,n);g.onclick=e=>{e.stopPropagation();state.selected=n.id;inspect(n,map,rr);highlight(n.id)};ng.appendChild(g)});
   const chosen=(state.selected&&map[state.selected]&&visible(map[state.selected]))?map[state.selected]:nodes.find(visible);if(chosen){state.selected=chosen.id;inspect(chosen,map,rr);highlight(chosen.id)}
 }
-function drawNode(g,n){let fill="#121a24",stroke="#3b4656";if(n.kind==="snake")stroke=snakeById[n.id].sex==="F"?"#9c6275":"#527fb2";if(n.kind==="offspring"){fill="#1a1625";stroke="#775aa7"}if(n.kind==="gap"){fill="#21190f";stroke="#9f7138"}const r=E("rect",{x:-95,y:-40,width:190,height:80,rx:14,fill,stroke});if(n.kind==="gap")r.setAttribute("stroke-dasharray","6 5");g.appendChild(r);if(n.kind==="offspring"&&n.key)g.insertBefore(E("rect",{x:-99,y:-44,width:198,height:88,rx:17,fill:"none",stroke:"#8068ad",class:"nodePulse"}),r);let t=E("text",{x:-80,y:-13,class:"title"});t.textContent=n.label.length>24?n.label.slice(0,23)+"…":n.label;g.appendChild(t);t=E("text",{x:-80,y:7,class:"sub"});t.textContent=n.sub||"";g.appendChild(t);t=E("text",{x:-80,y:27,class:"meta"});if(n.kind==="snake"){const s=snakeById[n.id];t.textContent=`${s.id} · ${locked(n)?"LOCKED "+n.year:s.role}`}else t.textContent=`${locked(n)?"PLANNED ":""}${n.year||"TBD"} · ${n.key?"KEY NODE":"PROJECT"}`;g.appendChild(t);t=E("text",{x:77,y:-17,class:"score","text-anchor":"end"});t.textContent=n.score||"-";g.appendChild(t);t=E("text",{x:77,y:14,class:"title","text-anchor":"end"});t.textContent=n.kind==="snake"?(snakeById[n.id].sex==="F"?"♀":"♂"):(n.kind==="gap"?"◇":"◆");g.appendChild(t)}
+function drawNode(g,n){let fill="#2a2a2c",stroke="#777";if(n.kind==="snake")stroke="#2997ff";if(n.kind==="offspring"){fill="#252527";stroke="#2997ff"}if(n.kind==="gap"){fill="#272729";stroke="#ccc"}const r=E("rect",{x:-95,y:-40,width:190,height:80,rx:14,fill,stroke});if(n.kind==="gap")r.setAttribute("stroke-dasharray","6 5");g.appendChild(r);if(n.kind==="offspring"&&n.key)g.insertBefore(E("rect",{x:-99,y:-44,width:198,height:88,rx:17,fill:"none",stroke:"#2997ff",class:"nodePulse"}),r);let t=E("text",{x:-80,y:-13,class:"title"});t.textContent=n.label.length>24?n.label.slice(0,23)+"…":n.label;g.appendChild(t);t=E("text",{x:-80,y:7,class:"sub"});t.textContent=n.sub||"";g.appendChild(t);t=E("text",{x:-80,y:27,class:"meta"});if(n.kind==="snake"){const s=snakeById[n.id];t.textContent=`${s.id} · ${locked(n)?"LOCKED "+n.year:s.role}`}else t.textContent=`${locked(n)?"PLANNED ":""}${n.year||"TBD"} · ${n.key?"KEY NODE":"PROJECT"}`;g.appendChild(t);t=E("text",{x:77,y:-17,class:"score","text-anchor":"end"});t.textContent=n.score||"-";g.appendChild(t);t=E("text",{x:77,y:14,class:"title","text-anchor":"end"});t.textContent=n.kind==="snake"?(snakeById[n.id].sex==="F"?"♀":"♂"):(n.kind==="gap"?"◇":"◆");g.appendChild(t)}
 function inspect(n,map,rr){
   let title=n.label,sub=n.sub||"",icon="◆",facts=[],note=n.detail||"",score=n.score||0;
   if(n.kind==="snake"){const s=snakeById[n.id];icon=s.sex==="F"?"♀":"♂";title=s.gene;sub=`${s.id} · ${s.series} · ${s.role}`;facts=[["Sex",s.sex==="F"?"Female":"Male"],["Mature",s.mature],["Birth",s.birth],["Cost",fmt(s.price)],["Investor",s.investor||"—"],["Status",ready(s)?`${state.year} 可繁`:`${mature(s)} 解锁`]];note=`真实库存个体。战略分衡量它在现有繁殖网络中的连接价值，不等于市场估值。${ready(s)?"当前年份已成熟。":"当前年份尚未成熟。"}`}
   else facts=[["Stage",n.kind==="gap"?"Investment":"Planned offspring"],["Earliest",n.year||"TBD"],["Route",rr.name],["Status",n.year<=state.year?"可进入此阶段":"未来阶段"]];
   const rel=[];rr.edges.forEach(([a,b])=>{if(a===n.id)rel.push([b,"下游"]);if(b===n.id)rel.push([a,"上游"])});
-  $("#inspector").innerHTML=`<div class="inspectHero"><div class="inspectIcon">${icon}</div><h2>${esc(title)}</h2><p>${esc(sub)}</p><div class="scoreTrack"><i style="width:${score}%"></i></div><div class="inspectScore"><span>繁殖战略分</span><span>${score}/100</span></div></div><div class="inspectBody"><div class="factGrid">${facts.map(([a,b])=>`<div class="fact"><label>${a}</label><strong>${esc(b)}</strong></div>`).join("")}</div>${n.key?'<div class="keyBadge">◆ KEY NODE · 会解锁下一代路线</div>':""}<div class="inspectNote">${esc(note)}</div><div class="relTitle">Direct connections</div>${rel.map(([id,dir])=>{const q=map[id];let c="#a985ff";if(q.kind==="snake")c=snakeById[id].sex==="F"?"#ed9caf":"#79b8ff";if(q.kind==="gap")c="#e8b76d";return `<div class="related" data-r="${id}"><i class="rDot" style="background:${c}"></i><div><b>${esc(q.label)}</b><span>${dir} · ${esc(q.sub||"")}</span></div></div>`}).join("")}</div>`;
+  $("#inspector").innerHTML=`<div class="inspectHero"><div class="inspectIcon">${icon}</div><h2>${esc(title)}</h2><p>${esc(sub)}</p><div class="scoreTrack"><i style="width:${score}%"></i></div><div class="inspectScore"><span>繁殖战略分</span><span>${score}/100</span></div></div><div class="inspectBody"><div class="factGrid">${facts.map(([a,b])=>`<div class="fact"><label>${a}</label><strong>${esc(b)}</strong></div>`).join("")}</div>${n.key?'<div class="keyBadge">◆ KEY NODE · 会解锁下一代路线</div>':""}<div class="inspectNote">${esc(note)}</div><div class="relTitle">Direct connections</div>${rel.map(([id,dir])=>{const q=map[id];const c="#0066cc";return `<div class="related" data-r="${id}"><i class="rDot" style="background:${c}"></i><div><b>${esc(q.label)}</b><span>${dir} · ${esc(q.sub||"")}</span></div></div>`}).join("")}</div>`;
   $$("#inspector [data-r]").forEach(x=>x.onclick=()=>{const q=map[x.dataset.r];state.selected=q.id;inspect(q,map,rr);highlight(q.id)})
 }
 function highlight(id){const rr=DATA.routes[state.route],rel=new Set([id]);rr.edges.forEach(([a,b])=>{if(a===id)rel.add(b);if(b===id)rel.add(a)});$$(".routeNode").forEach(x=>x.style.opacity=rel.has(x.dataset.node)?"1":".2");$$(".routeEdge").forEach(x=>{const [a,b]=x.dataset.edge.split("|");const hot=a===id||b===id;x.classList.toggle("hot",hot);x.style.opacity=hot?"":"0.1"})}
@@ -449,14 +502,14 @@ function counts(){const o={};DATA.snakes.forEach(s=>o[s.series]=(o[s.series]||0)
 function renderPopulation(){
  const rs=DATA.snakes.filter(ready),rf=rs.filter(s=>s.sex==="F").length,rm=rs.filter(s=>s.sex==="M").length,total=DATA.snakes.reduce((a,s)=>a+(s.price||0),0);
  const complete=Object.keys(counts()).filter(k=>{const x=DATA.snakes.filter(s=>s.series===k&&ready(s));return x.some(s=>s.sex==="F")&&x.some(s=>s.sex==="M")}).length;
- const f=DATA.snakes.filter(s=>s.sex==="F").length,m=DATA.snakes.filter(s=>s.sex==="M").length,n=DATA.snakes.length;if($("#sideSnakeCount"))$("#sideSnakeCount").textContent=n;if($("#sideSnakeMeta"))$("#sideSnakeMeta").innerHTML=`个体已载入<br>${f}F / ${m}M · ${sb?"Supabase":"Static fallback"}`;
+ const f=DATA.snakes.filter(s=>s.sex==="F").length,m=DATA.snakes.filter(s=>s.sex==="M").length,n=DATA.snakes.length;if($("#sideSnakeCount"))$("#sideSnakeCount").textContent=n;if($("#sideSnakeMeta"))$("#sideSnakeMeta").innerHTML=`个体已载入<br>${f}F / ${m}M · Supabase`;
  $("#popKpis").innerHTML=kpi("总个体",n,`${f} Female · ${m} Male`,"◫")+kpi(`${state.year} 可繁`,rs.length,`${rf}F / ${rm}M 已成熟`,"◎","gold")+kpi("表内购入投入",fmt(total),"不含饲养与基础设施","¥")+kpi("已形成公母结构系列",complete,`按 ${state.year} 成熟状态`,"⌁","violet");
- $("#sexChart").innerHTML=`<div class="donutWrap"><div class="donut" style="background:conic-gradient(#ed9caf 0 ${n?f/n*100:0}%,#79b8ff ${n?f/n*100:0}% 100%)"><div class="donutCenter"><strong>${n}</strong><span>TOTAL</span></div></div><div class="legendList"><div class="legendLine"><span><i class="dot" style="background:#ed9caf"></i>Female</span><b>${f}</b></div><div class="legendLine"><span><i class="dot" style="background:#79b8ff"></i>Male</span><b>${m}</b></div><div class="legendLine"><span>Female : Male</span><b>${m?(f/m).toFixed(1):"∞"} : 1</b></div></div></div>`;
- const sc=counts(),mx=Math.max(...Object.values(sc));$("#seriesBars").innerHTML=Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/mx*100}%"></i></div><span>${v}</span></div>`).join("");
- drawMaturity();const ys=[2026,2027,2028,2029,2030,2031];$("#maturityStrip").innerHTML=ys.map(y=>`<div class="yearTile ${y===state.year?"active":""}" data-y="${y}"><b>${y}</b><strong>${DATA.snakes.filter(s=>mature(s)<=y).length}</strong><span>累计成熟 / ${DATA.snakes.length}</span></div>`).join("");$$("[data-y]").forEach(x=>x.onclick=()=>syncYear(x.dataset.y));
+  $("#sexChart").innerHTML=`<div class="donutWrap"><div class="donut" style="background:conic-gradient(#0066cc 0 ${n?f/n*100:0}%,#1d1d1f ${n?f/n*100:0}% 100%)"><div class="donutCenter"><strong>${n}</strong><span>TOTAL</span></div></div><div class="legendList"><div class="legendLine"><span><i class="dot" style="background:#0066cc"></i>Female</span><b>${f}</b></div><div class="legendLine"><span><i class="dot" style="background:#1d1d1f"></i>Male</span><b>${m}</b></div><div class="legendLine"><span>Female : Male</span><b>${m?(f/m).toFixed(1):"∞"} : 1</b></div></div></div>`;
+ const sc=counts(),mx=Math.max(1,...Object.values(sc));$("#seriesBars").innerHTML=Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/mx*100}%"></i></div><span>${v}</span></div>`).join("")||'<div class="miniCard"><p>暂无个体数据。</p></div>';
+ drawMaturity();const ys=planningYears();$("#maturityStrip").innerHTML=ys.map(y=>`<div class="yearTile ${y===state.year?"active":""}" data-y="${y}"><b>${y}</b><strong>${DATA.snakes.filter(s=>mature(s)<=y).length}</strong><span>累计成熟 / ${DATA.snakes.length}</span></div>`).join("")||'<div class="geneEditorEmpty">暂无可用年份数据。</div>';$$("[data-y]").forEach(x=>x.onclick=()=>syncYear(x.dataset.y));
  const sel=$("#popSeries"),keep=state.series;sel.innerHTML='<option value="">全部系列</option>'+Object.keys(sc).sort().map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join("");sel.value=keep;renderRows()
 }
-function drawMaturity(){const box=$("#maturityChart"),ys=[2025,2026,2027,2028,2029,2030,2031],F=ys.map(y=>DATA.snakes.filter(s=>s.sex==="F"&&mature(s)<=y).length),M=ys.map(y=>DATA.snakes.filter(s=>s.sex==="M"&&mature(s)<=y).length),w=430,h=210,p=28,max=24,X=i=>p+i*(w-2*p)/(ys.length-1),Y=v=>h-p-v*(h-2*p)/max,line=a=>a.map((v,i)=>(i?"L":"M")+X(i)+","+Y(v)).join(" ");box.innerHTML=`<svg viewBox="0 0 ${w} ${h}">${[0,6,12,18,24].map(v=>`<line x1="${p}" x2="${w-p}" y1="${Y(v)}" y2="${Y(v)}" class="gridLine"/><text x="3" y="${Y(v)+3}" class="axis">${v}</text>`).join("")}<path d="${line(F)}" class="lineA"/><path d="${line(M)}" class="lineB"/>${ys.map((y,i)=>`<text x="${X(i)-10}" y="${h-5}" class="axis">${String(y).slice(2)}</text>`).join("")}<text x="${w-115}" y="15" class="axis">紫：Female</text><text x="${w-55}" y="15" class="axis">金：Male</text></svg>`}
+function drawMaturity(){const box=$("#maturityChart"),ys=planningYears(),F=ys.map(y=>DATA.snakes.filter(s=>s.sex==="F"&&mature(s)<=y).length),M=ys.map(y=>DATA.snakes.filter(s=>s.sex==="M"&&mature(s)<=y).length),w=430,h=210,p=28,max=Math.max(1,...F,...M),X=i=>ys.length>1?p+i*(w-2*p)/(ys.length-1):w/2,Y=v=>h-p-v*(h-2*p)/max,line=a=>a.map((v,i)=>(i?"L":"M")+X(i)+","+Y(v)).join(" ");box.innerHTML=ys.length?`<svg viewBox="0 0 ${w} ${h}">${[0,.25,.5,.75,1].map(i=>{const v=Math.round(max*i);return `<line x1="${p}" x2="${w-p}" y1="${Y(v)}" y2="${Y(v)}" class="gridLine"/><text x="3" y="${Y(v)+3}" class="axis">${v}</text>`}).join("")}<path d="${line(F)}" class="lineA"/><path d="${line(M)}" class="lineB"/>${ys.map((y,i)=>`<text x="${X(i)-10}" y="${h-5}" class="axis">${String(y).slice(2)}</text>`).join("")}<text x="${w-115}" y="15" class="axis">蓝：Female</text><text x="${w-55}" y="15" class="axis">黑：Male</text></svg>`:'<div class="geneEditorEmpty">暂无成熟年份数据。</div>'}
 function renderRows(){const q=state.q.toLowerCase(),rows=DATA.snakes.filter(s=>(!q||[s.id,s.series,s.gene,s.role].join(" ").toLowerCase().includes(q))&&(!state.series||s.series===state.series)&&(!state.sex||s.sex===state.sex));$("#popRows").innerHTML=rows.map(s=>`<tr data-s="${s.id}"><td>${s.id}</td><td>${esc(s.series)}</td><td>${esc(s.gene)}</td><td><span class="badge ${s.sex==="F"?"sexF":"sexM"}">${s.sex==="F"?"♀ Female":"♂ Male"}</span></td><td>${s.mature}</td><td><span class="badge ${ready(s)?"ready":"future"}">${ready(s)?"READY":"LOCKED "+mature(s)}</span></td><td>${fmt(s.price)}</td><td>${esc(s.role)}</td><td><span class="badge scoreBadge">${s.score}</span></td></tr>`).join("");$$("#popRows [data-s]").forEach(x=>x.onclick=()=>openDrawer(snakeById[x.dataset.s]))}
 $("#popSearch").oninput=e=>{state.q=e.target.value;renderRows()};$("#popSeries").onchange=e=>{state.series=e.target.value;renderRows()};$("#popSex").onchange=e=>{state.sex=e.target.value;renderRows()};
 
@@ -479,7 +532,7 @@ function planStatus(item){
 function renderAnnualPlan(){
   const items=ANNUAL_PLANS[String(state.year)]||[];
   const counted=items.filter(x=>x.count).length, optional=items.filter(x=>!x.count&&x.priority!=="G"&&x.priority!=="C").length;
-  const target=(DATA.production[String(state.year)]||{}).planned||counted;
+  const target=counted;
   const flexible=Math.max(0,target-counted);
   $("#annualPlanTitle").textContent=`${state.year} 本年度繁育计划`;
   $("#annualPlanSummary").innerHTML=
@@ -514,26 +567,53 @@ function renderAnnualPlan(){
   $$("#annualPlanList [data-plan-snake]").forEach(x=>x.onclick=()=>openDrawer(snakeById[x.dataset.planSnake]));
 }
 
-function renderProduction(){const p=DATA.production[state.year];$("#prodHero").innerHTML=`<div class="planLabel">Selected planning year</div><div class="planYear">${state.year}</div><div class="planFocus">${esc(p.focus)} · 建议计划 ${p.planned} 窝</div><div class="planText">${esc(p.note)}</div><div class="capacity"><div class="cap"><label>Mature female</label><strong>${p.f} ♀</strong></div><div class="cap"><label>Mature male</label><strong>${p.m} ♂</strong></div><div class="cap"><label>Planned clutches</label><strong>${p.planned}</strong></div><div class="cap"><label>Utilization</label><strong>${Math.round(p.planned/Math.max(p.f,1)*100)}%</strong></div></div><div class="heroPlanPreview" id="heroPlanPreview"></div>`;renderAnnualPlan();
- const pipe=[];Object.values(DATA.routes).forEach(r=>r.nodes.filter(n=>n.kind==="offspring").forEach(n=>pipe.push({year:n.year,name:n.label,route:r.name})));pipe.sort((a,b)=>a.year-b.year);$("#pipeline").innerHTML=pipe.slice(0,7).map(x=>`<div class="pipe"><div class="pipeYear">${x.year}</div><div><b>${esc(x.name)}</b><span>${esc(x.route)}</span></div><div class="pipeState">${x.year<=state.year?"ACTIVE":"PLANNED"}</div></div>`).join("");drawProd();
- const qw={2026:[["极端红",55],["准备项目",25],["保留容量",20]],2027:[["极端红",30],["Mai Tai",30],["巧克力",25],["保留",15]],2028:[["酸雨 / Mai Tai",30],["巧克力",22],["极端红",18],["紫食 / 薰衣草",15],["其他桥梁",8],["保留",7]],2029:[["关键 F1",35],["成熟系列",40],["休养",25]],2030:[["F2 准备",30],["成熟系列",45],["休养",25]],2031:[["旗舰 F2",35],["成熟系列",40],["休养",25]]}[state.year];$("#quota").innerHTML=`<div class="bars">${qw.map(([k,v])=>`<div class="barRow"><label>${k}</label><div class="barTrack"><i style="width:${v}%"></i></div><span>${v}%</span></div>`).join("")}</div>`;
- $("#checklist").innerHTML=`<div class="miniCard"><h4>A · 必须优先</h4><p>${p.routes.slice(0,2).map(x=>"• "+x).join("<br>")||"• 核心成熟项目"}</p></div><div class="miniCard"><h4>B · 条件允许</h4><p>${p.routes.slice(2).map(x=>"• "+x).join("<br>")||"• 次级验证项目"}</p></div><div class="miniCard"><h4>C · 主动留白</h4><p>• 休养与失败配对缓冲<br>• 关键留种占用空间<br>• 不把成熟母蛇全部排满</p></div>`}
-function drawProd(){const ys=[2026,2027,2028,2029,2030,2031],F=ys.map(y=>DATA.production[y].f),C=ys.map(y=>DATA.production[y].planned),w=520,h=220,p=30,max=25,X=i=>p+i*(w-2*p)/(ys.length-1),Y=v=>h-p-v*(h-2*p)/max,line=a=>a.map((v,i)=>(i?"L":"M")+X(i)+","+Y(v)).join(" ");$("#prodChart").innerHTML=`<svg viewBox="0 0 ${w} ${h}">${[0,5,10,15,20,25].map(v=>`<line x1="${p}" x2="${w-p}" y1="${Y(v)}" y2="${Y(v)}" class="gridLine"/><text x="4" y="${Y(v)+3}" class="axis">${v}</text>`).join("")}<path d="${line(F)}" class="lineA"/><path d="${line(C)}" class="lineB"/>${ys.map((y,i)=>`<text x="${X(i)-13}" y="${h-5}" class="axis">${y}</text><circle cx="${X(i)}" cy="${Y(F[i])}" r="3" class="pt"/>`).join("")}<text x="${w-155}" y="14" class="axis">紫：成熟母蛇</text><text x="${w-80}" y="14" class="axis">金：建议窝数</text></svg>`}
+function productionFor(year){
+  const active=DATA.snakes.filter(s=>s.status==="active");
+  const matureSnakes=active.filter(s=>mature(s)<=year);
+  const plans=ANNUAL_PLANS[String(year)]||[];
+  const counted=plans.filter(x=>x.count);
+  return {f:matureSnakes.filter(s=>s.sex==="F").length,m:matureSnakes.filter(s=>s.sex==="M").length,planned:counted.length,plans,counted};
+}
+function renderProduction(){const p=productionFor(state.year), projects=[...new Set(p.counted.map(x=>x.project).filter(Boolean))];$("#prodHero").innerHTML=`<div class="planLabel">Selected planning year · live Supabase data</div><div class="planYear">${state.year}</div><div class="planFocus">已配置 ${p.planned} 个核心计划</div><div class="planText">容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。</div><div class="capacity"><div class="cap"><label>Mature active female</label><strong>${p.f} ♀</strong></div><div class="cap"><label>Mature active male</label><strong>${p.m} ♂</strong></div><div class="cap"><label>Core plans</label><strong>${p.planned}</strong></div><div class="cap"><label>Plan / female</label><strong>${p.f?Math.round(p.planned/p.f*100):0}%</strong></div></div><div class="heroPlanPreview" id="heroPlanPreview"></div>`;renderAnnualPlan();
+ const pipe=[];Object.values(DATA.routes).forEach(r=>r.nodes.filter(n=>n.kind==="offspring").forEach(n=>pipe.push({year:n.year,name:n.label,route:r.name})));pipe.sort((a,b)=>a.year-b.year);$("#pipeline").innerHTML=pipe.slice(0,7).map(x=>`<div class="pipe"><div class="pipeYear">${x.year}</div><div><b>${esc(x.name)}</b><span>${esc(x.route)}</span></div><div class="pipeState">${x.year<=state.year?"ACTIVE":"PLANNED"}</div></div>`).join("")||'<div class="miniCard"><p>暂无路线节点。</p></div>';drawProd();
+ const grouped={};p.plans.forEach(x=>{const k=x.project||"未命名项目";grouped[k]=(grouped[k]||0)+1});const total=Math.max(1,p.plans.length);$("#quota").innerHTML=`<div class="bars">${Object.entries(grouped).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/total*100}%"></i></div><span>${v} 项</span></div>`).join("")||'<div class="miniCard"><p>本年度暂无计划。</p></div>'}</div>`;
+ const byPriority=x=>p.plans.filter(i=>i.priority===x).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无";$("#checklist").innerHTML=`<div class="miniCard"><h4>A · 高优先</h4><p>${byPriority("A")}</p></div><div class="miniCard"><h4>B · 次优先</h4><p>${byPriority("B")}</p></div><div class="miniCard"><h4>R / C / G · 备用与条件</h4><p>${p.plans.filter(i=>!["A","B"].includes(i.priority)).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无"}</p></div>`;$("#annualFacts").innerHTML=`<div class="factPanel"><b>截至 ${new Date().toLocaleString("zh-CN")} 的固定检查</b><br>活跃且成熟：${p.f} 条母蛇、${p.m} 条公蛇。当前年份已有 ${p.planned} 条核心计划；这些数字仅来自 snakes、annual_breeding_plans 与状态字段。</div>`}
+function drawProd(){const ys=planningYears(),F=ys.map(y=>productionFor(y).f),C=ys.map(y=>productionFor(y).planned),w=520,h=220,p=30,max=Math.max(1,...F,...C),X=i=>ys.length>1?p+i*(w-2*p)/(ys.length-1):w/2,Y=v=>h-p-v*(h-2*p)/max,line=a=>a.map((v,i)=>(i?"L":"M")+X(i)+","+Y(v)).join(" ");$("#prodChart").innerHTML=ys.length?`<svg viewBox="0 0 ${w} ${h}">${[0,.25,.5,.75,1].map(i=>{const v=Math.round(max*i);return `<line x1="${p}" x2="${w-p}" y1="${Y(v)}" y2="${Y(v)}" class="gridLine"/><text x="4" y="${Y(v)+3}" class="axis">${v}</text>`}).join("")}<path d="${line(F)}" class="lineA"/><path d="${line(C)}" class="lineB"/>${ys.map((y,i)=>`<text x="${X(i)-13}" y="${h-5}" class="axis">${y}</text><circle cx="${X(i)}" cy="${Y(F[i])}" r="3" class="pt"/>`).join("")}<text x="${w-165}" y="14" class="axis">紫：成熟活跃母蛇</text><text x="${w-80}" y="14" class="axis">金：计划项</text></svg>`:'<div class="geneEditorEmpty">暂无年度计划数据。</div>'}
 
-function renderInvestment(){const z=Object.keys(counts()).filter(k=>DATA.snakes.filter(s=>s.series===k&&s.sex==="M").length===0).length;$("#investKpis").innerHTML=kpi("最高优先投资","战略公蛇","糖霜 / 焦糖 2F / 0M","◇","gold")+kpi("零公系列",z,"按 Excel 系列字段","♂")+kpi("Mai Tai 公蛇集中度","1 / 5","4F / 1M · 单公瓶颈","⌁","violet")+kpi("投资原则","解锁 > 数量","优先提高网络连接能力","★","gold");
- $("#investCards").innerHTML=DATA.investments.map(i=>`<div class="investCard"><div class="investTop"><div class="rank">#${i.rank}</div><div><h3>${esc(i.name)}</h3><div class="investTag">${esc(i.tag)}</div></div><div class="investScore">${i.score}</div></div><div class="investThesis">${esc(i.thesis)}</div><div class="investMeta"><div><label>Unlock</label><span>${esc(i.unlock)}</span></div><div><label>Window</label><span>${esc(i.window)}</span></div><div style="grid-column:1/-1"><label>Budget stance</label><span>${esc(i.budget)}</span></div></div><div class="criteria">${i.criteria.map(x=>`<span>${esc(x)}</span>`).join("")}</div></div>`).join("");
- $("#gapMap").innerHTML=`<div class="gapNode" style="left:15%;top:34%"><b>S24 · 糖霜康 ♀</b>2028 mature</div><div class="gapNode" style="left:15%;top:69%"><b>S25 · 北极焦糖 ♀</b>2028 mature</div><div class="gapNode core" style="left:51%;top:51%"><b>待引入战略公 ♂</b>目标：一次解锁 2F+</div><div class="gapNode" style="left:84%;top:34%"><b>新 F1 项目</b>形成可持续种群</div><div class="gapNode" style="left:84%;top:69%"><b>跨系共享</b>最好还能连接其他项目</div><div class="gapLine" style="left:25%;top:35%;width:29%;transform:rotate(20deg)"></div><div class="gapLine" style="left:25%;top:69%;width:29%;transform:rotate(-20deg)"></div><div class="gapLine" style="left:60%;top:51%;width:25%;transform:rotate(-18deg)"></div><div class="gapLine" style="left:60%;top:51%;width:25%;transform:rotate(18deg)"></div>`;
- const P=[["#e8b76d","解锁多少现有母蛇？","一条公蛇能覆盖两条以上现有母蛇，通常比新增一条普通母蛇更有边际价值。"],["#a985ff","能否跨项目共享？","理想的新基因不是新的孤岛，而是能连接 Mai Tai、酸雨、巧克力等现有网络。"],["#70d6a0","是否改善血缘？","第二条无亲缘枢纽公可以降低单公依赖，让 F1 留种后的回交更自由。"],["#79b8ff","是否有明确两代目标？","如果买入后画不出 F1 → F2 路线，投资优先级应该下降。"]];$("#principles").innerHTML=P.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${a}</b><span>${b}</span></div></div>`).join("")}
+function renderInvestment(){const series=Object.keys(counts()),gaps=series.filter(k=>DATA.snakes.some(s=>s.series===k&&s.sex==="F"&&s.status==="active")&&!DATA.snakes.some(s=>s.series===k&&s.sex==="M"&&s.status==="active"));const top=[...DATA.investments].sort((a,b)=>b.score-a.score)[0];$("#investKpis").innerHTML=kpi("最高优先投资",top?esc(top.name):"暂无","来自 investments 表","◇","gold")+kpi("零公系列",gaps.length,gaps.join(" / ")||"无","♂")+kpi("投资记录",DATA.investments.length,"来自 investments 表","⌁","violet")+kpi("投资原则","解锁 > 数量","以实际种群结构计算","★","gold");
+ $("#investCards").innerHTML=DATA.investments.map(i=>`<div class="investCard"><div class="investTop"><div class="rank">#${i.rank}</div><div><h3>${esc(i.name)}</h3><div class="investTag">${esc(i.tag)}</div></div><div class="investScore">${i.score}</div></div><div class="investThesis">${esc(i.thesis)}</div><div class="investMeta"><div><label>Unlock</label><span>${esc(i.unlock)}</span></div><div><label>Window</label><span>${esc(i.window)}</span></div><div style="grid-column:1/-1"><label>Budget stance</label><span>${esc(i.budget)}</span></div></div><div class="criteria">${i.criteria.map(x=>`<span>${esc(x)}</span>`).join("")}</div></div>`).join("")||'<div class="miniCard"><p>暂无投资记录。</p></div>';
+ const gapNodes=gaps.slice(0,2).map((name,i)=>{const female=DATA.snakes.filter(s=>s.series===name&&s.sex==="F"&&s.status==="active");return `<div class="gapNode" style="left:15%;top:${i?69:34}%"><b>${esc(name)} · ${female.length}F / 0M</b>${female.map(s=>esc(s.id)).join(" · ")}</div>`}).join("");$("#gapMap").innerHTML=gapNodes?`${gapNodes}<div class="gapNode core" style="left:51%;top:51%"><b>${esc(top?.name||"待评估投资")}</b>来自实时 investments 表</div><div class="gapNode" style="left:84%;top:51%"><b>待形成新项目</b>须由实际路线与计划确认</div><div class="gapLine" style="left:25%;top:51%;width:29%"></div><div class="gapLine" style="left:60%;top:51%;width:25%"></div>`:'<div class="miniCard"><p>当前没有“有活跃母蛇但无活跃公蛇”的系列缺口。</p></div>';
+  const P=[["#0066cc","解锁多少现有母蛇？","优先评估能覆盖现有活跃母蛇的引入。"],["#0066cc","能否跨项目共享？","使用路线和年度计划确认共享价值。"],["#0066cc","是否改善血缘？","结合实际父母记录与路线评估。"],["#0066cc","是否有明确两代目标？","以数据库中的路线节点和计划为依据。"]];$("#principles").innerHTML=P.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${a}</b><span>${b}</span></div></div>`).join("");$("#investmentFacts").innerHTML=`<div class="factPanel"><b>实时结构结论</b><br>${gaps.length?`存在 ${gaps.length} 个“有活跃母蛇但无活跃公蛇”的系列：${esc(gaps.join(" / "))}。`:"当前没有活跃母蛇/零活跃公蛇的系列缺口。"}<br>以上为数据库结构计算，不含市场可购性或价格推断。</div>`}
 
-const toks=[["缺黄","Axanthic"],["紫貂","Sable"],["太妃","Toffee"],["迈泰","MaiTai"],["暴风云","Stormcloud"],["毒药","Toxic"],["巧克力","Chocolate"],["薰","Lavender"],["白化","Albino"],["康","Conda"],["北","Arctic"],["RBE","RBE"],["极端红","Red"],["色彩爆炸","Explosion"]];
-function tokenSet(s){return [...new Set(toks.filter(([k])=>s.gene.includes(k)).map(x=>x[1]))]}
-function match(f,m){let score=45,rs=[];if(f.series===m.series){score+=23;rs.push(["#70d6a0","同系列","符合当前优先策略，项目目标清晰。"])}else rs.push(["#e8b76d","跨系列","需要确认这是战略桥接，而不是为了堆基因。"]);const ft=tokenSet(f),mt=tokenSet(m),common=ft.filter(x=>mt.includes(x));if(common.length){score+=Math.min(18,common.length*6);rs.push(["#a985ff","基因关键词连接",`共同网络：${common.join(" / ")}`])}if(m.role.includes("枢纽")){score+=8;rs.push(["#79b8ff","枢纽公","当前库中承担多项目连接角色。"])}if(f.score>=92||m.score>=92){score+=5;rs.push(["#e8b76d","高战略价值个体","至少一方是当前规划中的高价值节点。"])}const both=ready(f)&&ready(m);if(both){score+=6;rs.push(["#70d6a0",`${state.year} 可执行`,"双方在当前年份均已成熟。"])}else{score-=12;rs.push(["#ef7e78","尚未同时成熟",`最早可执行：${Math.max(mature(f),mature(m))}`])}if(f.series==="糖霜/焦糖"&&m.series!=="糖霜/焦糖")score-=8;return{score:Math.max(0,Math.min(99,score)),rs,both,common}}
-function renderLab(){const fs=DATA.snakes.filter(s=>s.sex==="F"),ms=DATA.snakes.filter(s=>s.sex==="M"),F=$("#labF"),M=$("#labM");const keepF=F.value,keepM=M.value;F.innerHTML=fs.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");M.innerHTML=ms.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");F.value=fs.some(s=>s.id===keepF)?keepF:(fs.some(s=>s.id==="S26")?"S26":fs[0]?.id||"");M.value=ms.some(s=>s.id===keepM)?keepM:(ms.some(s=>s.id==="S27")?"S27":ms[0]?.id||"");if(!F.value||!M.value)return;const f=snakeById[F.value],m=snakeById[M.value],r=match(f,m);$("#labYear").textContent=`${state.year} VIEW`;$("#pairVisual").innerHTML=`<div class="pairSnake"><b>♀ ${esc(f.gene)}</b><span>${f.id} · ${esc(f.series)}<br>${ready(f)?"READY":"mature "+mature(f)}</span></div><div class="cross">×</div><div class="pairSnake"><b>♂ ${esc(m.gene)}</b><span>${m.id} · ${esc(m.series)}<br>${ready(m)?"READY":"mature "+mature(m)}</span></div>`;$("#labResult").innerHTML=`<div class="matchGauge"><div class="gauge" style="background:conic-gradient(#a985ff 0 ${r.score}%,#202937 ${r.score}% 100%)"><div class="gaugeIn"><strong>${r.score}</strong><span>STRATEGY MATCH</span></div></div><div class="reasons">${r.rs.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${esc(a)}</b><span>${esc(b)}</span></div></div>`).join("")}</div></div>`;
+function geneLabel(g){return g?.name_zh||g?.chinese_name||g?.name_cn||g?.display_name||g?.name||g?.id||"未知基因"}
+function snakeGeneRows(snakeId){return REMOTE_RAW.snakeGenes.filter(x=>x.snake_id===snakeId)}
+function tokenSet(s){return snakeGeneRows(s.id).map(x=>geneLabel(REMOTE_RAW.genes.find(g=>g.id===x.gene_id))).filter(Boolean)}
+function match(f,m){const ft=tokenSet(f),mt=tokenSet(m),common=ft.filter(x=>mt.includes(x)),both=ready(f)&&ready(m),score=Math.max(0,Math.min(100,(both?60:30)+(f.series===m.series?15:0)+(common.length?25:0)));const rs=[];rs.push(["#0066cc",f.series===m.series?"同系列":"跨系列",f.series===m.series?"以实际路线和年度计划复核。":"请确认这是一项已记录的战略桥接。"]);if(common.length)rs.push(["#0066cc","共享原子基因",common.join(" / ")]);else rs.push(["#0066cc","无共享原子基因","基于 snake_genes 实时数据。"]);rs.push(["#0066cc",both?`${state.year} 可执行`:"尚未同时成熟",both?"双方均为当前年份的成熟活跃个体。":`最早可执行：${Math.max(mature(f),mature(m))}`]);return{score,rs,both,common}}
+
+function nowIso(){return new Date().toISOString()}
+function jsonArray(value){return Array.isArray(value)?value:[]}
+function safeScore(value){const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):null}
+function safeConfidence(value){const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(1,n)):null}
+function atomicGenesFor(snakeId){return snakeGeneRows(snakeId).map(row=>({gene_id:row.gene_id,name_zh:geneLabel(REMOTE_RAW.genes.find(g=>g.id===row.gene_id)),state:row.state,probability:row.probability,source:row.source,notes:row.notes||null}))}
+function derivedMorphsFor(snakeId){const byGene=Object.fromEntries(snakeGeneRows(snakeId).map(x=>[x.gene_id,x]));return REMOTE_RAW.morphs.filter(m=>{const components=REMOTE_RAW.morphComponents.filter(c=>c.morph_id===m.id);return components.length&&components.every(c=>byGene[c.gene_id]?.state===c.required_state)}).map(m=>({id:m.id,name_zh:m.name_zh,name_en:m.name_en||null}))}
+function snakeFact(s){const raw=REMOTE_RAW.snakes.find(x=>x.id===s.id)||{};return {id:s.id,series:s.series,gene_text:s.gene,sex:s.sex,status:s.status,origin:s.origin,birth_date:raw.birth_date||null,mature_date:raw.mature_date||null,role:s.role||null,atomic_genes:atomicGenesFor(s.id),derived_morphs:derivedMorphsFor(s.id)}}
+function pairingInput(){const f=snakeById[$("#labF").value],m=snakeById[$("#labM").value];if(!f||!m)throw new Error("请先选择真实父母个体。");const relatedPlans=acceptedPlanRows().filter(p=>[p.female_snake_id,p.male_snake_id].includes(f.id)||[p.female_snake_id,p.male_snake_id].includes(m.id));return {as_of_at:nowIso(),planning_year:state.year,female:snakeFact(f),male:snakeFact(m),existing_plans:relatedPlans,route_context:REMOTE_RAW.routes.filter(r=>REMOTE_RAW.nodes.some(n=>n.route_id===r.id&&(n.snake_id===f.id||n.snake_id===m.id))),fixed_rule_result:match(f,m)} }
+function annualPlanInput(){return {as_of_at:nowIso(),planning_year:state.year,active_snakes:DATA.snakes.filter(s=>s.status==="active").map(snakeFact),existing_plans:acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(state.year)),routes:REMOTE_RAW.routes.filter(r=>r.status!=="archived").map(r=>({id:r.id,name:r.name,objective:r.objective||null,status:r.status,priority:r.priority||null,start_year:r.start_year||null})),constraints:{mature_females:productionFor(state.year).f,mature_males:productionFor(state.year).m}}}
+function investmentInput(){const active=DATA.snakes.filter(s=>s.status==="active");const series=Object.keys(counts()).map(name=>({series:name,females:active.filter(s=>s.series===name&&s.sex==="F").length,males:active.filter(s=>s.series===name&&s.sex==="M").length,individual_ids:active.filter(s=>s.series===name).map(s=>s.id)}));return {as_of_at:nowIso(),planning_year:state.year,series_structure:series,active_snakes:active.map(snakeFact),investments:REMOTE_RAW.investments,routes:REMOTE_RAW.routes.filter(r=>r.status!=="archived")}}
+function recommendationTypeFor(analysisType){return analysisType==="pairing"?"pairing":analysisType==="annual_plan"?"annual_plan":analysisType==="investment"?"investment":"strategy_score"}
+function activeRecommendations(analysisType){const type=recommendationTypeFor(analysisType),now=Date.now();return REMOTE_RAW.recommendations.filter(r=>r.recommendation_type===type&&["proposed","accepted","applied"].includes(r.status)&&(!r.valid_until||new Date(r.valid_until).getTime()>now))}
+function renderAiPanel(id,analysisType){const host=$("#"+id);if(!host)return;if(!AI_LAYER_READY){host.innerHTML='<div class="analysisEmpty">AI 决策层尚未启用。请先在 Supabase SQL Editor 执行本次迁移 SQL，再刷新页面。</div>';return}const rows=activeRecommendations(analysisType);host.innerHTML=rows.length?rows.map(r=>`<div class="aiRecommendation"><div class="aiRecommendationHead"><span class="aiBadge">${esc(r.status)}</span><div><h4>${esc(r.title)}</h4><div class="aiMeta"><span>置信度 ${r.confidence==null?"—":Math.round(Number(r.confidence)*100)+"%"}</span><span>优先 ${r.priority_score??"—"}</span><span>${new Date(r.created_at).toLocaleString("zh-CN")}</span></div></div></div><p>${esc(r.summary||"无摘要")}</p>${jsonArray(r.risk_flags).length?`<div class="aiMeta"><span>风险：${esc(jsonArray(r.risk_flags).join(" / "))}</span></div>`:""}<div class="aiActions writeOnly"><button data-ai-review="${r.id}" data-ai-status="accepted">接受</button><button data-ai-review="${r.id}" data-ai-status="rejected">拒绝</button>${r.status==="accepted"&&r.proposal_payload?.action==="create_annual_plan"?`<button class="primary" data-ai-apply="${r.id}">写入 AI 草案方案</button>`:""}</div></div>`).join(""):'<div class="analysisEmpty">暂无有效 AI 建议。生成后会保存模型、时间、事实快照、置信度和审核状态。</div>';$$("[data-ai-review]").forEach(btn=>btn.onclick=()=>reviewRecommendation(Number(btn.dataset.aiReview),btn.dataset.aiStatus));$$("[data-ai-apply]").forEach(btn=>btn.onclick=()=>applyRecommendation(Number(btn.dataset.aiApply)))}
+function renderAiViews(){renderAiPanel("pairingAi","pairing");renderAiPanel("annualAi","annual_plan");renderAiPanel("investmentAi","investment")}
+async function runAIAnalysis(analysisType,input){if(!canWrite())return toast("只有 editor/admin 可以生成和保存 AI 草案",true);if(!AI_LAYER_READY)return toast("请先执行 Supabase AI 决策层迁移 SQL",true);const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error("登录会话已失效。");const statusTargets={pairing:"pairingAi",annual_plan:"annualAi",investment:"investmentAi"};const host=$("#"+statusTargets[analysisType]);if(host)host.innerHTML='<div class="aiRunStatus">正在调用 AI；建议只会生成草案，不会修改正式数据…</div>';const res=await fetch("/.netlify/functions/ai-analyze",{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${session.access_token}`},body:JSON.stringify({analysis_type:analysisType,input})});const payload=await res.json().catch(()=>({}));if(!res.ok)throw new Error(payload.detail||payload.error||"AI 服务请求失败。");const runRow={analysis_type:analysisType,status:"succeeded",as_of_at:payload.as_of_at,source_snapshot:input,model_provider:"deepseek",model_name:payload.model,prompt_template_id:payload.template.id,prompt_version:payload.template.version,response_schema_version:payload.template.response_schema_version,request_payload:{analysis_type,as_of_at:payload.as_of_at},response_payload:payload.result,completed_at:nowIso()};const {data:run,error:runError}=await sb.from("analysis_runs").insert(runRow).select().single();if(runError)throw runError;const validUntil=new Date(Date.now()+7*24*60*60*1000).toISOString();const recommendations=jsonArray(payload.result.recommendations).map(r=>({analysis_run_id:run.id,recommendation_type:recommendationTypeFor(analysisType),status:"proposed",title:String(r.title||"未命名建议").slice(0,200),summary:r.summary||null,confidence:safeConfidence(r.confidence),priority_score:safeScore(r.priority_score),valid_from:payload.as_of_at,valid_until:validUntil,target_refs:jsonArray(r.target_refs),evidence_refs:jsonArray(r.evidence_refs),assumptions:jsonArray(r.assumptions),risk_flags:jsonArray(r.risk_flags),missing_inputs:jsonArray(r.missing_inputs),proposal_payload:r.proposal_payload&&typeof r.proposal_payload==="object"?r.proposal_payload:{}}));if(recommendations.length){const {error}=await sb.from("ai_recommendations").insert(recommendations);if(error)throw error}await refreshRemote(false);toast(`已保存 ${recommendations.length} 条 AI 草案建议`)}
+async function reviewRecommendation(id,status){if(!canWrite())return;const {error}=await sb.from("ai_recommendations").update({status,reviewed_at:nowIso()}).eq("id",id);if(error)return toast(error.message,true);await refreshRemote(false);toast(status==="accepted"?"建议已接受，尚未写入正式计划":"建议已拒绝")}
+async function ensureAiDraftScenario(year){let scenario=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="ai_draft"&&s.status==="draft"&&Number(s.planning_year)===Number(year));if(scenario)return scenario;const {data,error}=await sb.from("planning_scenarios").insert({name:`AI 草案 · ${year}`,scenario_type:"ai_draft",status:"draft",planning_year:year,as_of_at:nowIso(),assumptions:[]}).select().single();if(error)throw error;return data}
+async function applyRecommendation(id){if(!canWrite())return;const rec=REMOTE_RAW.recommendations.find(r=>Number(r.id)===Number(id));const proposal=rec?.proposal_payload||{};if(proposal.action!=="create_annual_plan")return toast("此建议没有可写入的年度计划草案",true);try{const year=Number(proposal.plan_year||state.year),scenario=await ensureAiDraftScenario(year);const row={scenario_id:scenario.id,plan_year:year,priority:proposal.priority||"B",route_id:proposal.route_id||null,project_name:proposal.project_name||proposal.title||rec.title,female_snake_id:proposal.female_snake_id||null,male_snake_id:proposal.male_snake_id||null,female_node_id:proposal.female_node_id||null,male_node_id:proposal.male_node_id||null,goal:proposal.goal||rec.summary||null,mode:proposal.mode||"AI draft",status:"planned",planned_clutches:Number(proposal.planned_clutches??1),notes:`由 AI 建议 #${rec.id} 创建；需人工复核。`};const {error}=await sb.from("annual_breeding_plans").insert(row);if(error)throw error;const {error:reviewError}=await sb.from("ai_recommendations").update({status:"applied",reviewed_at:nowIso(),applied_at:nowIso()}).eq("id",id);if(reviewError)throw reviewError;await refreshRemote(false);toast("已写入 AI 草案方案，不影响当前正式规划")}catch(err){toast(err.message||String(err),true)}}
+function renderLab(){const fs=DATA.snakes.filter(s=>s.sex==="F"),ms=DATA.snakes.filter(s=>s.sex==="M"),F=$("#labF"),M=$("#labM");const keepF=F.value,keepM=M.value;F.innerHTML=fs.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");M.innerHTML=ms.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");F.value=fs.some(s=>s.id===keepF)?keepF:(fs.some(s=>s.id==="S26")?"S26":fs[0]?.id||"");M.value=ms.some(s=>s.id===keepM)?keepM:(ms.some(s=>s.id==="S27")?"S27":ms[0]?.id||"");if(!F.value||!M.value){$("#labResult").innerHTML='<div class="analysisEmpty">需要至少一条母蛇与一条公蛇才能进行固定规则检查。</div>';return}const f=snakeById[F.value],m=snakeById[M.value],r=match(f,m);$("#labYear").textContent=`${state.year} VIEW`;$("#pairVisual").innerHTML=`<div class="pairSnake"><b>♀ ${esc(f.gene)}</b><span>${f.id} · ${esc(f.series)}<br>${ready(f)?"READY":"mature "+mature(f)}</span></div><div class="cross">×</div><div class="pairSnake"><b>♂ ${esc(m.gene)}</b><span>${m.id} · ${esc(m.series)}<br>${ready(m)?"READY":"mature "+mature(m)}</span></div>`;$("#labResult").innerHTML=`<div class="matchGauge"><div class="gauge" style="background:conic-gradient(#0066cc 0 ${r.score}%,#f0f0f0 ${r.score}% 100%)"><div class="gaugeIn"><strong>${r.score}</strong><span>RULE CHECK</span></div></div><div class="reasons">${r.rs.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${esc(a)}</b><span>${esc(b)}</span></div></div>`).join("")}</div></div>`;
  const A=[];fs.forEach(f=>ms.forEach(m=>A.push({f,m,...match(f,m)})));A.sort((a,b)=>b.score-a.score);$("#labRows").innerHTML=A.slice(0,14).map(x=>`<tr><td>${x.f.id} · ${esc(x.f.gene)}</td><td>${x.m.id} · ${esc(x.m.gene)}</td><td>${x.f.series===x.m.series?"同系列":"战略跨系"}</td><td><span class="badge ${x.both?"ready":"future"}">${x.both?"READY":"FUTURE"}</span></td><td><span class="badge scoreBadge">${x.score}</span></td><td>${x.common.length?x.common.join(" / "):(x.f.series===x.m.series?"同系强化":"人工复核")}</td></tr>`).join("")}
 $("#labF").onchange=renderLab;$("#labM").onchange=renderLab;
 
-function openDrawer(s){$("#drawerContent").innerHTML=`<div class="eyebrow">Individual profile</div><h2>${esc(s.gene)}</h2><p>${s.id} · ${esc(s.series)} · ${esc(s.role)}</p><div class="drawerFacts"><div class="drawerFact"><label>Sex</label><strong>${s.sex==="F"?"♀ Female":"♂ Male"}</strong></div><div class="drawerFact"><label>Strategic score</label><strong>${s.score}/100</strong></div><div class="drawerFact"><label>Birth</label><strong>${s.birth}</strong></div><div class="drawerFact"><label>Mature</label><strong>${s.mature}</strong></div><div class="drawerFact"><label>Cost</label><strong>${fmt(s.price)}</strong></div><div class="drawerFact"><label>${state.year} status</label><strong>${ready(s)?"READY":"LOCKED"}</strong></div></div><div class="drawerSection"><b>当前系统理解</b><div>${esc(s.role)}。目前基因字段仍来自 Excel 原始命名，下一阶段需要拆成标准化 allele / state / probability 字典，才能给出严格后代概率。</div></div><div class="drawerSection"><b>识别到的关键词</b><div>${tokenSet(s).length?tokenSet(s).join(" · "):"尚未识别结构化关键词"}</div></div><div class="drawerActions writeOnly"><button class="primaryBtn" data-edit-snake="${s.id}">编辑个体</button><button class="dangerBtn" data-delete-snake="${s.id}">删除个体</button></div>`;$("#drawer").classList.add("open");const eb=$("#drawer [data-edit-snake]"),dbtn=$("#drawer [data-delete-snake]");if(eb)eb.onclick=()=>openSnakeForm(s.id);if(dbtn)dbtn.onclick=()=>deleteSnake(s.id)}
-$("#drawerClose").onclick=()=>$("#drawer").classList.remove("open");$("#topSnake").onclick=()=>openDrawer([...DATA.snakes].sort((a,b)=>b.score-a.score)[0]);
+function openDrawer(s){const geneText=tokenSet(s);$("#drawerContent").innerHTML=`<div class="eyebrow">Individual profile</div><h2>${esc(s.gene)}</h2><p>${esc(s.id)} · ${esc(s.series)} · ${esc(s.role)}</p><div class="drawerFacts"><div class="drawerFact"><label>Sex</label><strong>${s.sex==="F"?"♀ Female":"♂ Male"}</strong></div><div class="drawerFact"><label>Strategic score</label><strong>${s.score}/100</strong></div><div class="drawerFact"><label>Birth</label><strong>${s.birth}</strong></div><div class="drawerFact"><label>Mature</label><strong>${s.mature}</strong></div><div class="drawerFact"><label>Cost</label><strong>${fmt(s.price)}</strong></div><div class="drawerFact"><label>${state.year} status</label><strong>${ready(s)?"READY":"LOCKED"}</strong></div></div><div class="drawerSection"><b>当前系统理解</b><div>${esc(s.role)}。原始 gene text 用于人工可读展示；遗传状态以 Supabase 的 snake_genes 原子基因记录为准。</div></div><div class="drawerSection"><b>已关联原子基因</b><div>${geneText.length?geneText.map(esc).join(" · "):"尚未关联原子基因"}</div></div><div class="drawerActions writeOnly"><button class="primaryBtn" data-edit-snake="${esc(s.id)}">编辑个体与子基因</button><button class="dangerBtn" data-retire-snake="${esc(s.id)}">标记退役</button></div>`;$("#drawer").classList.add("open");const eb=$("#drawer [data-edit-snake]"),rb=$("#drawer [data-retire-snake]");if(eb)eb.onclick=()=>openSnakeForm(s.id);if(rb)rb.onclick=()=>retireSnake(s.id)}
+$("#drawerClose").onclick=()=>$("#drawer").classList.remove("open");$("#topSnake").onclick=()=>{const snake=[...DATA.snakes].sort((a,b)=>b.score-a.score)[0];if(snake)openDrawer(snake);else toast("暂无已载入个体",true)};
 
 
 /* =========================
@@ -550,7 +630,11 @@ let currentUser=null;
 let currentProfile=null;
 let adminTab="snakes";
 let editContext=null;
-let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[]};
+let editGenes=[];
+let AI_LAYER_READY=false;
+let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],genes:[],aliases:[],morphs:[],morphComponents:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[]};
+function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans;const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>!p.scenario_id||accepted.has(Number(p.scenario_id)))}
+function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
 
 function supabaseConfigured(){
   return SUPABASE_URL.startsWith("https://") &&
@@ -561,10 +645,24 @@ function supabaseConfigured(){
 function canWrite(){
   return !!(currentProfile && currentProfile.active && ["editor","admin"].includes(currentProfile.role));
 }
+function startIntro(){
+  const intro=$("#appIntro");if(!intro)return;
+  window.setTimeout(()=>intro.classList.add("leave"),1150);
+  window.setTimeout(()=>intro.remove(),1800);
+}
+function showSuccess(message="操作已完成"){
+  const pulse=$("#successPulse");if(!pulse)return;
+  $("#successMessage").textContent=message;
+  pulse.classList.remove("show");
+  void pulse.offsetWidth;
+  pulse.classList.add("show");
+  clearTimeout(pulse._timer);pulse._timer=setTimeout(()=>pulse.classList.remove("show"),1150);
+}
 function toast(msg,isError=false){
   const t=$("#toast"); if(!t)return;
   t.textContent=msg;t.classList.toggle("error",!!isError);t.classList.add("show");
   clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),2800);
+  if(!isError)showSuccess(msg);
 }
 function openModal(id){$("#"+id)?.classList.add("open")}
 function closeModal(id){$("#"+id)?.classList.remove("open")}
@@ -611,7 +709,7 @@ async function applySession(session){
   await loadProfile();
   updateAuthUI();
   if(currentUser){
-    setGate(false,"");
+    setGate(true,"正在读取业务数据…");
   }else{
     setGate(true,"");
   }
@@ -756,28 +854,48 @@ function dbInvestmentToUi(r){
 }
 async function loadRemoteData(){
   if(!sb)return;
-  const names=["snakes","breeding_routes","route_nodes","route_edges","annual_breeding_plans","investments"];
   const qs=[
     sb.from("snakes").select("*").order("id"),
     sb.from("breeding_routes").select("*").order("priority",{ascending:false}),
     sb.from("route_nodes").select("*"),
     sb.from("route_edges").select("*"),
     sb.from("annual_breeding_plans").select("*").order("plan_year").order("priority"),
-    sb.from("investments").select("*").order("rank")
+    sb.from("investments").select("*").order("rank"),
+    sb.from("genes").select("*").order("id"),
+    sb.from("gene_aliases").select("*"),
+    sb.from("morphs").select("*"),
+    sb.from("morph_components").select("*"),
+    sb.from("snake_genes").select("*")
   ];
   const res=await Promise.all(qs);
   const bad=res.find(x=>x.error);
   if(bad)throw bad.error;
   REMOTE_RAW={
     snakes:res[0].data||[],routes:res[1].data||[],nodes:res[2].data||[],
-    edges:res[3].data||[],plans:res[4].data||[],investments:res[5].data||[]
+    edges:res[3].data||[],plans:res[4].data||[],investments:res[5].data||[],
+    genes:res[6].data||[],aliases:res[7].data||[],morphs:res[8].data||[],
+    morphComponents:res[9].data||[],snakeGenes:res[10].data||[],scenarios:[],analysisRuns:[],recommendations:[]
   };
+  const decisionRes=await Promise.all([
+    sb.from("planning_scenarios").select("*").order("created_at",{ascending:false}),
+    sb.from("analysis_runs").select("*").order("created_at",{ascending:false}).limit(80),
+    sb.from("ai_recommendations").select("*").order("created_at",{ascending:false}).limit(160)
+  ]);
+  const decisionError=decisionRes.find(x=>x.error);
+  AI_LAYER_READY=!decisionError;
+  if(AI_LAYER_READY){
+    REMOTE_RAW.scenarios=decisionRes[0].data||[];
+    REMOTE_RAW.analysisRuns=decisionRes[1].data||[];
+    REMOTE_RAW.recommendations=decisionRes[2].data||[];
+  }else console.warn("AI decision layer unavailable:",decisionError.error);
+  DATA=EMPTY_DATA();
   DATA.snakes=REMOTE_RAW.snakes.map(dbSnakeToUi);
   snakeById=Object.fromEntries(DATA.snakes.map(s=>[s.id,s]));
+  setPlanningYears();
   const built=buildRoutes(REMOTE_RAW.routes,REMOTE_RAW.nodes,REMOTE_RAW.edges);
-  if(Object.keys(built.routes).length)DATA.routes=built.routes;
-  if(REMOTE_RAW.plans.length)ANNUAL_PLANS=buildAnnualPlans(REMOTE_RAW.plans,built.nodeLabel);
-  if(REMOTE_RAW.investments.length)DATA.investments=REMOTE_RAW.investments.map(dbInvestmentToUi);
+  DATA.routes=built.routes;
+  ANNUAL_PLANS=buildAnnualPlans(acceptedPlanRows(),built.nodeLabel);
+  DATA.investments=REMOTE_RAW.investments.map(dbInvestmentToUi);
   if(!DATA.routes[state.route])state.route=Object.keys(DATA.routes)[0]||"flagship";
 }
 async function refreshRemote(showMessage=true){
@@ -786,9 +904,43 @@ async function refreshRemote(showMessage=true){
   catch(err){console.error(err);toast("读取 Supabase 失败："+(err.message||err),true)}
 }
 
+const GENE_STATES=["visual","het","possible_het","super","line_trait","unknown"];
+function geneOptionHtml(selected){return `<option value="">选择原子基因</option>${REMOTE_RAW.genes.map(g=>`<option value="${esc(g.id)}" ${g.id===selected?"selected":""}>${esc(geneLabel(g))} · ${esc(g.id)}</option>`).join("")}`}
+function currentGeneRows(snakeId){return snakeId?snakeGeneRows(snakeId).map(x=>({gene_id:x.gene_id,state:x.state||"visual",probability:x.probability??1,source:x.source||"manual",notes:x.notes||""})):[]}
+function aliasText(a){return String(a.alias||a.alias_text||a.name||"").trim()}
+function aliasState(a,token){return a.state_hint||a.default_state||a.state||(/^超/.test(token)?"super":"visual")}
+function inferredGenes(geneText){
+  const text=String(geneText||"");const out=new Map();
+  const add=(geneId,state="visual",probability="",source="parser")=>{if(geneId&&!out.has(geneId))out.set(geneId,{gene_id:geneId,state,probability,source,notes:""})};
+  REMOTE_RAW.aliases.map(a=>({...a,_alias:aliasText(a)})).filter(a=>a._alias).sort((a,b)=>b._alias.length-a._alias.length).forEach(a=>{
+    if(!text.includes(a._alias))return;
+    const escaped=a._alias.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const possible=new RegExp(`(?:50|66)\\s*%?\\s*(?:隐\\s*)?${escaped}`).test(text);
+    const het=new RegExp(`隐\\s*${escaped}`).test(text);
+    add(a.gene_id,possible?"possible_het":het?"het":aliasState(a,a._alias),possible?(text.includes("66")?0.66:0.5):(a.probability_hint??1));
+  });
+  REMOTE_RAW.morphs.forEach(m=>{
+    const labels=[m.name_zh,m.chinese_name,m.name_cn,m.display_name,m.name,m.id].filter(Boolean).map(String);
+    const label=labels.find(x=>text.includes(x));if(!label)return;
+    const hidden=new RegExp(`隐\\s*${label.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}`).test(text);
+    REMOTE_RAW.morphComponents.filter(c=>c.morph_id===m.id).forEach(c=>add(c.gene_id,hidden?"het":(c.required_state||"visual"),1));
+  });
+  return [...out.values()];
+}
+function renderGeneEditor(){
+  const host=$("#geneEditor");if(!host)return;
+  host.innerHTML=`<div class="geneEditorHead"><div><h4>原子子基因（snake_genes）</h4><p>保存时与当前蛇只同步。组合形态会展开为原子基因，不会写入 Mai Tai、Toxic、Acid Rain 等组合名称。</p></div><div class="spacer"></div><button type="button" class="pillBtn" id="inferGenesBtn">从基因文本补全</button><button type="button" class="pillBtn" id="addGeneBtn">＋ 添加子基因</button></div><div class="geneEditorRows">${editGenes.map((g,i)=>`<div class="geneEditorRow" data-gene-row="${i}"><select data-gene-field="gene_id">${geneOptionHtml(g.gene_id)}</select><select data-gene-field="state">${GENE_STATES.map(x=>`<option value="${x}" ${g.state===x?"selected":""}>${x}</option>`).join("")}</select><input data-gene-field="probability" type="number" min="0" max="1" step="0.01" value="${g.probability??""}" placeholder="概率"><input class="geneSource" data-gene-field="source" value="${esc(g.source||"manual")}" placeholder="来源"><button type="button" data-remove-gene="${i}" title="删除子基因">×</button></div>`).join("")||'<div class="geneEditorEmpty">尚未关联原子子基因。填写 Gene text 后点击“从基因文本补全”，或手动添加。</div>'}</div><div class="geneEditorHelp">` + (REMOTE_RAW.genes.length?`已载入 ${REMOTE_RAW.genes.length} 个原子基因。`:'未载入 genes 表，无法编辑子基因。') + `</div>`;
+  $("#addGeneBtn").onclick=()=>{editGenes.push({gene_id:"",state:"visual",probability:1,source:"manual",notes:""});renderGeneEditor()};
+  const mergeInferred=()=>{const inferred=inferredGenes($("#editForm [name=gene_text]")?.value);const existing=new Set(editGenes.map(x=>x.gene_id).filter(Boolean));const additions=inferred.filter(x=>!existing.has(x.gene_id));editGenes.push(...additions);return additions.length};
+  $("#inferGenesBtn").onclick=()=>{const added=mergeInferred();renderGeneEditor();$("#editMessage").textContent=added?`已补全 ${added} 条原子子基因，请复核状态与概率。`:"没有发现可新增的原子子基因。"};
+  const geneTextInput=$("#editForm [name=gene_text]");if(!editContext?.id&&geneTextInput)geneTextInput.onchange=()=>{const added=mergeInferred();if(added){renderGeneEditor();$("#editMessage").textContent=`已自动带出 ${added} 条原子子基因，请复核状态与概率。`}};
+  $$('[data-gene-row]').forEach(row=>{const i=Number(row.dataset.geneRow);[...row.querySelectorAll('[data-gene-field]')].forEach(input=>input.onchange=()=>{editGenes[i][input.dataset.geneField]=input.value})});
+  $$('[data-remove-gene]').forEach(btn=>btn.onclick=()=>{editGenes.splice(Number(btn.dataset.removeGene),1);renderGeneEditor()});
+}
+function nextSnakeId(){const max=Math.max(0,...REMOTE_RAW.snakes.map(s=>{const m=String(s.id||"").match(/^S(\d+)$/i);return m?Number(m[1]):0}));return `S${String(max+1).padStart(2,"0")}`}
 function snakeFormHtml(row={}){
   return `<div class="formGrid">
-    <div class="formField"><label>ID</label><input name="id" value="${esc(row.id||"")}" ${row.id?"readonly":""} required placeholder="S33"></div>
+    <div class="formField"><label>ID</label><input name="id" value="${esc(row.id||nextSnakeId())}" ${row.id?"readonly":""} required placeholder="S33"></div>
     <div class="formField"><label>Series</label><input name="series" value="${esc(row.series||"")}" required></div>
     <div class="formField full"><label>Gene text</label><input name="gene_text" value="${esc(row.gene_text||"")}" required></div>
     <div class="formField"><label>Sex</label><select name="sex"><option value="F" ${row.sex==="F"?"selected":""}>Female</option><option value="M" ${row.sex==="M"?"selected":""}>Male</option><option value="U" ${row.sex==="U"?"selected":""}>Unknown</option></select></div>
@@ -801,13 +953,16 @@ function snakeFormHtml(row={}){
     <div class="formField"><label>Origin</label><select name="origin">${["purchased","produced","other"].map(x=>`<option ${row.origin===x?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="formField full"><label>Role</label><input name="role" value="${esc(row.role||"")}"></div>
     <div class="formField full"><label>Notes</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
-  </div>`;
+  </div><div id="geneEditor"></div>`;
 }
 function planFormHtml(row={}){
   const snakeOpts=`<option value="">—</option>`+DATA.snakes.map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id||row.male_snake_id===s.id?"":""}>${s.id} · ${esc(s.gene)}</option>`).join("");
+  const selectedScenario=row.scenario_id||defaultScenarioId();
+  const scenarioField=AI_LAYER_READY?`<div class="formField full"><label>规划场景</label><select name="scenario_id"><option value="">未归属（兼容旧数据）</option>${REMOTE_RAW.scenarios.map(s=>`<option value="${s.id}" ${String(selectedScenario)===String(s.id)?"selected":""}>${esc(s.name)} · ${esc(s.status)}</option>`).join("")}</select></div>`:"";
   return `<div class="formGrid">
     <div class="formField"><label>Year</label><input name="plan_year" type="number" min="2020" max="2200" value="${row.plan_year||state.year}" required></div>
     <div class="formField"><label>Priority</label><select name="priority">${["A","B","R","G","C"].map(x=>`<option ${row.priority===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    ${scenarioField}
     <div class="formField full"><label>Project name</label><input name="project_name" value="${esc(row.project_name||"")}" required></div>
     <div class="formField"><label>Female snake</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F").map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
     <div class="formField"><label>Male snake</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M").map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
@@ -844,10 +999,11 @@ function formObject(form){
 function openSnakeForm(id=null){
   if(!canWrite())return toast("当前账号没有写权限",true);
   const row=id?REMOTE_RAW.snakes.find(x=>x.id===id)||{}:{};
+  editGenes=currentGeneRows(id);
   editContext={table:"snakes",id:id||null};
   $("#editModalTitle").textContent=id?`编辑 ${id}`:"新增个体";
   $("#editModalSub").textContent="public.snakes";
-  $("#editFormFields").innerHTML=snakeFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
+  $("#editFormFields").innerHTML=snakeFormHtml(row);renderGeneEditor();$("#editMessage").textContent="";openModal("editModal");
 }
 function openPlanForm(id=null){
   if(!canWrite())return toast("当前账号没有写权限",true);
@@ -873,6 +1029,7 @@ async function saveEdit(){
     ["price","strategic_score"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
   }else if(t==="annual_breeding_plans"){
     ["plan_year","planned_clutches"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
+    if("scenario_id" in o)o.scenario_id=o.scenario_id?Number(o.scenario_id):null;
   }else if(t==="investments"){
     ["rank","strategic_score","planned_year","budget_min","budget_max"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     o.criteria=o.criteria?String(o.criteria).split(/\r?\n/).map(x=>x.trim()).filter(Boolean):[];
@@ -884,6 +1041,35 @@ async function saveEdit(){
     q=sb.from(t).update(o).eq(pk,editContext.id);
   }else q=sb.from(t).insert(o);
   const {error}=await q;if(error)throw error;
+  if(t==="snakes"){
+    const snakeId=editContext.id||o.id;
+    try{await syncSnakeGenes(snakeId)}
+    catch(geneError){
+      if(!editContext.id){
+        const {error:rollbackError}=await sb.from("snakes").delete().eq("id",snakeId);
+        if(rollbackError)console.error("Could not roll back snake after gene sync failure:",rollbackError);
+      }
+      throw geneError;
+    }
+  }
+}
+function normalizedEditGenes(){
+  const seen=new Set();
+  return editGenes.map((g,i)=>({gene_id:String(g.gene_id||"").trim(),state:g.state||"visual",probability:g.probability===""||g.probability==null?1:Number(g.probability),source:String(g.source||"manual").trim()||"manual",notes:g.notes||""})).filter(g=>g.gene_id).map((g,i)=>{
+    if(!REMOTE_RAW.genes.some(x=>x.id===g.gene_id))throw new Error(`第 ${i+1} 条子基因不存在于 genes 表：${g.gene_id}`);
+    if(seen.has(g.gene_id))throw new Error(`子基因重复：${g.gene_id}`);
+    if(!GENE_STATES.includes(g.state))throw new Error(`无效子基因状态：${g.state}`);
+    if(g.probability!==null&&(!Number.isFinite(g.probability)||g.probability<0||g.probability>1))throw new Error(`子基因概率必须在 0 到 1 之间：${g.gene_id}`);
+    seen.add(g.gene_id);return g;
+  });
+}
+async function syncSnakeGenes(snakeId){
+  const desired=normalizedEditGenes().map(g=>({...g,snake_id:snakeId}));
+  const before=snakeGeneRows(snakeId).map(x=>x.gene_id);
+  if(desired.length){const {error}=await sb.from("snake_genes").upsert(desired,{onConflict:"snake_id,gene_id"});if(error)throw error;}
+  const retained=new Set(desired.map(x=>x.gene_id));
+  const removed=before.filter(id=>!retained.has(id));
+  if(removed.length){const {error}=await sb.from("snake_genes").delete().eq("snake_id",snakeId).in("gene_id",removed);if(error)throw error;}
 }
 $("#editForm").onsubmit=async e=>{
   e.preventDefault();$("#editMessage").textContent="正在保存…";
@@ -898,24 +1084,25 @@ async function deleteRecord(table,id,label){
   $("#drawer").classList.remove("open");toast("已删除");await refreshRemote(false);
 }
 async function deleteSnake(id){
-  const routeRefs=REMOTE_RAW.nodes.filter(x=>x.snake_id===id).length;
-  const planRefs=REMOTE_RAW.plans.filter(x=>x.female_snake_id===id||x.male_snake_id===id).length;
-  if(routeRefs||planRefs){
-    toast(`不能直接删除 ${id}：仍被 ${routeRefs} 个路线节点和 ${planRefs} 个年度计划引用。建议把 status 改为 sold / retired；若确需物理删除，先清理这些引用。`,true);
-    return;
-  }
-  return deleteRecord("snakes",id,id);
+  return retireSnake(id);
+}
+async function retireSnake(id){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  if(!confirm(`确定将 ${id} 标记为 retired？这会保留其路线、计划、血缘和子基因记录。`))return;
+  const {error}=await sb.from("snakes").update({status:"retired"}).eq("id",id);
+  if(error)return toast(error.message,true);
+  $("#drawer").classList.remove("open");toast("已标记为 retired");await refreshRemote(false);
 }
 
 function renderAdmin(){
   if(!$("#adminTable"))return;
   updateAuthUI();
   $$(".adminTab").forEach(x=>x.classList.toggle("active",x.dataset.adminTab===adminTab));
-  if(!sb){$("#adminTable").innerHTML='<div class="configWarning">Supabase 尚未配置，当前网页仍使用内置静态数据作为 fallback。</div>';return}
+  if(!sb){$("#adminTable").innerHTML='<div class="configWarning">Supabase 尚未配置，无法读取业务数据。</div>';return}
   if(!canWrite()){$("#adminTable").innerHTML='<div class="configWarning">当前账号没有 editor/admin 权限。请在 public.profiles 中为该用户分配角色。</div>';return}
   let html="";
   if(adminTab==="snakes"){
-    html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>状态</th><th>战略分</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.snakes.map(r=>`<tr><td>${r.id}</td><td>${esc(r.series)}</td><td>${esc(r.gene_text)}</td><td>${r.sex}</td><td>${r.status}</td><td>${r.strategic_score??""}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-snake="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-snake="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
+    html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>状态</th><th>战略分</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.snakes.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.series)}</td><td>${esc(r.gene_text)}</td><td>${esc(r.sex)}</td><td>${esc(r.status)}</td><td>${r.strategic_score??""}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-snake="${esc(r.id)}">编辑</button><button class="iconBtn danger" data-admin-retire-snake="${esc(r.id)}">停用</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else if(adminTab==="plans"){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>Priority</th><th>Project</th><th>Female</th><th>Male</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.plans.map(r=>`<tr><td>${r.plan_year}</td><td>${r.priority}</td><td>${esc(r.project_name)}</td><td>${r.female_snake_id||"—"}</td><td>${r.male_snake_id||"—"}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-plan="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else{
@@ -923,7 +1110,7 @@ function renderAdmin(){
   }
   $("#adminTable").innerHTML=html;
   $$("[data-admin-edit-snake]").forEach(x=>x.onclick=()=>openSnakeForm(x.dataset.adminEditSnake));
-  $$("[data-admin-del-snake]").forEach(x=>x.onclick=()=>deleteRecord("snakes",x.dataset.adminDelSnake,x.dataset.adminDelSnake));
+  $$("[data-admin-retire-snake]").forEach(x=>x.onclick=()=>retireSnake(x.dataset.adminRetireSnake));
   $$("[data-admin-edit-plan]").forEach(x=>x.onclick=()=>openPlanForm(x.dataset.adminEditPlan));
   $$("[data-admin-del-plan]").forEach(x=>x.onclick=()=>deleteRecord("annual_breeding_plans",x.dataset.adminDelPlan,"年度计划 #"+x.dataset.adminDelPlan));
   $$("[data-admin-edit-invest]").forEach(x=>x.onclick=()=>openInvestmentForm(x.dataset.adminEditInvest));
@@ -933,8 +1120,12 @@ $$(".adminTab").forEach(x=>x.onclick=()=>{adminTab=x.dataset.adminTab;renderAdmi
 $("#adminRefreshBtn").onclick=()=>refreshRemote();
 $("#adminAddBtn").onclick=()=>adminTab==="snakes"?openSnakeForm():adminTab==="plans"?openPlanForm():openInvestmentForm();
 $("#addSnakeBtn").onclick=()=>openSnakeForm();
+$("#runPairingAiBtn").onclick=async()=>{try{await runAIAnalysis("pairing",pairingInput())}catch(err){toast(err.message||String(err),true)}};
+$("#runAnnualAiBtn").onclick=async()=>{try{await runAIAnalysis("annual_plan",annualPlanInput())}catch(err){toast(err.message||String(err),true)}};
+$("#runInvestmentAiBtn").onclick=async()=>{try{await runAIAnalysis("investment",investmentInput())}catch(err){toast(err.message||String(err),true)}};
 
 async function initApp(){
+  startIntro();
   setGate(true,"");
   updateAuthUI();
 
@@ -955,6 +1146,7 @@ async function initApp(){
         await applySession(session);
 
         if(event==="PASSWORD_RECOVERY"){
+          setGate(false,"");
           openModal("passwordModal");
           return;
         }
@@ -964,12 +1156,13 @@ async function initApp(){
             await loadRemoteData();
             renderAll();
             renderAdmin();
+            setGate(false,"");
           }catch(err){
             console.error("Remote data:",err);
-            toast("数据库读取失败："+(err.message||err),true);
+            setGate(true,"业务数据读取失败："+(err.message||err));
           }
         }else{
-          DATA=JSON.parse(JSON.stringify(STATIC_DATA));
+          DATA=EMPTY_DATA();
           ANNUAL_PLANS={};
           snakeById={};
           setGate(true,"");
@@ -982,9 +1175,15 @@ async function initApp(){
     await applySession(session);
 
     if(session){
-      await loadRemoteData();
-      renderAll();
-      renderAdmin();
+      try{
+        await loadRemoteData();
+        renderAll();
+        renderAdmin();
+        setGate(false,"");
+      }catch(err){
+        console.error("Remote data:",err);
+        setGate(true,"业务数据读取失败："+(err.message||err));
+      }
     }else{
       setGate(true,"");
     }
@@ -995,7 +1194,7 @@ async function initApp(){
   }
 }
 
-function renderAll(){renderRoute();renderPopulation();renderProduction();renderInvestment();renderLab()}
+function renderAll(){renderRoute();renderPopulation();renderProduction();renderInvestment();renderLab();renderAiViews()}
 initApp();
 </script>
 </body></html>
