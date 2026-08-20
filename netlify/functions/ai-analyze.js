@@ -1,5 +1,11 @@
 const ALLOWED_TYPES = new Set(["pairing", "annual_plan", "investment", "strategy_score"]);
 const MAX_INPUT_BYTES = 180000;
+const MAX_RECOMMENDATIONS = 12;
+const MAX_ARRAY_ITEMS = 12;
+const RECOMMENDATION_KEYS = new Set([
+  "title", "summary", "confidence", "priority_score", "target_refs", "evidence_refs",
+  "assumptions", "risk_flags", "missing_inputs", "proposal_payload"
+]);
 
 function response(statusCode, body) {
   return {
@@ -22,6 +28,104 @@ async function supabaseJson(path, accessToken) {
   });
   const data = await result.json().catch(() => null);
   return { ok: result.ok, status: result.status, data };
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function requireOnlyKeys(value, allowed, label) {
+  if (!isObject(value)) throw new Error(`${label} must be an object.`);
+  const unknown = Object.keys(value).filter((key) => !allowed.has(key));
+  if (unknown.length) throw new Error(`${label} contains unsupported fields: ${unknown.join(", ")}.`);
+}
+
+function requiredText(value, label, maxLength) {
+  if (typeof value !== "string" || !value.trim() || value.trim().length > maxLength) {
+    throw new Error(`${label} must be a non-empty string up to ${maxLength} characters.`);
+  }
+  return value.trim();
+}
+
+function stringArray(value, label) {
+  if (!Array.isArray(value) || value.length > MAX_ARRAY_ITEMS || value.some((item) => typeof item !== "string" || !item.trim() || item.length > 240)) {
+    throw new Error(`${label} must be an array of at most ${MAX_ARRAY_ITEMS} short strings.`);
+  }
+  return value.map((item) => item.trim());
+}
+
+function optionalText(value, label, maxLength) {
+  if (value == null) return null;
+  return requiredText(value, label, maxLength);
+}
+
+function validateProposal(value, analysisType, index) {
+  const label = `recommendations[${index}].proposal_payload`;
+  if (!isObject(value)) throw new Error(`${label} must be an object.`);
+  const action = requiredText(value.action, `${label}.action`, 32);
+  if (!["none", "create_annual_plan"].includes(action)) throw new Error(`${label}.action is invalid.`);
+  if (["investment", "strategy_score"].includes(analysisType) && action !== "none") {
+    throw new Error(`${label}.action must be none for ${analysisType}.`);
+  }
+
+  const allowed = action === "create_annual_plan"
+    ? new Set(["action", "plan_year", "female_snake_id", "male_snake_id", "route_id", "priority", "project_name", "goal", "mode", "planned_clutches"])
+    : new Set(["action", "target_sex", "target_gene_ids", "review_after"]);
+  requireOnlyKeys(value, allowed, label);
+
+  if (action === "none") {
+    const payload = { action };
+    if (value.target_sex != null) {
+      if (!["F", "M", "any"].includes(value.target_sex)) throw new Error(`${label}.target_sex is invalid.`);
+      payload.target_sex = value.target_sex;
+    }
+    if (value.target_gene_ids != null) payload.target_gene_ids = stringArray(value.target_gene_ids, `${label}.target_gene_ids`);
+    if (value.review_after != null) payload.review_after = optionalText(value.review_after, `${label}.review_after`, 80);
+    return payload;
+  }
+
+  if (!["pairing", "annual_plan"].includes(analysisType)) throw new Error(`${label}.action is not allowed here.`);
+  if (!Number.isInteger(value.plan_year) || value.plan_year < 2000 || value.plan_year > 2200) throw new Error(`${label}.plan_year is invalid.`);
+  if (!["A", "B", "R", "C", "G"].includes(value.priority)) throw new Error(`${label}.priority is invalid.`);
+  if (!Number.isInteger(value.planned_clutches) || value.planned_clutches < 0 || value.planned_clutches > 20) throw new Error(`${label}.planned_clutches is invalid.`);
+  return {
+    action,
+    plan_year: value.plan_year,
+    female_snake_id: requiredText(value.female_snake_id, `${label}.female_snake_id`, 80),
+    male_snake_id: requiredText(value.male_snake_id, `${label}.male_snake_id`, 80),
+    route_id: optionalText(value.route_id, `${label}.route_id`, 120),
+    priority: value.priority,
+    project_name: requiredText(value.project_name, `${label}.project_name`, 160),
+    goal: requiredText(value.goal, `${label}.goal`, 600),
+    mode: requiredText(value.mode, `${label}.mode`, 80),
+    planned_clutches: value.planned_clutches
+  };
+}
+
+function validateResult(result, analysisType) {
+  requireOnlyKeys(result, new Set(["recommendations"]), "response");
+  if (!Array.isArray(result.recommendations) || result.recommendations.length > MAX_RECOMMENDATIONS) {
+    throw new Error(`response.recommendations must contain at most ${MAX_RECOMMENDATIONS} items.`);
+  }
+  const recommendations = result.recommendations.map((item, index) => {
+    const label = `recommendations[${index}]`;
+    requireOnlyKeys(item, RECOMMENDATION_KEYS, label);
+    if (typeof item.confidence !== "number" || item.confidence < 0 || item.confidence > 1) throw new Error(`${label}.confidence must be 0–1.`);
+    if (!Number.isInteger(item.priority_score) || item.priority_score < 0 || item.priority_score > 100) throw new Error(`${label}.priority_score must be an integer 0–100.`);
+    return {
+      title: requiredText(item.title, `${label}.title`, 80),
+      summary: requiredText(item.summary, `${label}.summary`, 500),
+      confidence: item.confidence,
+      priority_score: item.priority_score,
+      target_refs: stringArray(item.target_refs, `${label}.target_refs`),
+      evidence_refs: stringArray(item.evidence_refs, `${label}.evidence_refs`),
+      assumptions: stringArray(item.assumptions, `${label}.assumptions`),
+      risk_flags: stringArray(item.risk_flags, `${label}.risk_flags`),
+      missing_inputs: stringArray(item.missing_inputs, `${label}.missing_inputs`),
+      proposal_payload: validateProposal(item.proposal_payload, analysisType, index)
+    };
+  });
+  return { recommendations };
 }
 
 exports.handler = async (event) => {
@@ -100,10 +204,8 @@ exports.handler = async (event) => {
   let result;
   try { result = JSON.parse(content); }
   catch { return response(502, { error: "DeepSeek returned invalid JSON." }); }
-  if (!Array.isArray(result.recommendations)) {
-    return response(502, { error: "DeepSeek response does not include a recommendations array." });
-  }
-  result.recommendations = result.recommendations.slice(0, 20);
+  try { result = validateResult(result, analysisType); }
+  catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
 
   return response(200, {
     analysis_type: analysisType,
