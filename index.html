@@ -1231,6 +1231,12 @@ async function initApp(){
         }
         // 初始会话由下方 getSession() 统一加载，避免 INITIAL_SESSION 与 getSession 双重刷新页面。
         if(event==="INITIAL_SESSION")return;
+        // Supabase 在部分浏览器重新聚焦时也可能再次发出 SIGNED_IN；同一已登录用户无需重开 Gate 或重拉数据。
+        if(event==="SIGNED_IN"&&session&&currentUser?.id===session.user?.id&&!document.body.classList.contains("auth-locked")){
+          currentUser=session.user;
+          updateAuthUI();
+          return;
+        }
 
         await applySession(session);
         if(event==="PASSWORD_RECOVERY"){
