@@ -486,7 +486,7 @@ button.is-pressing:after{content:"";display:inline-block;width:10px;height:10px;
 const EMPTY_DATA=()=>({snakes:[],routes:{},investments:[]});
 let DATA=EMPTY_DATA();
 let snakeById={};
-const state={page:"routes",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
+const state={page:"population",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
 let ANNUAL_PLANS={};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>"¥"+Number(n||0).toLocaleString("zh-CN"), mature=s=>Number(String(s.mature).slice(0,4)), ready=s=>mature(s)<=state.year;
@@ -494,6 +494,8 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 function kpi(a,b,c,d,cls=""){return `<div class="kpi"><div class="kpiTop"><span>${a}</span><span class="kpiIcon">${d}</span></div><div class="kpiNum ${cls}">${b}</div><div class="kpiFoot">${c}</div></div>`}
 function setPage(p){state.page=p;$$(".page").forEach(x=>x.classList.toggle("active",x.id==="page-"+p));$$(".navItem").forEach(x=>x.classList.toggle("active",x.dataset.page===p));$("#crumb").textContent=({routes:"繁殖路线",population:"种群总览",production:"年度产出",investment:"投资计划",lab:"配对实验室",admin:"数据与审核看板"})[p];window.scrollTo({top:0,left:0,behavior:"instant"});if(p==="admin")renderAdmin()}
 $$(".navItem").forEach(x=>x.onclick=()=>setPage(x.dataset.page));
+$$("[data-page=\"population\"]").forEach(item=>{const routes=item.parentElement?.querySelector("[data-page=\"routes\"]");if(routes)item.parentElement.insertBefore(item,routes)});
+setPage(state.page);
 $("#globalYear").onchange=e=>{state.year=Number(e.target.value);renderAll()};
 const AI_MODEL_STORAGE_KEY="suoha.aiModel";
 const savedAiModel=localStorage.getItem(AI_MODEL_STORAGE_KEY);
