@@ -84,6 +84,9 @@ function normalizeProposalAliases(value) {
   if (normalized.planned_clutches == null && normalized.target_clutches != null && Number.isInteger(Number(normalized.target_clutches))) normalized.planned_clutches = Number(normalized.target_clutches);
   if (normalized.goal == null && typeof normalized.rationale === "string") normalized.goal = normalized.rationale;
   if (normalized.project_name == null && typeof normalized.pairing_id === "string") normalized.project_name = normalized.pairing_id;
+  const planFields = ["plan_year", "female_snake_id", "male_snake_id", "priority", "project_name", "goal", "mode", "planned_clutches"];
+  if (normalized.action == null && planFields.some((field) => normalized[field] != null)) normalized.action = "create_annual_plan";
+  if (["create_pairing", "create_plan", "create_breeding_plan"].includes(normalized.action)) normalized.action = "create_annual_plan";
   delete normalized.year;
   delete normalized.target_clutches;
   delete normalized.rationale;
