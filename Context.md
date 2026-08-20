@@ -25,6 +25,7 @@ The system has moved through these stages:
 6. **Supabase Auth + roles + RLS** were added.
 7. The latest frontend is intended to be a **private app**: users must log in before business data loads.
 8. Deployment architecture is **GitHub → Netlify → Supabase**.
+9. AI analysis uses a Netlify Function as a server-side gateway to DeepSeek. Prompt templates, analysis snapshots, recommendations, and follow-up conversations are stored in Supabase; the DeepSeek key is server-only and is never exposed in browser code.
 
 ### Current Supabase project
 
@@ -60,7 +61,36 @@ Supabase
        └── RLS policies
 ```
 
-There is currently **no custom Node/Express backend**. Supabase is the backend platform.
+There is currently **no custom Node/Express backend**. Supabase is the primary backend platform; the only server-side code is the Netlify Function gateway for AI calls.
+
+### AI deployment configuration
+
+The Netlify Function `netlify/functions/ai-analyze.js` requires these server environment variables:
+
+```text
+DEEPSEEK_API_KEY          # secret; never commit or place in index.html
+DEEPSEEK_MODEL            # optional default: deepseek-v4-flash
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+```
+
+The UI permits `deepseek-v4-flash` and `deepseek-v4-pro`; the selection is stored only in the browser's local storage. The function validates the selected model and runs with `thinking: disabled` for deterministic structured output. This prevents spend on reasoning-only tokens that can otherwise end with an empty final response.
+
+### AI data lifecycle
+
+```text
+live Supabase facts + active prompt template
+        ↓
+Netlify AI gateway
+        ↓
+analysis_runs (immutable input/output audit record)
+        ↓
+ai_recommendations (reviewable, never automatically applied)
+        ↓
+ai_conversations + ai_conversation_messages (persistent follow-up session)
+```
+
+Initial analysis must return the versioned JSON schema defined by its active prompt. Follow-up messages use the same analysis snapshot and original prompt version, but are natural-language answers; neither kind of response may directly write real snakes, breeding events, or formal plans.
 
 ---
 

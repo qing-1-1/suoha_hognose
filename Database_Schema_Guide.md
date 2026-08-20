@@ -6,7 +6,7 @@
 > It documents the meaning of every application table, every important field, foreign-key behavior,
 > cross-table workflows, authentication/RLS, and the intended data lifecycle.
 >
-> **Scope:** the application owns **18 tables in the `public` schema**. Supabase also owns system
+> **Scope:** the application owns **24 tables in the `public` schema**. Supabase also owns system
 > tables such as `auth.users` and Storage internals; this document explains only the system tables
 > that directly participate in the application architecture.
 
@@ -51,6 +51,14 @@ Supabase
     ├── snake_measurements
     ├── snake_photos
     └── financial_transactions
+
+└── Auditable AI decision layer
+    ├── planning_scenarios
+    ├── ai_prompt_templates
+    ├── analysis_runs
+    ├── ai_recommendations
+    ├── ai_conversations
+    └── ai_conversation_messages
 ```
 
 The most important conceptual separation is:
@@ -99,6 +107,12 @@ actually exists.
 | Tracking | snake_measurements | Weight/length/condition time series | 0 |
 | Media | snake_photos | Photo metadata; actual binary files live in Storage | 0 |
 | Finance | financial_transactions | Purchase/sale/feed/equipment/etc. transactions | 0 |
+| AI planning | planning_scenarios | Formal baseline and reviewable planning scenarios | 1+ |
+| AI governance | ai_prompt_templates | Versioned fixed system prompts; only one active version per workflow | 4+ |
+| AI audit | analysis_runs | Immutable source snapshot, model, prompt version and structured AI output | grows |
+| AI review | ai_recommendations | Reviewable, non-self-executing recommendations extracted from an analysis run | grows |
+| AI conversation | ai_conversations | One persistent follow-up conversation attached to each analysis run | grows |
+| AI conversation | ai_conversation_messages | Ordered user/assistant messages in a conversation | grows |
 
 ---
 
@@ -1768,7 +1782,50 @@ The most important rule is:
 
 ---
 
-# 25. Short Codex handoff instructions
+# 25. AI decision and follow-up conversation layer
+
+The AI layer is deliberately separated from biological truth and formal operations. It is an auditable planning aid, never a source of genetics, market, breeding-event, or inventory facts.
+
+```text
+ai_prompt_templates (versioned fixed instruction)
+        ↓
+analysis_runs (fact snapshot + model response)
+        ├── ai_recommendations (review / accept / reject / optionally apply)
+        └── ai_conversations (one conversation per run)
+                 ↓
+          ai_conversation_messages (persistent follow-ups)
+```
+
+### `public.ai_prompt_templates`
+
+Holds the fixed server-side system prompt for `pairing`, `annual_plan`, `investment`, and `strategy_score`. `template_key + version` is unique. A template is read by authenticated users, but only `admin` may create, edit, or deactivate versions. The original prompt ID/version is copied to each `analysis_runs` record so past results remain reproducible after a template revision.
+
+### `public.analysis_runs` and `public.ai_recommendations`
+
+`analysis_runs.source_snapshot` is the structured, as-of-time input sent to the model. `response_payload` records the validated JSON response, while `model_name`, `prompt_template_id`, `prompt_version`, and `response_schema_version` provide provenance. `ai_recommendations` stores individual proposals with review status; acceptance is not execution.
+
+### `public.ai_conversations`
+
+Created once for an `analysis_run_id` (`unique`). It preserves the analysis type, the same fact snapshot, model identity, and original prompt version used by the initial analysis. Deleting an analysis run cascades to its conversation; no core animal or planning record is affected.
+
+### `public.ai_conversation_messages`
+
+Stores ordered `user`, `assistant`, or `system` messages. Initial assistant messages may retain the validated JSON in `structured_payload`; natural-language follow-up responses are stored in `content`. Messages are capped at 6,000 characters and cascade-delete only with their conversation.
+
+### AI RLS and write boundary
+
+Authenticated users can read AI audit and conversation data. `editor` and `admin` can create analyses and conversation messages; only `admin` can revise prompt templates. The Netlify Function authenticates the caller with the Supabase JWT and calls DeepSeek server-side. The browser never receives the DeepSeek key.
+
+Run these additive migrations in order before enabling this feature:
+
+```text
+supabase/migrations/005_ai_decision_layer.sql
+supabase/migrations/006_ai_conversations.sql
+```
+
+---
+
+# 26. Short Codex handoff instructions
 
 ```text
 Before changing database code:

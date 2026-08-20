@@ -146,6 +146,69 @@ function validateResult(result, analysisType) {
   return { recommendations };
 }
 
+async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
+  const conversationId = Number(request.conversation_id);
+  const question = typeof request.message === "string" ? request.message.trim() : "";
+  if (!Number.isInteger(conversationId) || conversationId < 1 || !question || question.length > 2000) {
+    return response(400, { error: "conversation_id and a question up to 2000 characters are required." });
+  }
+
+  const conversationResult = await supabaseJson(`/rest/v1/ai_conversations?select=id,analysis_run_id,analysis_type,model_name,prompt_template_id,prompt_version,source_snapshot&id=eq.${conversationId}&limit=1`, accessToken);
+  const conversation = Array.isArray(conversationResult.data) ? conversationResult.data[0] : null;
+  if (!conversationResult.ok || !conversation) return response(404, { error: "AI conversation was not found." });
+
+  const templateResult = await supabaseJson(`/rest/v1/ai_prompt_templates?select=id,template_key,version,system_prompt,response_schema_version&id=eq.${encodeURIComponent(conversation.prompt_template_id)}&limit=1`, accessToken);
+  const template = Array.isArray(templateResult.data) ? templateResult.data[0] : null;
+  if (!templateResult.ok || !template) return response(409, { error: "The prompt version used for this conversation is unavailable." });
+
+  const messagesResult = await supabaseJson(`/rest/v1/ai_conversation_messages?select=role,content,structured_payload&conversation_id=eq.${conversationId}&order=created_at.asc&limit=24`, accessToken);
+  if (!messagesResult.ok) return response(502, { error: "Unable to read AI conversation history." });
+  const history = (messagesResult.data || []).slice(-16).map((item) => ({
+    role: item.role === "user" ? "user" : "assistant",
+    content: item.structured_payload
+      ? `${item.content}\n\n初始结构化分析：${JSON.stringify(item.structured_payload)}`
+      : item.content
+  }));
+
+  const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: selectedModel,
+      messages: [
+        {
+          role: "system",
+          content: `${template.system_prompt}\n\n当前是同一分析快照下的追问会话。初始生成时的“只输出 JSON”限制不适用于本次追问；请以简洁中文自然语言回答。只能使用以下分析快照、会话中已有的建议和用户补充事实；清楚区分已知事实、假设和缺失信息。不得声称已写入数据库、已执行配对或已获得外部市场事实。\n\n当前分析快照：${JSON.stringify(conversation.source_snapshot || {})}`
+        },
+        ...history,
+        { role: "user", content: question }
+      ],
+      thinking: { type: "disabled" },
+      max_tokens: 1800,
+      stream: false
+    })
+  });
+  const payload = await deepSeekResult.json().catch(() => null);
+  if (!deepSeekResult.ok) {
+    console.error("DeepSeek follow-up provider error", { status: deepSeekResult.status, conversationId, model: selectedModel, message: payload?.error?.message || "Unknown provider error." });
+    return response(502, { error: "DeepSeek request failed.", detail: payload?.error?.message || "Unknown provider error." });
+  }
+  const answer = payload?.choices?.[0]?.message?.content;
+  if (typeof answer !== "string" || !answer.trim()) {
+    console.error("DeepSeek follow-up returned an empty final response", { conversationId, model: selectedModel, finishReason: payload?.choices?.[0]?.finish_reason ?? null, usage: payload?.usage ?? null });
+    return response(502, { error: "DeepSeek returned an empty follow-up response." });
+  }
+  return response(200, {
+    mode: "follow_up",
+    conversation_id: conversation.id,
+    analysis_type: conversation.analysis_type,
+    model: payload.model || selectedModel,
+    template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version },
+    answer: answer.trim(),
+    usage: payload.usage || null
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return response(405, { error: "Method not allowed" });
 
@@ -180,10 +243,11 @@ exports.handler = async (event) => {
   const analysisType = request.analysis_type;
   const input = request.input;
   const selectedModel = request.model || configured("DEEPSEEK_MODEL") || "deepseek-v4-flash";
+  if (!ALLOWED_MODELS.has(selectedModel)) return response(400, { error: "Unsupported DeepSeek model." });
+  if (request.mode === "follow_up") return runFollowUp({ request, accessToken, apiKey, selectedModel });
   if (!ALLOWED_TYPES.has(analysisType) || !input || typeof input !== "object" || Array.isArray(input)) {
     return response(400, { error: "analysis_type and a structured input object are required." });
   }
-  if (!ALLOWED_MODELS.has(selectedModel)) return response(400, { error: "Unsupported DeepSeek model." });
 
   const templateKey = {
     pairing: "pairing_lab",
@@ -210,9 +274,10 @@ exports.handler = async (event) => {
         { role: "system", content: template.system_prompt },
         { role: "user", content: `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
-      thinking: { type: "enabled" },
-      reasoning_effort: selectedModel === "deepseek-v4-pro" ? "high" : "medium",
-      max_tokens: 2200,
+      // 结构化业务输出优先保证最终 JSON。开启思考时，模型可能只产出 reasoning token，
+      // 在达到 token 上限前没有留下 message.content；这些 token 仍会计费。
+      thinking: { type: "disabled" },
+      max_tokens: 2800,
       stream: false
     })
   });
@@ -222,7 +287,21 @@ exports.handler = async (event) => {
     return response(502, { error: "DeepSeek request failed.", detail: deepSeekPayload?.error?.message || "Unknown provider error." });
   }
 
-  const content = deepSeekPayload?.choices?.[0]?.message?.content;
+  const choice = deepSeekPayload?.choices?.[0];
+  const content = choice?.message?.content;
+  if (typeof content !== "string" || !content.trim()) {
+    console.error("DeepSeek returned an empty final response", {
+      analysisType,
+      model: selectedModel,
+      finishReason: choice?.finish_reason ?? null,
+      usage: deepSeekPayload?.usage ?? null,
+      reasoningLength: choice?.message?.reasoning_content?.length ?? 0
+    });
+    return response(502, {
+      error: "DeepSeek returned invalid JSON.",
+      detail: `DeepSeek did not return final content (finish_reason: ${choice?.finish_reason ?? "unknown"}).`
+    });
+  }
   let result;
   try { result = parseModelJson(content); }
   catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
