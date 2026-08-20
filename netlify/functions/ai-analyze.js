@@ -54,10 +54,13 @@ function requiredText(value, label, maxLength) {
 }
 
 function stringArray(value, label) {
-  if (!Array.isArray(value) || value.length > MAX_ARRAY_ITEMS || value.some((item) => typeof item !== "string" || !item.trim() || item.length > 240)) {
-    throw new Error(`${label} must be an array of at most ${MAX_ARRAY_ITEMS} short strings.`);
-  }
-  return value.map((item) => item.trim());
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array.`);
+  // Provider overproduction should not discard an otherwise usable analysis.
+  // Keep only valid short entries and preserve the prompt's priority order.
+  return value
+    .filter((item) => typeof item === "string" && item.trim())
+    .map((item) => item.trim().slice(0, 240))
+    .slice(0, MAX_ARRAY_ITEMS);
 }
 
 function optionalStringArray(value, label) {
@@ -147,10 +150,8 @@ function validateProposal(value, analysisType, index) {
 function validateResult(result, analysisType) {
   requireOnlyKeys(result, new Set(["recommendations"]), "response");
   const maximum = MAX_RECOMMENDATIONS_BY_TYPE[analysisType] || 5;
-  if (!Array.isArray(result.recommendations) || result.recommendations.length > maximum) {
-    throw new Error(`response.recommendations must contain at most ${maximum} items for ${analysisType}.`);
-  }
-  const recommendations = result.recommendations.map((item, index) => {
+  if (!Array.isArray(result.recommendations)) throw new Error("response.recommendations must be an array.");
+  const recommendations = result.recommendations.slice(0, maximum).map((item, index) => {
     const label = `recommendations[${index}]`;
     requireOnlyKeys(item, RECOMMENDATION_KEYS, label);
     if (typeof item.confidence !== "number" || item.confidence < 0 || item.confidence > 1) throw new Error(`${label}.confidence must be 0–1.`);
