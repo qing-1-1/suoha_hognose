@@ -1821,7 +1821,11 @@ Run these additive migrations in order before enabling this feature:
 ```text
 supabase/migrations/005_ai_decision_layer.sql
 supabase/migrations/006_ai_conversations.sql
+supabase/migrations/007_ai_prompt_templates_v3.sql
+supabase/migrations/008_ai_review_workflow.sql
 ```
+
+`008_ai_review_workflow.sql` keeps AI and manual decisions in the same business tables. `investments` and `annual_breeding_plans` carry `source_type` (`manual` / `ai`) and `review_status` (`pending` / `approved` / `returned`). AI rows reference their originating `ai_recommendations` record through `ai_recommendation_id`. Only approved records are rendered in the normal investment and annual-planning pages; pending AI records appear in the separate investment and annual review queues.
 
 ---
 

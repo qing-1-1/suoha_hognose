@@ -1,7 +1,12 @@
 const ALLOWED_TYPES = new Set(["pairing", "annual_plan", "investment", "strategy_score"]);
 const MAX_INPUT_BYTES = 180000;
-const MAX_RECOMMENDATIONS = 12;
-const MAX_ARRAY_ITEMS = 12;
+const MAX_ARRAY_ITEMS = 5;
+const MAX_RECOMMENDATIONS_BY_TYPE = Object.freeze({
+  pairing: 2,
+  annual_plan: 5,
+  investment: 5,
+  strategy_score: 5
+});
 const ALLOWED_MODELS = new Set(["deepseek-v4-flash", "deepseek-v4-pro"]);
 const RECOMMENDATION_KEYS = new Set([
   "title", "summary", "confidence", "priority_score", "target_refs", "evidence_refs",
@@ -141,8 +146,9 @@ function validateProposal(value, analysisType, index) {
 
 function validateResult(result, analysisType) {
   requireOnlyKeys(result, new Set(["recommendations"]), "response");
-  if (!Array.isArray(result.recommendations) || result.recommendations.length > MAX_RECOMMENDATIONS) {
-    throw new Error(`response.recommendations must contain at most ${MAX_RECOMMENDATIONS} items.`);
+  const maximum = MAX_RECOMMENDATIONS_BY_TYPE[analysisType] || 5;
+  if (!Array.isArray(result.recommendations) || result.recommendations.length > maximum) {
+    throw new Error(`response.recommendations must contain at most ${maximum} items for ${analysisType}.`);
   }
   const recommendations = result.recommendations.map((item, index) => {
     const label = `recommendations[${index}]`;
