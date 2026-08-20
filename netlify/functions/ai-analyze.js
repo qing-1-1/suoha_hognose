@@ -2,6 +2,7 @@ const ALLOWED_TYPES = new Set(["pairing", "annual_plan", "investment", "strategy
 const MAX_INPUT_BYTES = 180000;
 const MAX_RECOMMENDATIONS = 12;
 const MAX_ARRAY_ITEMS = 12;
+const ALLOWED_MODELS = new Set(["deepseek-v4-flash", "deepseek-v4-pro"]);
 const RECOMMENDATION_KEYS = new Set([
   "title", "summary", "confidence", "priority_score", "target_refs", "evidence_refs",
   "assumptions", "risk_flags", "missing_inputs", "proposal_payload"
@@ -54,6 +55,22 @@ function stringArray(value, label) {
   return value.map((item) => item.trim());
 }
 
+function optionalStringArray(value, label) {
+  return value == null ? [] : stringArray(value, label);
+}
+
+function parseModelJson(content) {
+  if (typeof content !== "string" || !content.trim()) throw new Error("DeepSeek response content is empty.");
+  const trimmed = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try { return JSON.parse(trimmed); }
+  catch {
+    const first = trimmed.indexOf("{");
+    const last = trimmed.lastIndexOf("}");
+    if (first >= 0 && last > first) return JSON.parse(trimmed.slice(first, last + 1));
+    throw new Error("DeepSeek response does not contain a JSON object.");
+  }
+}
+
 function optionalText(value, label, maxLength) {
   if (value == null) return null;
   return requiredText(value, label, maxLength);
@@ -61,8 +78,9 @@ function optionalText(value, label, maxLength) {
 
 function validateProposal(value, analysisType, index) {
   const label = `recommendations[${index}].proposal_payload`;
+  if (value == null) return { action: "none" };
   if (!isObject(value)) throw new Error(`${label} must be an object.`);
-  const action = requiredText(value.action, `${label}.action`, 32);
+  const action = value.action == null ? "none" : requiredText(value.action, `${label}.action`, 32);
   if (!["none", "create_annual_plan"].includes(action)) throw new Error(`${label}.action is invalid.`);
   if (["investment", "strategy_score"].includes(analysisType) && action !== "none") {
     throw new Error(`${label}.action must be none for ${analysisType}.`);
@@ -117,11 +135,11 @@ function validateResult(result, analysisType) {
       summary: requiredText(item.summary, `${label}.summary`, 500),
       confidence: item.confidence,
       priority_score: item.priority_score,
-      target_refs: stringArray(item.target_refs, `${label}.target_refs`),
-      evidence_refs: stringArray(item.evidence_refs, `${label}.evidence_refs`),
-      assumptions: stringArray(item.assumptions, `${label}.assumptions`),
-      risk_flags: stringArray(item.risk_flags, `${label}.risk_flags`),
-      missing_inputs: stringArray(item.missing_inputs, `${label}.missing_inputs`),
+      target_refs: optionalStringArray(item.target_refs, `${label}.target_refs`),
+      evidence_refs: optionalStringArray(item.evidence_refs, `${label}.evidence_refs`),
+      assumptions: optionalStringArray(item.assumptions, `${label}.assumptions`),
+      risk_flags: optionalStringArray(item.risk_flags, `${label}.risk_flags`),
+      missing_inputs: optionalStringArray(item.missing_inputs, `${label}.missing_inputs`),
       proposal_payload: validateProposal(item.proposal_payload, analysisType, index)
     };
   });
@@ -161,9 +179,11 @@ exports.handler = async (event) => {
 
   const analysisType = request.analysis_type;
   const input = request.input;
+  const selectedModel = request.model || configured("DEEPSEEK_MODEL") || "deepseek-v4-flash";
   if (!ALLOWED_TYPES.has(analysisType) || !input || typeof input !== "object" || Array.isArray(input)) {
     return response(400, { error: "analysis_type and a structured input object are required." });
   }
+  if (!ALLOWED_MODELS.has(selectedModel)) return response(400, { error: "Unsupported DeepSeek model." });
 
   const templateKey = {
     pairing: "pairing_lab",
@@ -185,25 +205,27 @@ exports.handler = async (event) => {
       authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: configured("DEEPSEEK_MODEL") || "deepseek-v4-flash",
+      model: selectedModel,
       messages: [
         { role: "system", content: template.system_prompt },
         { role: "user", content: `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
-      response_format: { type: "json_object" },
+      thinking: { type: "enabled" },
+      reasoning_effort: selectedModel === "deepseek-v4-pro" ? "high" : "medium",
       max_tokens: 2200,
       stream: false
     })
   });
   const deepSeekPayload = await deepSeekResult.json().catch(() => null);
   if (!deepSeekResult.ok) {
+    console.error("DeepSeek provider error", { status: deepSeekResult.status, type: analysisType, model: selectedModel, message: deepSeekPayload?.error?.message || "Unknown provider error." });
     return response(502, { error: "DeepSeek request failed.", detail: deepSeekPayload?.error?.message || "Unknown provider error." });
   }
 
   const content = deepSeekPayload?.choices?.[0]?.message?.content;
   let result;
-  try { result = JSON.parse(content); }
-  catch { return response(502, { error: "DeepSeek returned invalid JSON." }); }
+  try { result = parseModelJson(content); }
+  catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
   try { result = validateResult(result, analysisType); }
   catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
 
@@ -211,7 +233,7 @@ exports.handler = async (event) => {
     analysis_type: analysisType,
     as_of_at: input.as_of_at || new Date().toISOString(),
     template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version },
-    model: deepSeekPayload.model || configured("DEEPSEEK_MODEL") || "deepseek-v4-flash",
+    model: deepSeekPayload.model || selectedModel,
     usage: deepSeekPayload.usage || null,
     result
   });
