@@ -198,6 +198,7 @@ const SUPABASE_PUBLISHABLE_KEY=window.SuohaData.config.publishableKey;
 let sb=null;
 let currentUser=null;
 let currentProfile=null;
+let workspaceUnlockInProgress=false;
 let adminTab="snakes";
 let editContext=null;
 let editGenes=[];
@@ -293,8 +294,26 @@ async function applySession(session){
 }
 async function login(email,password){
   if(!sb)throw new Error("Supabase 尚未配置。");
-  const {error}=await sb.auth.signInWithPassword({email,password});
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
   if(error)throw error;
+  return data.session;
+}
+async function validateAndOpenWorkspace(session){
+  if(!session?.user)throw new Error("没有可用登录会话，请输入邮箱和密码后重试。");
+  if(workspaceUnlockInProgress)return;
+  workspaceUnlockInProgress=true;
+  try{
+    setGate(true,"正在校验账号权限…");
+    await applySession(session);
+    if(!currentProfile?.active)throw new Error("此账号尚未被授权访问该工作区。");
+    setGate(true,"正在读取业务数据…");
+    await loadRemoteData();
+    renderAll();
+    renderAdmin();
+    revealAuthenticatedWorkspace();
+  }finally{
+    workspaceUnlockInProgress=false;
+  }
 }
 async function logout(){
   if(!sb)return;
@@ -305,7 +324,7 @@ $("#authBtn").onclick=()=>{if(!supabaseConfigured())$("#configWarning").classLis
 $("#logoutBtn").onclick=logout;
 $("#loginForm").onsubmit=async e=>{
   e.preventDefault();$("#loginMessage").textContent="正在登录…";
-  try{await login($("#loginEmail").value.trim(),$("#loginPassword").value);$("#loginMessage").textContent="";closeModal("loginModal")}
+  try{const session=await login($("#loginEmail").value.trim(),$("#loginPassword").value);await validateAndOpenWorkspace(session);$("#loginMessage").textContent="";closeModal("loginModal")}
   catch(err){$("#loginMessage").textContent="登录失败：请确认该邮箱已在 Supabase Authentication > Users 中完成账号设置，并确认密码正确。"}
 };
 
@@ -316,7 +335,17 @@ $("#gateLoginForm").onsubmit=async e=>{
   $("#gateMessage").classList.remove("ok");
   $("#gateMessage").textContent="正在验证账号…";
   try{
-    await login(email,password);
+    // A persisted Supabase session is deliberately not opened on page load.
+    // It is only validated after the user explicitly presses this button.
+    let session=null;
+    if(password){
+      session=await login(email,password);
+    }else{
+      const {data:{session:storedSession},error}=await sb.auth.getSession();
+      if(error)throw error;
+      session=storedSession;
+    }
+    await validateAndOpenWorkspace(session);
     $("#gateMessage").textContent="";
   }catch(err){
     console.warn("Login:",err);
@@ -777,35 +806,25 @@ async function initApp(){
           updateAuthUI();
           return;
         }
-        // 初始会话由下方 getSession() 统一加载，避免 INITIAL_SESSION 与 getSession 双重刷新页面。
+        // 初始会话只用于提示用户。页面不能因为有本地 session 自动进入工作区。
         if(event==="INITIAL_SESSION")return;
-        // Supabase 在部分浏览器重新聚焦时也可能再次发出 SIGNED_IN；同一已登录用户无需重开 Gate 或重拉数据。
-        if(event==="SIGNED_IN"&&session&&currentUser?.id===session.user?.id&&!document.body.classList.contains("auth-locked")){
+        // 登录请求由登录按钮显式调用 validateAndOpenWorkspace() 完成。
+        if(event==="SIGNED_IN"&&session){
           currentUser=session.user;
           updateAuthUI();
           return;
         }
-
-        await applySession(session);
         if(event==="PASSWORD_RECOVERY"){
           setGate(false,"");
           openModal("passwordModal");
           return;
         }
-        if(session&&event==="SIGNED_IN"){
-          try{
-            await loadRemoteData();
-            renderAll();
-            renderAdmin();
-            revealAuthenticatedWorkspace();
-          }catch(err){
-            console.error("Remote data:",err);
-            setGate(true,"业务数据读取失败："+(err.message||err));
-          }
-        }else if(!session){
+        if(!session){
           DATA=EMPTY_DATA();
           ANNUAL_PLANS={};
           snakeById={};
+          currentUser=null;
+          currentProfile=null;
           setGate(true,"");
         }
       },0);
@@ -813,18 +832,9 @@ async function initApp(){
 
     const {data:{session},error}=await sb.auth.getSession();
     if(error)throw error;
-    await applySession(session);
-
     if(session){
-      try{
-        await loadRemoteData();
-        renderAll();
-        renderAdmin();
-        revealAuthenticatedWorkspace();
-      }catch(err){
-        console.error("Remote data:",err);
-        setGate(true,"业务数据读取失败："+(err.message||err));
-      }
+      // Never auto-login: the stored session is verified only after a button click.
+      $("#gateMessage").textContent="已检测到登录会话，点击“登录系统”后校验并进入。";
     }else{
       setGate(true,"");
     }
