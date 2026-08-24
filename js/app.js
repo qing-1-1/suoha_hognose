@@ -199,6 +199,7 @@ let sb=null;
 let currentUser=null;
 let currentProfile=null;
 let workspaceUnlockInProgress=false;
+const WORKSPACE_AUTH_MARKER="suoha_workspace_authorized_user";
 let adminTab="snakes";
 let editContext=null;
 let editGenes=[];
@@ -310,6 +311,9 @@ async function validateAndOpenWorkspace(session){
     await loadRemoteData();
     renderAll();
     renderAdmin();
+    // Only a user who has explicitly completed this validation may be restored
+    // directly to the workspace after a browser refresh.
+    localStorage.setItem(WORKSPACE_AUTH_MARKER,session.user.id);
     revealAuthenticatedWorkspace();
   }finally{
     workspaceUnlockInProgress=false;
@@ -317,6 +321,7 @@ async function validateAndOpenWorkspace(session){
 }
 async function logout(){
   if(!sb)return;
+  localStorage.removeItem(WORKSPACE_AUTH_MARKER);
   const {error}=await sb.auth.signOut();
   if(error)toast(error.message,true);
 }
@@ -381,8 +386,13 @@ $("#passwordForm").onsubmit=async e=>{
     if(error)throw error;
     $("#passwordMessage").textContent="";
     closeModal("passwordModal");
-    toast("密码设置成功");
-    await refreshRemote(false);
+    localStorage.removeItem(WORKSPACE_AUTH_MARKER);
+    await sb.auth.signOut();
+    // Remove the one-time recovery token from the URL before showing the login gate.
+    history.replaceState({},document.title,window.location.pathname);
+    setGate(true,"密码已重置，请使用新密码登录。");
+    $("#gatePassword").value="";
+    toast("密码设置成功，请重新登录。");
   }catch(err){
     $("#passwordMessage").textContent=err.message||String(err);
   }
@@ -825,6 +835,7 @@ async function initApp(){
           snakeById={};
           currentUser=null;
           currentProfile=null;
+          localStorage.removeItem(WORKSPACE_AUTH_MARKER);
           setGate(true,"");
         }
       },0);
@@ -832,8 +843,14 @@ async function initApp(){
 
     const {data:{session},error}=await sb.auth.getSession();
     if(error)throw error;
-    if(session){
-      // Never auto-login: the stored session is verified only after a button click.
+    if(session&&localStorage.getItem(WORKSPACE_AUTH_MARKER)===session.user.id){
+      // A previously validated user can resume the workspace after refresh.
+      try{await validateAndOpenWorkspace(session)}catch(err){
+        localStorage.removeItem(WORKSPACE_AUTH_MARKER);
+        setGate(true,"登录状态校验失败，请重新登录。");
+      }
+    }else if(session){
+      // A session alone is not sufficient for a first entry; the user must press the login button once.
       $("#gateMessage").textContent="已检测到登录会话，点击“登录系统”后校验并进入。";
     }else{
       setGate(true,"");
