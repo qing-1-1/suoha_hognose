@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
 <title>Suoha Hognose · Breeding OS · Supabase</title>
-<link rel="stylesheet" href="./assets/app.css">
+<link rel="stylesheet" href="/assets/app.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./js/data.js"></script>
+<script src="/js/data.js"></script>
 </head>
 <body class="auth-locked">
 
@@ -207,6 +207,7 @@
 
 <div class="drawer" id="drawer"><button class="drawerClose" id="drawerClose">×</button><div id="drawerContent"></div></div>
 
-<script src="./js/app.js"></script>
-<script src="./js/ai.js"></script>
+<!-- AI defines its analysis functions first; app.js installs the UI wrappers and starts the app. -->
+<script src="/js/ai.js"></script>
+<script src="/js/app.js"></script>
 </body></html>
