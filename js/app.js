@@ -199,7 +199,6 @@ let sb=null;
 let currentUser=null;
 let currentProfile=null;
 let workspaceUnlockInProgress=false;
-const WORKSPACE_AUTH_MARKER="suoha_workspace_authorized_user";
 let adminTab="snakes";
 let editContext=null;
 let editGenes=[];
@@ -311,9 +310,6 @@ async function validateAndOpenWorkspace(session){
     await loadRemoteData();
     renderAll();
     renderAdmin();
-    // Only a user who has explicitly completed this validation may be restored
-    // directly to the workspace after a browser refresh.
-    localStorage.setItem(WORKSPACE_AUTH_MARKER,session.user.id);
     revealAuthenticatedWorkspace();
   }finally{
     workspaceUnlockInProgress=false;
@@ -321,7 +317,6 @@ async function validateAndOpenWorkspace(session){
 }
 async function logout(){
   if(!sb)return;
-  localStorage.removeItem(WORKSPACE_AUTH_MARKER);
   const {error}=await sb.auth.signOut();
   if(error)toast(error.message,true);
 }
@@ -386,7 +381,6 @@ $("#passwordForm").onsubmit=async e=>{
     if(error)throw error;
     $("#passwordMessage").textContent="";
     closeModal("passwordModal");
-    localStorage.removeItem(WORKSPACE_AUTH_MARKER);
     await sb.auth.signOut();
     // Remove the one-time recovery token from the URL before showing the login gate.
     history.replaceState({},document.title,window.location.pathname);
@@ -804,7 +798,8 @@ async function initApp(){
 
   try{
     sb=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+      // Explicit browser storage keeps a password login available across refreshes.
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}
     });
     setGateConnection(true,"Supabase connected");
 
@@ -835,7 +830,6 @@ async function initApp(){
           snakeById={};
           currentUser=null;
           currentProfile=null;
-          localStorage.removeItem(WORKSPACE_AUTH_MARKER);
           setGate(true,"");
         }
       },0);
@@ -843,15 +837,11 @@ async function initApp(){
 
     const {data:{session},error}=await sb.auth.getSession();
     if(error)throw error;
-    if(session&&localStorage.getItem(WORKSPACE_AUTH_MARKER)===session.user.id){
-      // A previously validated user can resume the workspace after refresh.
+    if(session){
+      // Supabase has already validated this browser session. Resume the workspace on refresh.
       try{await validateAndOpenWorkspace(session)}catch(err){
-        localStorage.removeItem(WORKSPACE_AUTH_MARKER);
         setGate(true,"登录状态校验失败，请重新登录。");
       }
-    }else if(session){
-      // A session alone is not sufficient for a first entry; the user must press the login button once.
-      $("#gateMessage").textContent="已检测到登录会话，点击“登录系统”后校验并进入。";
     }else{
       setGate(true,"");
     }
