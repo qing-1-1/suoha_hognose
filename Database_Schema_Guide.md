@@ -1830,6 +1830,8 @@ Holds the fixed server-side system prompt for `pairing`, `annual_plan`, `investm
 
 `analysis_runs.source_snapshot` is the structured, as-of-time input sent to the model. `response_payload` records the validated JSON response, while `model_name`, `prompt_template_id`, `prompt_version`, and `response_schema_version` provide provenance. `ai_recommendations` stores individual proposals with review status; acceptance is not execution.
 
+Investment analyses have two snapshot scopes: `population` is the existing whole-population gap analysis, while `candidate_investment` evaluates one external, not-yet-owned candidate against the current population, routes, and investments. Both use `analysis_type = investment` and the same review queue, but the UI separates their runs by `source_snapshot.analysis_scope` so one cannot replace the other. Candidate `gene_text` is not treated as a genetic fact unless it resolves to a recorded atomic gene in `candidate.atomic_genes`.
+
 ### `public.ai_conversations`
 
 Created once for an `analysis_run_id` (`unique`). It preserves the analysis type, the same fact snapshot, model identity, and original prompt version used by the initial analysis. Deleting an analysis run cascades to its conversation; no core animal or planning record is affected.
@@ -1850,6 +1852,7 @@ supabase/migrations/006_ai_conversations.sql
 supabase/migrations/007_ai_prompt_templates_v3.sql
 supabase/migrations/008_ai_review_workflow.sql
 supabase/migrations/009_ai_review_backfill_links.sql
+supabase/migrations/013_candidate_investment_prompt.sql
 ```
 
 `008_ai_review_workflow.sql` keeps AI and manual decisions in the same business tables. `investments` and `annual_breeding_plans` carry `source_type` (`manual` / `ai`) and `review_status` (`pending` / `approved` / `returned`). AI rows reference their originating `ai_recommendations` record through `ai_recommendation_id`. Only approved records are rendered in the normal investment and annual-planning pages; pending AI records appear in the separate investment and annual review queues.

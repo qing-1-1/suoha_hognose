@@ -287,6 +287,14 @@ exports.handler = async (event) => {
     return response(503, { error: "AI prompt template is unavailable. Run the Supabase AI decision-layer migration first." });
   }
   const template = templateResult.data[0];
+  const promptOverride = typeof request.prompt_override === "string" ? request.prompt_override.trim() : "";
+  if (promptOverride && role !== "admin") {
+    return response(403, { error: "Only admin may use an unsaved prompt override." });
+  }
+  if (promptOverride && (promptOverride.length < 80 || promptOverride.length > 16000)) {
+    return response(400, { error: "Prompt override must contain 80–16000 characters." });
+  }
+  const effectivePrompt = promptOverride || template.system_prompt;
 
   const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -297,7 +305,7 @@ exports.handler = async (event) => {
     body: JSON.stringify({
       model: selectedModel,
       messages: [
-        { role: "system", content: template.system_prompt },
+        { role: "system", content: effectivePrompt },
         { role: "user", content: `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
       // 结构化业务输出优先保证最终 JSON。开启思考时，模型可能只产出 reasoning token，
@@ -337,7 +345,7 @@ exports.handler = async (event) => {
   return response(200, {
     analysis_type: analysisType,
     as_of_at: input.as_of_at || new Date().toISOString(),
-    template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version },
+    template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version, prompt_override_used: Boolean(promptOverride) },
     model: deepSeekPayload.model || selectedModel,
     usage: deepSeekPayload.usage || null,
     result
