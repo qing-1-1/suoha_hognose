@@ -281,6 +281,8 @@ button.is-pressing:after{content:"";display:inline-block;width:10px;height:10px;
 /* Candidate purchasing advice shares the AI decision-surface treatment. */
 .candidateInvestmentCard{background:#272729;border-color:#272729;color:#fff}.candidateInvestmentCard .cardHead{border-color:rgba(255,255,255,.18)}.candidateInvestmentCard .cardHead p,.candidateInvestmentCard .formField label{color:#ccc}.candidateInvestmentCard .pillBtn{background:#0066cc;border-color:#0066cc}.candidateInvestmentCard .formField input,.candidateInvestmentCard .formField select{border-color:rgba(255,255,255,.2);background:#1d1d1f;color:#fff}.candidateInvestmentCard .formField input::placeholder{color:#a9a9ae}.candidateInvestmentCard .candidateGenePreview{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.055);color:#ccc}.candidateInvestmentCard .candidateGenePreview b{color:#fff}.candidateInvestmentCard .candidateGenePreview .candidateGeneToken{background:rgba(255,255,255,.12);color:#fff}
 
+.diagnosticDetails{margin-top:8px}.diagnosticDetails summary{cursor:pointer;color:#0066cc;font-size:13px;font-weight:650}.diagnosticDetails p{margin:7px 0 0;color:#505057;font-size:13px;line-height:1.65}.diagnosticDetails[open] summary{margin-bottom:4px}
+
 /* Compact investment cards: retain decision data while reducing vertical scan time. */
 .investGrid{gap:14px}.investCard{padding:16px 18px}.investCard .investTop{margin-bottom:8px}.investCard .investThesis{display:-webkit-box;margin:8px 0;overflow:hidden;line-height:1.38;-webkit-box-orient:vertical;-webkit-line-clamp:2}.investCard .investMeta{gap:7px;margin:10px 0}.investCard .investMeta div{padding:8px 10px}.investCard .criteria{gap:5px}.investCard .criteria span{padding:4px 6px}
 
