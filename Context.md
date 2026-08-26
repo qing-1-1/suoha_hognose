@@ -191,8 +191,8 @@ Series counts:
 | S18 | 巧克力 | RBE太妃康隐巧克力 | F | 2026-04 | 2028-12 | ¥3,000 | — | 91 | 复合核心母 |
 | S19 | 巧克力 | RBE太妃超康隐巧克力 | M | 2026-04 | 2027-12 | ¥2,000 | Ma | 92 | 复合核心公 |
 | S20 | 巧克力 | 巧克力康达66太妃 | F | 2025-10 | 2027-12 | ¥3,500 | — | 87 | 巧克力核心 |
-| S21 | 巧克力 | 白（北）康隐薰巧 | F | 2025-10 | 2027-12 | ¥4,000 | Ma | 88 | 白化/薰巧桥梁 |
-| S22 | 巧克力 | 白（北）康隐薰巧 | M | 2025-10 | 2026-12 | ¥800 | Ma | 85 | 白化/薰巧桥梁 |
+| S21 | 巧克力 | 白化北极康隐薰巧 | F | 2025-10 | 2027-12 | ¥4,000 | Ma | 88 | 白化/北极/薰巧桥梁 |
+| S22 | 巧克力 | 白化康隐薰巧 | M | 2025-10 | 2026-12 | ¥800 | Ma | 85 | 白化/薰巧桥梁 |
 | S23 | 巧克力 | 超北隐巧克力 | F | 2026-04 | 2028-12 | ¥1,300 | — | 82 | 巧克力桥梁 |
 | S24 | 糖霜/焦糖 | 糖霜康 | F | 2026-07 | 2028-12 | ¥1,300 | — | 78 | 待解锁母 |
 | S25 | 糖霜/焦糖 | 北极焦糖 | F | 2026-07 | 2028-12 | ¥1,600 | Ma | 80 | 待解锁母 |
@@ -201,7 +201,7 @@ Series counts:
 | S28 | 其他 | 毒药康达 | F | 2024-05 | 2026-12 | ¥3,500 | Ma | 88 | 毒药桥梁 |
 | S29 | 其他 | 毒药超康 | F | 2026-03 | 2028-12 | ¥1,700 | — | 89 | 毒药核心 |
 | S30 | 其他 | 暴风云康达 | F | 2026-07 | 2028-12 | ¥1,900 | Ma | 91 | 暴风云桥梁 |
-| S31 | 其他 | 超北（康）薰衣草 | F | 2026-03 | 2028-12 | ¥1,200 | — | 86 | 薰衣草桥梁 |
+| S31 | 其他 | 超北薰衣草 | F | 2026-03 | 2028-12 | ¥1,200 | — | 86 | 薰衣草桥梁 |
 | S32 | 其他 | 薰康66白化 | F | 2025-06 | 2027-12 | ¥1,500 | Ma | 84 | 白化桥梁 |
 
 ### Interpretation of `strategic_score`
@@ -329,7 +329,7 @@ Current `genes` table contains **17** rows:
 | color_explosion | 色彩爆炸 | Color Explosion | line_trait | — |
 | purple_line | 紫线 | Purple Line | line_trait | — |
 | purple_tone | 紫调 | Purple Tone | line_trait | — |
-| skullface | 鬼脸 | Skullface / Face Pattern | unknown | — |
+| skullface | 鬼脸 | Skullface / Face Pattern | incomplete_dominant | skullface |
 | frosted | 糖霜 | Frosted | unknown | — |
 
 ### 4.5 Parser aliases
@@ -357,10 +357,10 @@ belong in `morphs + morph_components`.
 
 Do not silently “fix” these. Ask or preserve `unknown` until clarified.
 
-- `糖霜` — exact genetic definition not finalized.
-- `鬼脸` — exact inheritance model not finalized.
-- `白（北）` — current stock shorthand is ambiguous between Albino/Arctic interpretation.
-- `超北（康）` — the parenthesized Conda state needs pedigree confirmation.
+- `糖霜` — 仍不应自动计算。公开资料存在冲突：部分将 Frosted 描述为 Caramel + Hypo 组合，另一些仍按独立隐性且“under review”展示；在有来源谱系/繁殖验证前，保持 `unknown`，不得与焦糖合并为同位点。
+- `鬼脸` — 已按单基因 co-dominant / incomplete-dominant 建模；`snake_genes` 中已出现鬼脸且状态为 `unknown` 的个体应回填为 `visual`。super 的表现和生存性仍应以实际谱系验证。
+- S21 / S22 曾使用“白（北）”的模糊简称；已确认 S21 为白化 + 北极，S22 为白化且不带北极。
+- S31 曾使用“超北（康）薰衣草”；已确认应为“超北薰衣草”，不带康达。
 - `巧克力` is currently modeled as `swiss_chocolate`; confirm against pedigree/source if exact line matters.
 - `RBE`, `极端红`, `色彩爆炸`, `紫线`, `紫调`, etc. may be polygenic or line/quality traits and should not be
   forced into simple Mendelian probability logic.
@@ -948,6 +948,20 @@ It should:
 - avoid fake precision for line/polygenic traits
 - later allow F1 -> F2 / backcross simulation
 
+### 4.7 Mendelian probability engine — implemented
+
+The pairing laboratory now calculates Mendelian outcomes in the browser from the live Supabase snapshot:
+
+- `recessive`: visual / het / possible_het;
+- `dominant` and `incomplete_dominant`: visual / super, with visual assumed heterozygous unless dosage is recorded;
+- same `genes.locus` values are calculated as a single locus, rather than as independent genes;
+- named combos in `morphs + morph_components` are derived only when all required loci are calculable and independent;
+- `unknown`, `polygenic`, `line_trait`, and conflicting same-locus records are shown as skipped, never converted to a made-up percentage.
+
+The source table (`genes.inheritance_type`) and the individual state table (`snake_genes.state`) have separate meanings. Updating the former does not alter existing individual rows. Use migration `011_correct_skullface_and_frosted_metadata.sql` to backfill existing `skullface = unknown` rows to `visual`.
+
+Source review recorded on 2026-08-26: [Skullface as co-dominant and head-pattern eliminating](https://hognosesnakes.de/morphe/muster/); [Coral as Lavender + Albino double recessive](https://www.gargoylequeen.com/hognosebreeders.html); [Frosted listed as under review](https://hognosehub.com/genetics-lab/caramel).
+
 ### Fourth priority — operational breeding records
 
 Add workflow/UI for:
@@ -1044,7 +1058,7 @@ When taking over this project:
 - Preserve the atomic-gene/composite-morph separation.
 - Preserve plan/event/clutch separation.
 - Preserve RLS and never expose a service-role key.
-- Ask before resolving ambiguous genetics such as 糖霜 / 鬼脸 / 白（北） / 超北（康）.
+- Ask before resolving ambiguous genetics such as 糖霜. S21、S22、S31 和鬼脸已按用户确认信息回填。
 - Prefer incremental changes that keep the deployed app working.
 - The core product experience is lineage + generation + network + breeding planning, not generic admin CRUD.
 ```

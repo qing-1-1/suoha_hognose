@@ -579,6 +579,32 @@ A morph should be **derived**, not redundantly inserted into `snake_genes`.
 
 ---
 
+## 6.6 Mendelian probability engine
+
+`js/genetics.js` consumes the live `genes`, `snake_genes`, `morphs`, and `morph_components` snapshot on the pairing-laboratory page. It calculates only loci that have a Mendelian inheritance model:
+
+- recessive: `visual`, `het`, and `possible_het` (the latter keeps its configured probability);
+- dominant / incomplete-dominant: `visual` and `super`;
+- same `genes.locus`: alternative alleles at one locus rather than independent traits.
+
+It deliberately does **not** calculate `unknown`, `polygenic`, or `line_trait` rows, records whose states cannot form a valid diploid locus, linkage, or joint possible-het correlation. The UI labels those cases instead of returning false precision.
+
+`genes.inheritance_type` describes the mutation; `snake_genes.state` describes an individual. Thus changing Skullface from `unknown` to `incomplete_dominant` in `genes` does not automatically change a pre-existing `snake_genes.state = unknown`. Migration `011_correct_skullface_and_frosted_metadata.sql` backfills only existing Skullface rows to `visual`.
+
+For the current curated genetics policy, Skullface is modeled as an incomplete-dominant trait; Frosted remains unknown pending provenance because published hobby references conflict on whether it is a Caramel + Hypo combo or an independently inherited trait. Do not group Frosted with Caramel in the same `locus` until direct pedigree or breeding evidence is recorded.
+
+### Confirmed stock corrections (2026-08)
+
+The following corrections are stored in migration `012_resolve_s21_s22_s31_genotypes.sql`. They update both the human-readable `snakes.gene_text` and the authoritative atomic rows in `snake_genes`.
+
+| Snake | Sex | Confirmed display genotype | `snake_genes` result |
+| --- | --- | --- | --- |
+| S21 | F | 白化北极康隐薰巧 | `albino=visual`, `arctic=visual`, `conda=visual`, `lavender=het`, `swiss_chocolate=visual` |
+| S22 | M | 白化康隐薰巧 | `albino=visual`, `conda=visual`, `lavender=het`, `swiss_chocolate=visual`; no `arctic` row |
+| S31 | F | 超北薰衣草 | `arctic=super`, `lavender=visual`; no `conda` row |
+
+---
+
 # 7. Multi-generation breeding route layer
 
 ## 7.1 `public.breeding_routes`

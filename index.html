@@ -138,9 +138,10 @@
   <div class="analysisSplit"><div class="card"><div class="cardHead"><div><h3>固定结构结论</h3><p>仅由当前种群、性别与状态计算</p></div></div><div class="cardBody" id="investmentFacts"></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 投资建议</h3><p>固定 Prompt + 结构化输出；不推测外部市场</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runInvestmentAiBtn">生成建议</button></div><div class="cardBody" id="investmentAi"></div></div></div>
 </section>
 
-<section class="page" id="page-lab">
-  <div class="pageHead"><div><div class="eyebrow">Pairing sandbox</div><h1>配对实验室</h1><p>固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；不会伪造未经遗传计算引擎验证的后代概率。</p></div></div>
-  <div class="labGrid"><div class="card"><div class="cardHead"><div><h3>选择父母</h3><p>真实库存个体</p></div></div><div class="cardBody"><div class="selector"><div class="selectBlock"><label>Female</label><select id="labF"></select></div><div class="selectBlock"><label>Male</label><select id="labM"></select></div></div><div class="pairVisual" id="pairVisual"></div><div class="warning">固定规则只读取 snake_genes、成熟状态、个体状态与现有计划。组合形态由原子基因派生；不输出未经遗传计算引擎验证的精确后代概率。</div></div></div><div class="card"><div class="cardHead"><div><h3>固定规则结果</h3><p>事实与确定性约束，不是 AI 判断</p></div><div class="spacer"></div><span class="cardTag" id="labYear"></span></div><div class="cardBody" id="labResult"></div></div></div>
+  <section class="page" id="page-lab">
+   <div class="pageHead"><div><div class="eyebrow">Pairing sandbox</div><h1>配对实验室</h1><p>固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；孟德尔引擎只计算已定义的单基因位点，并会公开其假设和缺失数据。</p></div></div>
+    <div class="labGrid"><div class="card"><div class="cardHead"><div><h3>选择父母</h3><p>真实库存个体</p></div></div><div class="cardBody"><div class="selector"><div class="selectBlock"><label>Female</label><select id="labF"></select></div><div class="selectBlock"><label>Male</label><select id="labM"></select></div></div><div class="pairVisual" id="pairVisual"></div><div class="warning">概率仅使用 snake_genes 中已定义为单基因遗传的位点。可能携带率会纳入计算；unknown、line trait、polygenic 及同位点冲突不会被伪造为精确概率。</div></div></div><div class="card"><div class="cardHead"><div><h3>固定规则结果</h3><p>事实与确定性约束，不是 AI 判断</p></div><div class="spacer"></div><span class="cardTag" id="labYear"></span></div><div class="cardBody" id="labResult"></div></div></div>
+   <div class="card mendelianCard" style="margin-top:12px"><div class="cardHead"><div><h3>孟德尔后代概率</h3><p>按 loci 分离计算；组合形态仅在所需位点均可计算时派生</p></div></div><div class="cardBody" id="mendelianResult"></div></div>
   <div class="card aiPanel" style="margin-top:12px"><div class="cardHead"><div><h3>AI 配对建议</h3><p>固定 Prompt、模型、时间与审核状态均会保存</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runPairingAiBtn">分析当前配对</button></div><div class="cardBody" id="pairingAi"></div></div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>系统推荐候选</h3><p>按当前年份和策略匹配分排序</p></div></div><div class="cardBody"><div class="tableWrap"><table class="dataTable"><thead><tr><th>母蛇</th><th>公蛇</th><th>系列关系</th><th>成熟</th><th>策略分</th><th>用途</th></tr></thead><tbody id="labRows"></tbody></table></div></div></div>
 </section>
@@ -209,5 +210,6 @@
 
 <!-- AI defines its analysis functions first; app.js installs the UI wrappers and starts the app. -->
 <script src="/js/ai.js"></script>
+<script src="/js/genetics.js"></script>
 <script src="/js/app.js"></script>
 </body></html>

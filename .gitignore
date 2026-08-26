@@ -3,3 +3,6 @@
 !.env.example
 .netlify
 /supabase/migrations/*
+!/supabase/migrations/010_mendelian_genetics_metadata.sql
+!/supabase/migrations/011_correct_skullface_and_frosted_metadata.sql
+!/supabase/migrations/012_resolve_s21_s22_s31_genotypes.sql
