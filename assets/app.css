@@ -289,6 +289,8 @@ button.is-pressing:after{content:"";display:inline-block;width:10px;height:10px;
 
 /* The inventory drawer exists only inside the expanded editor. */
 .canvasSidePanel[hidden]{display:none!important}.canvasSidePanel:not([hidden]){display:block!important}body.can-write #routeConnectBtn,body.can-write #routeConnectType,body.can-write #canvasDoneBtn{display:none}.routeShell.canvasEditing #canvasDoneBtn{display:inline-flex!important}.routeShell:not(.canvasEditing) .routeWireHandle{display:none!important}
+.canvasVirtualActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.canvasVirtualActions button{border:1px solid rgba(41,151,255,.5);border-radius:10px;background:rgba(41,151,255,.12);color:#bce4ff;padding:9px 7px;font-size:12px;cursor:pointer}.canvasVirtualActions button:hover{background:rgba(41,151,255,.24)}
+.workspaceReveal{display:none!important}.workspace-revealing .sidebar,.workspace-revealing .main,.workspace-revealing .mobileNav{animation:workspaceSoftFade .46s ease both}@keyframes workspaceSoftFade{from{opacity:0}to{opacity:1}}
 
 /* Compact investment cards: retain decision data while reducing vertical scan time. */
 .investGrid{gap:14px}.investCard{padding:16px 18px}.investCard .investTop{margin-bottom:8px}.investCard .investThesis{display:-webkit-box;margin:8px 0;overflow:hidden;line-height:1.38;-webkit-box-orient:vertical;-webkit-line-clamp:2}.investCard .investMeta{gap:7px;margin:10px 0}.investCard .investMeta div{padding:8px 10px}.investCard .criteria{gap:5px}.investCard .criteria span{padding:4px 6px}
