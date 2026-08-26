@@ -684,6 +684,10 @@ bridge_S27   ── snake_id = S27
 
 These are not duplicate snakes. They are distinct visual/project placements of one real individual.
 
+### Route editor in the application
+
+On the **繁殖路线图** page, an `editor` or `admin` can select **编辑当前路线** to create a real-snake node, change its label, coordinates, strategic score, or key status, and create or delete directed edges. Adding a snake creates a route-scoped node ID in the form `<route_id>_<snake_id>`; deleting a node relies on the database cascade to remove its related `route_edges`. This editor intentionally manages existing snakes and their graph placement only; planned offspring, gaps, and targets remain database-managed records.
+
 ---
 
 ## 7.3 `public.route_edges`
