@@ -7,7 +7,8 @@ const genes = [
   { id: "albino", name_zh: "白化", inheritance_type: "recessive", locus: "albino" },
   { id: "skullface", name_zh: "鬼脸", inheritance_type: "dominant", locus: "skullface" },
   { id: "caramel", name_zh: "焦糖", inheritance_type: "recessive", locus: "caramel" },
-  { id: "frosted", name_zh: "糖霜", inheritance_type: "unknown", locus: null }
+  { id: "frosted", name_zh: "糖霜", inheritance_type: "unknown", locus: null },
+  { id: "conda", name_zh: "康达", inheritance_type: "incomplete_dominant", locus: "conda" }
 ];
 
 function outcomes(result, locus) {
@@ -67,4 +68,33 @@ test("named combinations are derived from independent calculated loci", () => {
     ]
   });
   assert.deepEqual(result.derivedMorphs, [{ id: "coral", name_zh: "珊瑚", probability: 0.125 }]);
+});
+
+test("conda homozygote uses the established Superconda display name", () => {
+  const result = calculateCross({
+    genes,
+    maternalGenes: [{ gene_id: "conda", state: "visual", probability: 1 }],
+    paternalGenes: [{ gene_id: "conda", state: "visual", probability: 1 }]
+  });
+  assert.deepEqual(outcomes(result, "conda").map(item => [item.label, item.probability]), [
+    ["康达 表现", 0.5], ["超康", 0.25], ["野生型", 0.25]
+  ]);
+});
+
+test("independent loci are combined into complete offspring genotypes", () => {
+  const result = calculateCross({
+    genes,
+    maternalGenes: [
+      { gene_id: "conda", state: "visual", probability: 1 },
+      { gene_id: "lavender", state: "het", probability: 1 }
+    ],
+    paternalGenes: [
+      { gene_id: "conda", state: "visual", probability: 1 },
+      { gene_id: "lavender", state: "het", probability: 1 }
+    ]
+  });
+  assert.equal(result.combinationLimitExceeded, false);
+  assert.equal(result.combinationCount, 9);
+  assert.equal(result.combinedOutcomes.reduce((total, row) => total + row.probability, 0), 1);
+  assert.ok(result.combinedOutcomes.some(row => row.label === "超康薰衣草" && row.probability === 0.0625));
 });

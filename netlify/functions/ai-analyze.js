@@ -294,7 +294,11 @@ exports.handler = async (event) => {
   if (promptOverride && (promptOverride.length < 80 || promptOverride.length > 16000)) {
     return response(400, { error: "Prompt override must contain 80–16000 characters." });
   }
-  const effectivePrompt = promptOverride || template.system_prompt;
+  const isCandidateInvestment = analysisType === "investment" && input.analysis_scope === "candidate_investment";
+  const candidateOutputInstruction = isCandidateInvestment
+    ? "\n\n本次为候选个体投资评估。覆盖模板中任何 JSON/结构化输出要求：只用自然中文直接给出一段采购建议，不要 JSON、数组、字段名、表格或 Markdown。必须明确回答是否对当前种群建设有帮助、是否值得采购，并说明最关键依据与待核实信息；这不是市场、价格或卖家判断。"
+    : "";
+  const effectivePrompt = (promptOverride || template.system_prompt) + candidateOutputInstruction;
 
   const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -306,7 +310,9 @@ exports.handler = async (event) => {
       model: selectedModel,
       messages: [
         { role: "system", content: effectivePrompt },
-        { role: "user", content: `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
+        { role: "user", content: isCandidateInvestment
+          ? `以下是本次候选个体与当前种群的结构化事实。请直接给出采购建议。\n${JSON.stringify(input)}`
+          : `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
       // 结构化业务输出优先保证最终 JSON。开启思考时，模型可能只产出 reasoning token，
       // 在达到 token 上限前没有留下 message.content；这些 token 仍会计费。
@@ -337,10 +343,14 @@ exports.handler = async (event) => {
     });
   }
   let result;
-  try { result = parseModelJson(content); }
-  catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
-  try { result = validateResult(result, analysisType); }
-  catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
+  if (isCandidateInvestment) {
+    result = { candidate_advice: content.trim().slice(0, 2400) };
+  } else {
+    try { result = parseModelJson(content); }
+    catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
+    try { result = validateResult(result, analysisType); }
+    catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
+  }
 
   return response(200, {
     analysis_type: analysisType,

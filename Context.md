@@ -364,6 +364,8 @@ Do not silently “fix” these. Ask or preserve `unknown` until clarified.
 - `巧克力` is currently modeled as `swiss_chocolate`; confirm against pedigree/source if exact line matters.
 - `RBE`, `极端红`, `色彩爆炸`, `紫线`, `紫调`, etc. may be polygenic or line/quality traits and should not be
   forced into simple Mendelian probability logic.
+- `色彩爆炸` 显示为“无法按孟德尔计算”，并不表示它不能遗传；只表示当前没有经确认的单一位点模型与状态，无法负责任地给出固定百分比。
+- `conda` 为不完全显性；两份康达等位基因（`super`）按既有名称显示为 `超康 / Superconda`，而非通用“康达纯合 / super”。
 
 ### 4.7 Notable structured genotype examples
 

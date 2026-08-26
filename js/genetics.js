@@ -23,6 +23,17 @@
   });
   const genotypeKey = alleles => sortAlleles(alleles).join("|");
   const labelFor = (id, byId) => id === WILD ? "野生型" : (byId.get(id)?.name_zh || id);
+  // Established names for known two-copy incomplete-dominant forms.
+  const superLabelFor = (gene, byId) => ({ conda: "超康", arctic: "超北" }[gene?.id] || `${labelFor(gene?.id, byId)} 纯合 / super`);
+  const displayOrder = ["arctic", "conda", "skullface", "axanthic", "albino", "lavender", "sable", "toffee_belly", "swiss_chocolate", "caramel", "frosted"];
+  const geneOrder = id => { const index = displayOrder.indexOf(id); return index < 0 ? 1000 : index; };
+  function offspringLabel(stateByGene, byId) {
+    const entries = Object.entries(stateByGene).filter(([, state]) => state).sort(([left], [right]) => geneOrder(left) - geneOrder(right) || left.localeCompare(right));
+    const visual = entries.filter(([, state]) => state === "visual").map(([id]) => labelFor(id, byId));
+    const superForms = entries.filter(([, state]) => state === "super").map(([id]) => superLabelFor(byId.get(id), byId));
+    const hets = entries.filter(([, state]) => state === "het").map(([id]) => `隐${labelFor(id, byId)}`);
+    return [...superForms, ...visual, ...hets].join("") || "野生型";
+  }
 
   function doseDistribution(row, gene) {
     const state = row.state || "unknown";
@@ -95,7 +106,7 @@
       label = gene.inheritance_type === "recessive" ? `${labelFor(nonWild[0], byId)} 隐性携带` : `${labelFor(nonWild[0], byId)} 表现`;
     } else if (nonWild[0] === nonWild[1]) {
       const gene = byId.get(nonWild[0]);
-      label = gene.inheritance_type === "recessive" ? `${labelFor(nonWild[0], byId)} 表现` : `${labelFor(nonWild[0], byId)} 纯合 / super`;
+      label = gene.inheritance_type === "recessive" ? `${labelFor(nonWild[0], byId)} 表现` : superLabelFor(gene, byId);
     } else label = `${labelFor(nonWild[0], byId)} / ${labelFor(nonWild[1], byId)} 复合杂合（表现待验证）`;
     return { label, stateByGene, compound: new Set(nonWild).size > 1 };
   }
@@ -146,10 +157,31 @@
       if (probabilities.some(probability => probability == null)) return null;
       return { id: morph.id, name_zh: morph.name_zh || morph.id, probability: round(probabilities.reduce((product, probability) => product * probability, 1)) };
     }).filter(Boolean).filter(morph => morph.probability > 0).sort((a, b) => b.probability - a.probability);
+    const combinationCount = calculated.reduce((total, locus) => total * locus.outcomes.length, 1);
+    const combinedOutcomes = combinationCount > 4096 ? [] : (() => {
+      let combinations = [{ probability: 1, stateByGene: {} }];
+      calculated.forEach(locus => {
+        combinations = combinations.flatMap(combo => locus.outcomes.map(outcome => ({
+          probability: combo.probability * outcome.probability,
+          stateByGene: { ...combo.stateByGene, ...outcome.stateByGene }
+        })));
+      });
+      const merged = new Map();
+      combinations.forEach(combo => {
+        const key = Object.entries(combo.stateByGene).filter(([, state]) => state).sort(([a], [b]) => a.localeCompare(b)).map(([id, state]) => `${id}:${state}`).join("|") || WILD;
+        const current = merged.get(key) || { probability: 0, stateByGene: combo.stateByGene };
+        current.probability += combo.probability;
+        merged.set(key, current);
+      });
+      return [...merged.values()].map(combo => ({ ...combo, probability: round(combo.probability), label: offspringLabel(combo.stateByGene, byId) })).filter(combo => combo.probability > 0).sort((a, b) => b.probability - a.probability || a.label.localeCompare(b.label));
+    })();
     return {
       loci: calculated,
       skipped,
       derivedMorphs,
+      combinedOutcomes,
+      combinationCount,
+      combinationLimitExceeded: combinationCount > 4096,
       assumptions: [
         "不同位点按独立分离计算；当前数据库未保存连锁与共同亲本导致的联合携带概率。",
         "显性 visual 按杂合、super 按纯合计算；若实际剂量未知，结果应视为估算。"
