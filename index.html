@@ -198,6 +198,13 @@
   </div>
 </div>
 
+<div class="modalBackdrop" id="workflowModal" aria-hidden="true">
+  <div class="modalPanel workflowModalPanel" role="dialog" aria-modal="true" aria-labelledby="workflowModalTitle">
+    <div class="modalHead"><div><h3 id="workflowModalTitle">操作</h3><p id="workflowModalSub"></p></div><button class="modalClose" type="button" data-close-modal="workflowModal">×</button></div>
+    <div class="modalBody"><form id="workflowModalForm"><div class="formGrid" id="workflowModalFields"></div><div class="authMessage" id="workflowModalMessage"></div><div class="modalActions"><button type="button" class="topBtn" data-close-modal="workflowModal">取消</button><button class="primaryBtn" id="workflowModalSubmit" type="submit">确认</button></div></form></div>
+  </div>
+</div>
+
 <div class="modalBackdrop" id="aiChatModal">
   <div class="modalPanel aiChatModalPanel">
     <div class="modalHead"><div><h3 id="aiChatTitle">AI 分析对话</h3><p id="aiChatMeta">正在读取当前分析会话</p></div><button class="modalClose" data-close-modal="aiChatModal">×</button></div>
