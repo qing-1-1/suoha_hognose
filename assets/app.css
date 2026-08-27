@@ -32,6 +32,7 @@ button{color:inherit}
 .crumb{display:flex;align-items:center;gap:7px;color:#69768a;font-size:10px}.crumb b{color:#dfe5ec}.spacer{flex:1}
 .yearCtl{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;background:#0d131b;padding:5px 7px 5px 10px}
 .yearCtl label{font-size:8px;color:#617084;text-transform:uppercase;letter-spacing:1px}.yearCtl select{background:#141c27;border:0;color:#e7edf4;border-radius:7px;padding:5px 7px;font-size:9px;outline:none}
+.aiReasoning{display:flex;align-items:center;gap:5px;font-size:9px;color:#91a0b2;cursor:pointer;white-space:nowrap;border-left:1px solid var(--line);padding-left:9px;margin-left:2px}.aiReasoning input{accent-color:var(--gold);cursor:pointer}
 .topBtn{border:1px solid var(--line);background:#0d131b;border-radius:10px;padding:8px 10px;color:#91a0b2;font-size:9px;cursor:pointer}
 .content{padding:20px 22px 42px;max-width:1680px;margin:auto}
 .page{display:none;animation:fade .2s ease}.page.active{display:block}@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
