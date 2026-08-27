@@ -18,12 +18,8 @@ setPage(state.page);
 $("#globalYear").onchange=e=>{state.year=Number(e.target.value);renderAll()};
 const AI_MODEL_STORAGE_KEY="suoha.aiModel";
 const savedAiModel=localStorage.getItem(AI_MODEL_STORAGE_KEY);
-const SENSENOVA_MODELS=["deepseek-v4-flash","sensenova-6.8-flash-lite","sensenova-u1-fast","glm-5.2","sensenova-u1.5-lite"];
-if(SENSENOVA_MODELS.includes(savedAiModel))$("#aiModel").value=savedAiModel;
+if(["deepseek-v4-flash","deepseek-v4-pro"].includes(savedAiModel))$("#aiModel").value=savedAiModel;
 $("#aiModel").onchange=e=>{localStorage.setItem(AI_MODEL_STORAGE_KEY,e.target.value);toast(`AI 模型已切换为 ${e.target.options[e.target.selectedIndex].text}`)};
-const AI_REASONING_STORAGE_KEY="suoha.aiReasoning";
-$("#aiReasoning").checked=localStorage.getItem(AI_REASONING_STORAGE_KEY)!=="off";
-$("#aiReasoning").onchange=e=>{localStorage.setItem(AI_REASONING_STORAGE_KEY,e.target.checked?"on":"off");toast(`深度思考已${e.target.checked?"开启":"关闭"}`)};
 function syncYear(y){state.year=Number(y);$("#globalYear").value=String(y);renderAll()}
 function planningYears(){const years=[...REMOTE_RAW.plans.map(x=>Number(x.plan_year)),...REMOTE_RAW.nodes.map(x=>Number(x.planned_year)),...DATA.snakes.map(x=>mature(x))].filter(Number.isFinite).filter(y=>y>0);return [...new Set(years)].sort((a,b)=>a-b)}
 function setPlanningYears(){const years=planningYears();const selected=years.includes(state.year)?state.year:(years.includes(new Date().getFullYear())?new Date().getFullYear():years[0]||new Date().getFullYear());state.year=selected;$("#globalYear").innerHTML=years.length?years.map(y=>`<option value="${y}" ${y===selected?"selected":""}>${y}</option>`).join(""):`<option value="${selected}">${selected}</option>`}

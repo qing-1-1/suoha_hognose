@@ -7,21 +7,7 @@ const MAX_RECOMMENDATIONS_BY_TYPE = Object.freeze({
   investment: 5,
   strategy_score: 5
 });
-const SENSENOVA_CHAT_URL = "https://token.sensenova.cn/v1/chat/completions";
-const ALLOWED_MODELS = new Set([
-  "deepseek-v4-flash",
-  "sensenova-6.8-flash-lite",
-  "sensenova-u1-fast",
-  "glm-5.2",
-  "sensenova-u1.5-lite"
-]);
-const ALLOWED_REASONING_EFFORT = new Set(["low", "medium", "high", "none"]);
-
-// Only deepseek-v4-flash accepts reasoning_effort; other models reject unknown fields.
-function applyReasoningEffort(body, model, effort) {
-  if (model === "deepseek-v4-flash" && effort != null) body.reasoning_effort = effort;
-  return body;
-}
+const ALLOWED_MODELS = new Set(["deepseek-v4-flash", "deepseek-v4-pro"]);
 const RECOMMENDATION_KEYS = new Set([
   "title", "summary", "confidence", "priority_score", "target_refs", "evidence_refs",
   "assumptions", "risk_flags", "missing_inputs", "proposal_payload"
@@ -82,14 +68,14 @@ function optionalStringArray(value, label) {
 }
 
 function parseModelJson(content) {
-  if (typeof content !== "string" || !content.trim()) throw new Error("Sensenova response content is empty.");
+  if (typeof content !== "string" || !content.trim()) throw new Error("DeepSeek response content is empty.");
   const trimmed = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   try { return JSON.parse(trimmed); }
   catch {
     const first = trimmed.indexOf("{");
     const last = trimmed.lastIndexOf("}");
     if (first >= 0 && last > first) return JSON.parse(trimmed.slice(first, last + 1));
-    throw new Error("Sensenova response does not contain a JSON object.");
+    throw new Error("DeepSeek response does not contain a JSON object.");
   }
 }
 
@@ -100,7 +86,7 @@ function optionalText(value, label, maxLength) {
 
 function normalizeProposalAliases(value) {
   const normalized = { ...value };
-  // Different compatible models occasionally use display-oriented aliases despite the fixed schema.
+  // DeepSeek occasionally uses display-oriented aliases despite the fixed schema.
   // Map only unambiguous equivalents; these aliases never become foreign keys.
   if (normalized.plan_year == null && normalized.year != null && Number.isInteger(Number(normalized.year))) normalized.plan_year = Number(normalized.year);
   if (normalized.planned_clutches == null && normalized.target_clutches != null && Number.isInteger(Number(normalized.target_clutches))) normalized.planned_clutches = Number(normalized.target_clutches);
@@ -210,10 +196,10 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
       : item.content
   }));
 
-  const providerResult = await fetch(SENSENOVA_CHAT_URL, {
+  const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(applyReasoningEffort({
+    body: JSON.stringify({
       model: selectedModel,
       messages: [
         {
@@ -223,19 +209,20 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
         ...history,
         { role: "user", content: question }
       ],
+      thinking: { type: "disabled" },
       max_tokens: 1800,
       stream: false
-    }, selectedModel, request.reasoning_effort == null ? null : String(request.reasoning_effort)))
+    })
   });
-  const payload = await providerResult.json().catch(() => null);
-  if (!providerResult.ok) {
-    console.error("Sensenova follow-up provider error", { status: providerResult.status, conversationId, model: selectedModel, message: payload?.error?.message || "Unknown provider error." });
-    return response(502, { error: "Sensenova request failed.", detail: payload?.error?.message || "Unknown provider error." });
+  const payload = await deepSeekResult.json().catch(() => null);
+  if (!deepSeekResult.ok) {
+    console.error("DeepSeek follow-up provider error", { status: deepSeekResult.status, conversationId, model: selectedModel, message: payload?.error?.message || "Unknown provider error." });
+    return response(502, { error: "DeepSeek request failed.", detail: payload?.error?.message || "Unknown provider error." });
   }
   const answer = payload?.choices?.[0]?.message?.content;
   if (typeof answer !== "string" || !answer.trim()) {
-    console.error("Sensenova follow-up returned an empty final response", { conversationId, model: selectedModel, finishReason: payload?.choices?.[0]?.finish_reason ?? null, usage: payload?.usage ?? null });
-    return response(502, { error: "Sensenova returned an empty follow-up response." });
+    console.error("DeepSeek follow-up returned an empty final response", { conversationId, model: selectedModel, finishReason: payload?.choices?.[0]?.finish_reason ?? null, usage: payload?.usage ?? null });
+    return response(502, { error: "DeepSeek returned an empty follow-up response." });
   }
   return response(200, {
     mode: "follow_up",
@@ -251,7 +238,7 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return response(405, { error: "Method not allowed" });
 
-  const apiKey = configured("SENSENOVA_API_KEY");
+  const apiKey = configured("DEEPSEEK_API_KEY");
   const supabaseUrl = configured("SUPABASE_URL");
   const publishableKey = configured("SUPABASE_PUBLISHABLE_KEY");
   if (!apiKey || !supabaseUrl || !publishableKey) {
@@ -281,12 +268,8 @@ exports.handler = async (event) => {
 
   const analysisType = request.analysis_type;
   const input = request.input;
-  const selectedModel = request.model || configured("SENSENOVA_MODEL") || "deepseek-v4-flash";
-  if (!ALLOWED_MODELS.has(selectedModel)) return response(400, { error: "Unsupported Sensenova model." });
-  const reasoningEffort = request.reasoning_effort == null ? null : String(request.reasoning_effort);
-  if (reasoningEffort != null && !ALLOWED_REASONING_EFFORT.has(reasoningEffort)) {
-    return response(400, { error: "Unsupported reasoning_effort. Use low, medium, high, or none." });
-  }
+  const selectedModel = request.model || configured("DEEPSEEK_MODEL") || "deepseek-v4-flash";
+  if (!ALLOWED_MODELS.has(selectedModel)) return response(400, { error: "Unsupported DeepSeek model." });
   if (request.mode === "follow_up") return runFollowUp({ request, accessToken, apiKey, selectedModel });
   if (!ALLOWED_TYPES.has(analysisType) || !input || typeof input !== "object" || Array.isArray(input)) {
     return response(400, { error: "analysis_type and a structured input object are required." });
@@ -317,13 +300,13 @@ exports.handler = async (event) => {
     : "";
   const effectivePrompt = (promptOverride || template.system_prompt) + candidateOutputInstruction;
 
-  const providerResult = await fetch(SENSENOVA_CHAT_URL, {
+  const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify(applyReasoningEffort({
+    body: JSON.stringify({
       model: selectedModel,
       messages: [
         { role: "system", content: effectivePrompt },
@@ -331,29 +314,32 @@ exports.handler = async (event) => {
           ? `以下是本次候选个体与当前种群的结构化事实。请直接给出采购建议。\n${JSON.stringify(input)}`
           : `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
+      // 结构化业务输出优先保证最终 JSON。开启思考时，模型可能只产出 reasoning token，
+      // 在达到 token 上限前没有留下 message.content；这些 token 仍会计费。
+      thinking: { type: "disabled" },
       max_tokens: 2800,
       stream: false
-    }, selectedModel, reasoningEffort))
+    })
   });
-  const providerPayload = await providerResult.json().catch(() => null);
-  if (!providerResult.ok) {
-    console.error("Sensenova provider error", { status: providerResult.status, type: analysisType, model: selectedModel, message: providerPayload?.error?.message || "Unknown provider error." });
-    return response(502, { error: "Sensenova request failed.", detail: providerPayload?.error?.message || "Unknown provider error." });
+  const deepSeekPayload = await deepSeekResult.json().catch(() => null);
+  if (!deepSeekResult.ok) {
+    console.error("DeepSeek provider error", { status: deepSeekResult.status, type: analysisType, model: selectedModel, message: deepSeekPayload?.error?.message || "Unknown provider error." });
+    return response(502, { error: "DeepSeek request failed.", detail: deepSeekPayload?.error?.message || "Unknown provider error." });
   }
 
-  const choice = providerPayload?.choices?.[0];
+  const choice = deepSeekPayload?.choices?.[0];
   const content = choice?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
-    console.error("Sensenova returned an empty final response", {
+    console.error("DeepSeek returned an empty final response", {
       analysisType,
       model: selectedModel,
       finishReason: choice?.finish_reason ?? null,
-      usage: providerPayload?.usage ?? null,
+      usage: deepSeekPayload?.usage ?? null,
       reasoningLength: choice?.message?.reasoning_content?.length ?? 0
     });
     return response(502, {
-      error: "Sensenova returned invalid JSON.",
-      detail: `Sensenova did not return final content (finish_reason: ${choice?.finish_reason ?? "unknown"}).`
+      error: "DeepSeek returned invalid JSON.",
+      detail: `DeepSeek did not return final content (finish_reason: ${choice?.finish_reason ?? "unknown"}).`
     });
   }
   let result;
@@ -361,17 +347,17 @@ exports.handler = async (event) => {
     result = { candidate_advice: content.trim().slice(0, 2400) };
   } else {
     try { result = parseModelJson(content); }
-    catch (error) { return response(502, { error: "Sensenova returned invalid JSON.", detail: error.message }); }
+    catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
     try { result = validateResult(result, analysisType); }
-    catch (error) { return response(502, { error: "Sensenova response does not match the required schema.", detail: error.message }); }
+    catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
   }
 
   return response(200, {
     analysis_type: analysisType,
     as_of_at: input.as_of_at || new Date().toISOString(),
     template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version, prompt_override_used: Boolean(promptOverride) },
-    model: providerPayload.model || selectedModel,
-    usage: providerPayload.usage || null,
+    model: deepSeekPayload.model || selectedModel,
+    usage: deepSeekPayload.usage || null,
     result
   });
 };
