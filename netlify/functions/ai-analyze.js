@@ -266,25 +266,36 @@ async function readProviderError(result) {
 }
 
 async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutputTokens }) {
-  const result = await fetch("https://api.deepseek.com/responses", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      instructions,
-      input,
-      tools: [{ type: "web_search" }],
-      tool_choice: "required",
-      max_output_tokens: maxOutputTokens,
-      stream: true
-    })
-  });
-  if (!result.ok) {
-    const payload = await readProviderError(result);
-    return { result, payload, text: "", sources: [] };
+  let lastResponse = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const tokenLimit = attempt === 0 ? maxOutputTokens : Math.min(maxOutputTokens * 2, 12000);
+    const result = await fetch("https://api.deepseek.com/responses", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        instructions,
+        input,
+        tools: [{ type: "web_search" }],
+        tool_choice: "required",
+        // Candidate advice needs verified facts and a concise verdict, not a long
+        // reasoning trace. Responses API counts reasoning against this same limit.
+        reasoning: { effort: "none" },
+        max_output_tokens: tokenLimit,
+        stream: true
+      })
+    });
+    if (!result.ok) {
+      const payload = await readProviderError(result);
+      return { result, payload, text: "", sources: [] };
+    }
+    const streamed = await readResponsesStream(result);
+    lastResponse = { result, ...streamed };
+    const tokenLimitReached = streamed.payload?.status === "incomplete"
+      && streamed.payload?.incomplete_details?.reason === "max_output_tokens";
+    if (!tokenLimitReached) return lastResponse;
   }
-  const streamed = await readResponsesStream(result);
-  return { result, ...streamed };
+  return lastResponse;
 }
 
 async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
@@ -323,7 +334,7 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
       model: selectedModel,
       instructions: followUpInstruction,
       input: [...history, { role: "user", content: question }],
-      maxOutputTokens: 1800
+      maxOutputTokens: 4000
     });
     if (!webSearch.result.ok) {
       console.error("DeepSeek candidate follow-up search error", { status: webSearch.result.status, conversationId, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });
@@ -460,7 +471,7 @@ exports.handler = async (event) => {
       model: selectedModel,
       instructions: effectivePrompt,
       input: `以下是本次候选个体与当前种群的结构化事实。请联网核验市场信息并给出采购建议。\n${JSON.stringify(input)}`,
-      maxOutputTokens: 2800
+      maxOutputTokens: 6000
     });
     if (!webSearch.result.ok) {
       console.error("DeepSeek candidate web search error", { status: webSearch.result.status, type: analysisType, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });

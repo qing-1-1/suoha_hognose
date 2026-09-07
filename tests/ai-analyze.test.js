@@ -80,7 +80,51 @@ test("candidate investment uses DeepSeek Responses API web search and preserves 
     const providerBody = JSON.parse(providerCall.options.body);
     assert.deepEqual(providerBody.tools, [{ type: "web_search" }]);
     assert.equal(providerBody.tool_choice, "required");
+    assert.deepEqual(providerBody.reasoning, { effort: "none" });
+    assert.equal(providerBody.max_output_tokens, 6000);
     assert.equal(providerBody.stream, true);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("candidate investment retries once when the Responses API exhausts max_output_tokens", async () => {
+  process.env.DEEPSEEK_API_KEY = "test-key";
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_PUBLISHABLE_KEY = "publishable-key";
+  const originalFetch = global.fetch;
+  const providerBodies = [];
+
+  global.fetch = async (url, options = {}) => {
+    if (String(url).endsWith("/auth/v1/user")) return jsonResponse({ id: "user-1" });
+    if (String(url).includes("/rest/v1/profiles")) return jsonResponse([{ role: "editor" }]);
+    if (String(url).includes("/rest/v1/ai_prompt_templates")) {
+      return jsonResponse([{ id: 6, template_key: "investment", version: 6, system_prompt: "candidate prompt", response_schema_version: "v2" }]);
+    }
+    if (String(url) === "https://api.deepseek.com/responses") {
+      providerBodies.push(JSON.parse(options.body));
+      if (providerBodies.length === 1) {
+        return sseResponse([{ type: "response.incomplete", response: { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] } }]);
+      }
+      return sseResponse([{ type: "response.completed", response: { status: "completed", model: "deepseek-v4-flash", output: [{ type: "message", content: [{ type: "output_text", text: "重试后评估成功。", annotations: [] }] }] } }]);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    delete require.cache[require.resolve("../netlify/functions/ai-analyze.js")];
+    const { handler } = require("../netlify/functions/ai-analyze.js");
+    const result = await handler({
+      httpMethod: "POST",
+      headers: { authorization: "Bearer session-token" },
+      body: JSON.stringify({ analysis_type: "investment", model: "deepseek-v4-flash", input: { analysis_scope: "candidate_investment", candidate: { gene_text: "Axanthic" } } })
+    });
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(JSON.parse(result.body).result.candidate_advice, "重试后评估成功。");
+    assert.equal(providerBodies.length, 2);
+    assert.equal(providerBodies[0].max_output_tokens, 6000);
+    assert.equal(providerBodies[1].max_output_tokens, 12000);
   } finally {
     global.fetch = originalFetch;
   }
