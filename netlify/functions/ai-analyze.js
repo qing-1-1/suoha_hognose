@@ -174,13 +174,17 @@ function validateResult(result, analysisType) {
 
 function responsesOutputText(payload) {
   if (typeof payload?.output_text === "string" && payload.output_text.trim()) return payload.output_text.trim();
-  return (Array.isArray(payload?.output) ? payload.output : [])
+  const messages = (Array.isArray(payload?.output) ? payload.output : [])
     .filter((item) => item?.type === "message" && Array.isArray(item.content))
-    .flatMap((item) => item.content)
-    .filter((part) => part?.type === "output_text" && typeof part.text === "string")
-    .map((part) => part.text.trim())
-    .filter(Boolean)
-    .join("\n\n");
+    .map((item) => item.content
+      .filter((part) => part?.type === "output_text" && typeof part.text === "string")
+      .map((part) => part.text.trim())
+      .filter(Boolean)
+      .join("\n\n"))
+    .filter(Boolean);
+  // A server-side search may emit intermediate assistant messages before the
+  // actual verdict. The last message is the completed user-facing answer.
+  return messages.at(-1) || "";
 }
 
 function responsesWebSources(payload) {
@@ -223,7 +227,11 @@ async function readResponsesStream(result) {
   let finalPayload = null;
 
   const consumeEvent = (block) => {
-    const data = block.split(/\r?\n/)
+    const lines = block.split(/\r?\n/);
+    const eventName = lines
+      .find((line) => line.startsWith("event:"))
+      ?.slice(6).trim();
+    const data = lines
       .filter((line) => line.startsWith("data:"))
       .map((line) => line.slice(5).trimStart())
       .join("\n");
@@ -231,10 +239,13 @@ async function readResponsesStream(result) {
     let event;
     try { event = JSON.parse(data); }
     catch { return; }
-    if (event.type === "response.output_text.delta" && typeof event.delta === "string") deltas.push(event.delta);
-    if (event.type === "response.output_text.done" && typeof event.text === "string") doneText = event.text;
-    if (event.type === "response.output_item.done" && event.item) completedItems.push(event.item);
-    if (["response.completed", "response.incomplete", "response.failed"].includes(event.type) && event.response) finalPayload = event.response;
+    const eventType = event.type || eventName;
+    if (eventType === "response.output_text.delta" && typeof event.delta === "string") deltas.push(event.delta);
+    if (eventType === "response.output_text.done" && typeof event.text === "string") doneText = event.text;
+    if (eventType === "response.output_item.done" && event.item) completedItems.push(event.item);
+    if (["response.completed", "response.incomplete", "response.failed"].includes(eventType)) {
+      finalPayload = event.response || (event.object === "response" ? event : null);
+    }
   };
 
   while (true) {
@@ -268,7 +279,11 @@ async function readProviderError(result) {
 async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutputTokens }) {
   let lastResponse = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const tokenLimit = attempt === 0 ? maxOutputTokens : Math.min(maxOutputTokens * 2, 12000);
+    const previousHitTokenLimit = lastResponse?.payload?.status === "incomplete"
+      && lastResponse?.payload?.incomplete_details?.reason === "max_output_tokens";
+    const tokenLimit = attempt === 1 && previousHitTokenLimit
+      ? Math.min(maxOutputTokens * 2, 12000)
+      : maxOutputTokens;
     const result = await fetch("https://api.deepseek.com/responses", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -277,7 +292,10 @@ async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutput
         instructions,
         input,
         tools: [{ type: "web_search" }],
-        tool_choice: "required",
+        // `required` can keep selecting web_search until the server-side round
+        // cap and finish without a message. The prompt itself requires a search;
+        // `auto` lets the model end the search loop with a final answer.
+        tool_choice: "auto",
         // Candidate advice needs verified facts and a concise verdict, not a long
         // reasoning trace. Responses API counts reasoning against this same limit.
         reasoning: { effort: "none" },
@@ -293,7 +311,8 @@ async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutput
     lastResponse = { result, ...streamed };
     const tokenLimitReached = streamed.payload?.status === "incomplete"
       && streamed.payload?.incomplete_details?.reason === "max_output_tokens";
-    if (!tokenLimitReached) return lastResponse;
+    const completedWithoutText = streamed.payload?.status === "completed" && !streamed.text;
+    if (!tokenLimitReached && !completedWithoutText) return lastResponse;
   }
   return lastResponse;
 }

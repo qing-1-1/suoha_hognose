@@ -10,7 +10,10 @@ function jsonResponse(body, status = 200) {
 }
 
 function sseResponse(events) {
-  const chunks = events.map((event) => new TextEncoder().encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+  const chunks = events.map((event) => {
+    const { type, ...data } = event;
+    return new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+  });
   let index = 0;
   return {
     ok: true,
@@ -45,7 +48,11 @@ test("candidate investment uses DeepSeek Responses API web search and preserves 
     if (String(url) === "https://api.deepseek.com/responses") {
       const response = {
         model: "deepseek-v4-flash",
-        output: [{ type: "message", content: [{ type: "output_text", text: "有条件适合采购。", annotations: [{ type: "url_citation", title: "Market listing", url: "https://example.com/listing" }] }] }],
+        output: [
+          { type: "message", content: [{ type: "output_text", text: "我先检索市场。", annotations: [] }] },
+          { type: "web_search_call", status: "completed" },
+          { type: "message", content: [{ type: "output_text", text: "有条件适合采购。", annotations: [{ type: "url_citation", title: "Market listing", url: "https://example.com/listing" }] }] }
+        ],
         usage: { total_tokens: 42 }
       };
       return sseResponse([
@@ -79,7 +86,7 @@ test("candidate investment uses DeepSeek Responses API web search and preserves 
     assert.ok(providerCall);
     const providerBody = JSON.parse(providerCall.options.body);
     assert.deepEqual(providerBody.tools, [{ type: "web_search" }]);
-    assert.equal(providerBody.tool_choice, "required");
+    assert.equal(providerBody.tool_choice, "auto");
     assert.deepEqual(providerBody.reasoning, { effort: "none" });
     assert.equal(providerBody.max_output_tokens, 6000);
     assert.equal(providerBody.stream, true);
@@ -106,7 +113,7 @@ test("candidate investment retries once when the Responses API exhausts max_outp
       if (providerBodies.length === 1) {
         return sseResponse([{ type: "response.incomplete", response: { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] } }]);
       }
-      return sseResponse([{ type: "response.completed", response: { status: "completed", model: "deepseek-v4-flash", output: [{ type: "message", content: [{ type: "output_text", text: "重试后评估成功。", annotations: [] }] }] } }]);
+      return sseResponse([{ type: "response.completed", response: { status: "completed", model: "deepseek-v4-flash", output: [{ type: "web_search_call", status: "completed" }, { type: "message", content: [{ type: "output_text", text: "重试后评估成功。", annotations: [] }] }] } }]);
     }
     throw new Error(`Unexpected fetch: ${url}`);
   };
@@ -125,6 +132,54 @@ test("candidate investment retries once when the Responses API exhausts max_outp
     assert.equal(providerBodies.length, 2);
     assert.equal(providerBodies[0].max_output_tokens, 6000);
     assert.equal(providerBodies[1].max_output_tokens, 12000);
+    assert.equal(providerBodies[0].tool_choice, "auto");
+    assert.equal(providerBodies[1].tool_choice, "auto");
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("candidate investment retries when search completes without a final message", async () => {
+  process.env.DEEPSEEK_API_KEY = "test-key";
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_PUBLISHABLE_KEY = "publishable-key";
+  const originalFetch = global.fetch;
+  const providerBodies = [];
+
+  global.fetch = async (url, options = {}) => {
+    if (String(url).endsWith("/auth/v1/user")) return jsonResponse({ id: "user-1" });
+    if (String(url).includes("/rest/v1/profiles")) return jsonResponse([{ role: "editor" }]);
+    if (String(url).includes("/rest/v1/ai_prompt_templates")) {
+      return jsonResponse([{ id: 6, template_key: "investment", version: 6, system_prompt: "candidate prompt", response_schema_version: "v2" }]);
+    }
+    if (String(url) === "https://api.deepseek.com/responses") {
+      providerBodies.push(JSON.parse(options.body));
+      if (providerBodies.length === 1) {
+        return sseResponse([{ type: "response.completed", response: { status: "completed", output: [{ type: "web_search_call", status: "completed" }] } }]);
+      }
+      return sseResponse([
+        { type: "response.output_text.delta", delta: "搜索后补全的采购建议。" },
+        { type: "response.completed", response: { status: "completed", model: "deepseek-v4-flash", output: [] } }
+      ]);
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    delete require.cache[require.resolve("../netlify/functions/ai-analyze.js")];
+    const { handler } = require("../netlify/functions/ai-analyze.js");
+    const result = await handler({
+      httpMethod: "POST",
+      headers: { authorization: "Bearer session-token" },
+      body: JSON.stringify({ analysis_type: "investment", model: "deepseek-v4-flash", input: { analysis_scope: "candidate_investment", candidate: { gene_text: "Axanthic" } } })
+    });
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(JSON.parse(result.body).result.candidate_advice, "搜索后补全的采购建议。");
+    assert.equal(providerBodies.length, 2);
+    assert.equal(providerBodies[0].tool_choice, "auto");
+    assert.equal(providerBodies[1].tool_choice, "auto");
+    assert.equal(providerBodies[1].max_output_tokens, 6000);
   } finally {
     global.fetch = originalFetch;
   }
@@ -191,7 +246,7 @@ test("candidate follow-up keeps its snapshot and performs another web search", a
 
     const providerCall = calls.find((call) => call.url === "https://api.deepseek.com/responses");
     const providerBody = JSON.parse(providerCall.options.body);
-    assert.equal(providerBody.tool_choice, "required");
+    assert.equal(providerBody.tool_choice, "auto");
     assert.equal(providerBody.input.at(-1).content, "现在市场价如何？");
     assert.match(providerBody.instructions, /candidate_investment/);
   } finally {
