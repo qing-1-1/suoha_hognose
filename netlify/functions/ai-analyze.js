@@ -200,7 +200,7 @@ function responsesWebSources(payload) {
     }
   }
   return sources;
-}
+} 
 
 function responsesFailureDetail(payload) {
   return payload?.error?.message
