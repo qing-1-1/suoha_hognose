@@ -202,6 +202,69 @@ function responsesWebSources(payload) {
   return sources;
 }
 
+function responsesFailureDetail(payload) {
+  return payload?.error?.message
+    || payload?.incomplete_details?.reason
+    || `Responses API status: ${payload?.status || "unknown"}.`;
+}
+
+async function readResponsesStream(result) {
+  const reader = result.body?.getReader?.();
+  if (!reader) {
+    const payload = await result.json().catch(() => null);
+    return { payload, text: responsesOutputText(payload), sources: responsesWebSources(payload) };
+  }
+
+  const decoder = new TextDecoder();
+  const deltas = [];
+  const completedItems = [];
+  let buffer = "";
+  let doneText = "";
+  let finalPayload = null;
+
+  const consumeEvent = (block) => {
+    const data = block.split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!data || data === "[DONE]") return;
+    let event;
+    try { event = JSON.parse(data); }
+    catch { return; }
+    if (event.type === "response.output_text.delta" && typeof event.delta === "string") deltas.push(event.delta);
+    if (event.type === "response.output_text.done" && typeof event.text === "string") doneText = event.text;
+    if (event.type === "response.output_item.done" && event.item) completedItems.push(event.item);
+    if (["response.completed", "response.incomplete", "response.failed"].includes(event.type) && event.response) finalPayload = event.response;
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() || "";
+    blocks.forEach(consumeEvent);
+    if (done) break;
+  }
+  if (buffer.trim()) consumeEvent(buffer);
+
+  const payload = finalPayload || { output: completedItems };
+  return {
+    payload,
+    text: responsesOutputText(payload) || doneText.trim() || deltas.join("").trim(),
+    sources: responsesWebSources(payload)
+  };
+}
+
+async function readProviderError(result) {
+  if (typeof result.text === "function") {
+    const text = await result.text().catch(() => "");
+    if (!text) return null;
+    try { return JSON.parse(text); }
+    catch { return { error: { message: text.slice(0, 1000) } }; }
+  }
+  return typeof result.json === "function" ? result.json().catch(() => null) : null;
+}
+
 async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutputTokens }) {
   const result = await fetch("https://api.deepseek.com/responses", {
     method: "POST",
@@ -213,11 +276,15 @@ async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutput
       tools: [{ type: "web_search" }],
       tool_choice: "required",
       max_output_tokens: maxOutputTokens,
-      stream: false
+      stream: true
     })
   });
-  const payload = await result.json().catch(() => null);
-  return { result, payload, text: responsesOutputText(payload), sources: responsesWebSources(payload) };
+  if (!result.ok) {
+    const payload = await readProviderError(result);
+    return { result, payload, text: "", sources: [] };
+  }
+  const streamed = await readResponsesStream(result);
+  return { result, ...streamed };
 }
 
 async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
@@ -262,7 +329,7 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
       console.error("DeepSeek candidate follow-up search error", { status: webSearch.result.status, conversationId, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });
       return response(502, { error: "DeepSeek web search failed.", detail: webSearch.payload?.error?.message || "Unknown provider error." });
     }
-    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty follow-up response." });
+    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty follow-up response.", detail: responsesFailureDetail(webSearch.payload) });
     return response(200, {
       mode: "follow_up",
       conversation_id: conversation.id,
@@ -399,7 +466,7 @@ exports.handler = async (event) => {
       console.error("DeepSeek candidate web search error", { status: webSearch.result.status, type: analysisType, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });
       return response(502, { error: "DeepSeek web search failed.", detail: webSearch.payload?.error?.message || "Unknown provider error." });
     }
-    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty candidate assessment." });
+    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty candidate assessment.", detail: responsesFailureDetail(webSearch.payload) });
     return response(200, {
       analysis_type: analysisType,
       as_of_at: input.as_of_at || new Date().toISOString(),

@@ -9,6 +9,25 @@ function jsonResponse(body, status = 200) {
   };
 }
 
+function sseResponse(events) {
+  const chunks = events.map((event) => new TextEncoder().encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+  let index = 0;
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      getReader() {
+        return {
+          async read() {
+            if (index >= chunks.length) return { done: true, value: undefined };
+            return { done: false, value: chunks[index++] };
+          }
+        };
+      }
+    }
+  };
+}
+
 test("candidate investment uses DeepSeek Responses API web search and preserves citations", async () => {
   process.env.DEEPSEEK_API_KEY = "test-key";
   process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -24,18 +43,16 @@ test("candidate investment uses DeepSeek Responses API web search and preserves 
       return jsonResponse([{ id: 6, template_key: "investment", version: 6, system_prompt: "candidate prompt", response_schema_version: "v2" }]);
     }
     if (String(url) === "https://api.deepseek.com/responses") {
-      return jsonResponse({
+      const response = {
         model: "deepseek-v4-flash",
-        output: [{
-          type: "message",
-          content: [{
-            type: "output_text",
-            text: "有条件适合采购。",
-            annotations: [{ type: "url_citation", title: "Market listing", url: "https://example.com/listing" }]
-          }]
-        }],
+        output: [{ type: "message", content: [{ type: "output_text", text: "有条件适合采购。", annotations: [{ type: "url_citation", title: "Market listing", url: "https://example.com/listing" }] }] }],
         usage: { total_tokens: 42 }
-      });
+      };
+      return sseResponse([
+        { type: "response.output_text.delta", delta: "有条件适合" },
+        { type: "response.output_text.delta", delta: "采购。" },
+        { type: "response.completed", response }
+      ]);
     }
     throw new Error(`Unexpected fetch: ${url}`);
   };
@@ -63,6 +80,7 @@ test("candidate investment uses DeepSeek Responses API web search and preserves 
     const providerBody = JSON.parse(providerCall.options.body);
     assert.deepEqual(providerBody.tools, [{ type: "web_search" }]);
     assert.equal(providerBody.tool_choice, "required");
+    assert.equal(providerBody.stream, true);
   } finally {
     global.fetch = originalFetch;
   }
