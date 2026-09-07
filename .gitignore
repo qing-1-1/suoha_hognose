@@ -8,3 +8,4 @@
 !/supabase/migrations/012_resolve_s21_s22_s31_genotypes.sql
 !/supabase/migrations/013_candidate_investment_prompt.sql
 !/supabase/migrations/014_candidate_investment_plain_advice_prompt.sql
+!/supabase/migrations/015_candidate_investment_web_search_prompt.sql

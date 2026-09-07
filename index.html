@@ -136,7 +136,25 @@
   <div class="pageHead"><div><div class="eyebrow">Genetic capital allocation</div><h1>未来投资计划</h1><p>把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。</p></div></div>
   <div class="kpis" id="investKpis"></div><div class="investGrid" id="investCards"></div>
   <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>最大结构性缺口</h3><p>由当前种群实时计算</p></div></div><div class="gapMap" id="gapMap"></div></div><div class="card"><div class="cardHead"><div><h3>实时投资结构诊断</h3><p>种群、成熟、数据完整度与路线覆盖</p></div></div><div class="cardBody"><div class="reasons" id="investmentDiagnostics"></div></div></div></div>
-  <div class="analysisSplit"><div class="card candidateInvestmentCard"><div class="cardHead"><div><h3>候选个体投资评估</h3><p>评估一条待购蛇的已知基因型，是否补足当前种群与路线缺口；不评价报价、卖家或市场稀缺度。</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runCandidateInvestmentAiBtn">评估候选个体</button></div><div class="cardBody"><div class="candidateInvestmentForm"><div class="formField full"><label>候选基因型</label><input id="candidateGeneText" maxlength="300" placeholder="例如：白化北极康隐薰巧"></div><div class="formField"><label>性别</label><select id="candidateSex"><option value="U">未知</option><option value="F">母</option><option value="M">公</option></select></div><div class="formField"><label>来源 / 谱系备注（可选）</label><input id="candidateNotes" maxlength="600" placeholder="例如：卖方提供的亲本与 het 证明"></div></div><div class="candidateGenePreview" id="candidateGenePreview">输入基因型后会显示系统可识别的原子基因；未识别部分会作为缺失数据提醒 AI。</div><div class="aiCandidateResult" id="candidateInvestmentAi"></div></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 投资建议</h3><p>固定 Prompt + 结构化输出；不推测外部市场</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runInvestmentAiBtn">生成建议</button></div><div class="cardBody" id="investmentAi"></div></div></div>
+  <div class="analysisSplit">
+    <div class="card candidateInvestmentCard">
+      <div class="cardHead"><div><h3>候选个体投资评估</h3><p>综合候选事实、当前种群结构与近期公开市场资料，辅助判断是否值得采购。</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runCandidateInvestmentAiBtn">联网评估候选</button></div>
+      <div class="cardBody">
+        <div class="candidateInvestmentForm">
+          <div class="formField full"><label for="candidateGeneText">候选基因型</label><input id="candidateGeneText" maxlength="300" placeholder="例如：白化北极康隐薰巧"></div>
+          <div class="formField"><label for="candidateSex">性别</label><select id="candidateSex"><option value="U">未知</option><option value="F">母</option><option value="M">公</option></select></div>
+          <div class="formField"><label for="candidatePrice">卖方报价</label><input id="candidatePrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="例如：3500"></div>
+          <div class="formField"><label for="candidateCurrency">币种</label><select id="candidateCurrency"><option value="CNY">CNY 人民币</option><option value="USD">USD 美元</option><option value="EUR">EUR 欧元</option><option value="GBP">GBP 英镑</option><option value="JPY">JPY 日元</option></select></div>
+          <div class="formField"><label for="candidateBreedingReadyMonth">预计可繁殖时间（年/月）</label><input id="candidateBreedingReadyMonth" type="month" min="2000-01" max="2200-12"></div>
+          <div class="formField full"><label for="candidateNotes">来源 / 谱系参考（可选）</label><input id="candidateNotes" maxlength="600" placeholder="例如：亲本信息、het 证明、卖家名称或商品链接"></div>
+          <div class="formField full"><label for="candidateReferenceNotes">其他参考信息（可选）</label><textarea id="candidateReferenceNotes" maxlength="1200" placeholder="例如：所在地、健康状态、体重、进食记录、运输费用、议价空间及你特别关注的问题"></textarea></div>
+        </div>
+        <div class="candidateGenePreview" id="candidateGenePreview">输入基因型后会显示系统可识别的原子基因；未识别部分会作为缺失数据提醒 AI。</div>
+        <div class="aiCandidateResult" id="candidateInvestmentAi"></div>
+      </div>
+    </div>
+    <div class="card aiPanel"><div class="cardHead"><div><h3>AI 投资建议</h3><p>固定 Prompt + 结构化输出；不推测外部市场</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runInvestmentAiBtn">生成建议</button></div><div class="cardBody" id="investmentAi"></div></div>
+  </div>
 </section>
 
   <section class="page" id="page-lab">

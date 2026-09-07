@@ -172,6 +172,54 @@ function validateResult(result, analysisType) {
   return { recommendations };
 }
 
+function responsesOutputText(payload) {
+  if (typeof payload?.output_text === "string" && payload.output_text.trim()) return payload.output_text.trim();
+  return (Array.isArray(payload?.output) ? payload.output : [])
+    .filter((item) => item?.type === "message" && Array.isArray(item.content))
+    .flatMap((item) => item.content)
+    .filter((part) => part?.type === "output_text" && typeof part.text === "string")
+    .map((part) => part.text.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function responsesWebSources(payload) {
+  const sources = [];
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    for (const part of Array.isArray(item?.content) ? item.content : []) {
+      for (const annotation of Array.isArray(part?.annotations) ? part.annotations : []) {
+        const citation = annotation?.url_citation || annotation;
+        if (typeof citation?.url !== "string" || !/^https?:\/\//i.test(citation.url)) continue;
+        if (sources.some((source) => source.url === citation.url)) continue;
+        sources.push({
+          title: typeof citation.title === "string" ? citation.title.slice(0, 200) : "网页来源",
+          url: citation.url.slice(0, 2000)
+        });
+        if (sources.length >= 8) return sources;
+      }
+    }
+  }
+  return sources;
+}
+
+async function deepSeekWebSearch({ apiKey, model, instructions, input, maxOutputTokens }) {
+  const result = await fetch("https://api.deepseek.com/responses", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      instructions,
+      input,
+      tools: [{ type: "web_search" }],
+      tool_choice: "required",
+      max_output_tokens: maxOutputTokens,
+      stream: false
+    })
+  });
+  const payload = await result.json().catch(() => null);
+  return { result, payload, text: responsesOutputText(payload), sources: responsesWebSources(payload) };
+}
+
 async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
   const conversationId = Number(request.conversation_id);
   const question = typeof request.message === "string" ? request.message.trim() : "";
@@ -196,6 +244,37 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
       : item.content
   }));
 
+  const isCandidateInvestment = conversation.analysis_type === "investment"
+    && conversation.source_snapshot?.analysis_scope === "candidate_investment";
+  const followUpInstruction = isCandidateInvestment
+    ? `${template.system_prompt}\n\n以下候选追问规则覆盖模板中任何禁止外部市场资料的旧规则。当前是同一候选投资快照下的追问会话。请以简洁中文自然语言回答，并使用联网搜索核验与问题有关的最新市场资料。结构化遗传事实仍只来自分析快照和用户补充；外部网页只能用于行情、报价、可购性、卖家公开信誉、稀缺度和市场趋势，不能补造谱系、性别、基因状态或未输入个体。说明检索日期，区分网页事实、推断和缺失信息，不得声称已写入数据库、已执行采购或配对。\n\n当前分析快照：${JSON.stringify(conversation.source_snapshot || {})}`
+    : `${template.system_prompt}\n\n当前是同一分析快照下的追问会话。初始生成时的“只输出 JSON”限制不适用于本次追问；请以简洁中文自然语言回答。只能使用以下分析快照、会话中已有的建议和用户补充事实；清楚区分已知事实、假设和缺失信息。不得声称已写入数据库、已执行配对或已获得外部市场事实。\n\n当前分析快照：${JSON.stringify(conversation.source_snapshot || {})}`;
+
+  if (isCandidateInvestment) {
+    const webSearch = await deepSeekWebSearch({
+      apiKey,
+      model: selectedModel,
+      instructions: followUpInstruction,
+      input: [...history, { role: "user", content: question }],
+      maxOutputTokens: 1800
+    });
+    if (!webSearch.result.ok) {
+      console.error("DeepSeek candidate follow-up search error", { status: webSearch.result.status, conversationId, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });
+      return response(502, { error: "DeepSeek web search failed.", detail: webSearch.payload?.error?.message || "Unknown provider error." });
+    }
+    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty follow-up response." });
+    return response(200, {
+      mode: "follow_up",
+      conversation_id: conversation.id,
+      analysis_type: conversation.analysis_type,
+      model: webSearch.payload?.model || selectedModel,
+      template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version },
+      answer: webSearch.text,
+      web_sources: webSearch.sources,
+      usage: webSearch.payload?.usage || null
+    });
+  }
+
   const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -204,7 +283,7 @@ async function runFollowUp({ request, accessToken, apiKey, selectedModel }) {
       messages: [
         {
           role: "system",
-          content: `${template.system_prompt}\n\n当前是同一分析快照下的追问会话。初始生成时的“只输出 JSON”限制不适用于本次追问；请以简洁中文自然语言回答。只能使用以下分析快照、会话中已有的建议和用户补充事实；清楚区分已知事实、假设和缺失信息。不得声称已写入数据库、已执行配对或已获得外部市场事实。\n\n当前分析快照：${JSON.stringify(conversation.source_snapshot || {})}`
+          content: followUpInstruction
         },
         ...history,
         { role: "user", content: question }
@@ -296,9 +375,32 @@ exports.handler = async (event) => {
   }
   const isCandidateInvestment = analysisType === "investment" && input.analysis_scope === "candidate_investment";
   const candidateOutputInstruction = isCandidateInvestment
-    ? "\n\n本次为候选个体投资评估。覆盖模板中任何 JSON/结构化输出要求：只用自然中文直接给出一段采购建议，不要 JSON、数组、字段名、表格或 Markdown。必须明确回答是否对当前种群建设有帮助、是否值得采购，并说明最关键依据与待核实信息；这不是市场、价格或卖家判断。"
+    ? "\n\n本次为候选个体投资评估。本段覆盖模板中任何 JSON/结构化输出要求，以及任何禁止外部市场资料的旧规则。使用联网搜索核验近期公开行情、报价、可购性、稀缺度、市场趋势，以及输入中能够识别的卖家公开信誉。若输入包含 asking_price，必须按原币种与可比公开报价对照；breeding_ready_at.year/month 表示候选最早可以安排繁殖的年份和月份，必须评估等待时间对路线价值的影响；provenance_notes 与 reference_notes 仅作为用户提供、待核实的参考。用简洁中文直接给出采购建议，不要 JSON、数组、字段名或表格。必须明确回答候选是否有助于当前种群建设、是否值得采购，标明检索日期并列出关键来源；搜不到或无法验证时明确说明，禁止虚构。"
     : "";
   const effectivePrompt = (promptOverride || template.system_prompt) + candidateOutputInstruction;
+
+  if (isCandidateInvestment) {
+    const webSearch = await deepSeekWebSearch({
+      apiKey,
+      model: selectedModel,
+      instructions: effectivePrompt,
+      input: `以下是本次候选个体与当前种群的结构化事实。请联网核验市场信息并给出采购建议。\n${JSON.stringify(input)}`,
+      maxOutputTokens: 2800
+    });
+    if (!webSearch.result.ok) {
+      console.error("DeepSeek candidate web search error", { status: webSearch.result.status, type: analysisType, model: selectedModel, message: webSearch.payload?.error?.message || "Unknown provider error." });
+      return response(502, { error: "DeepSeek web search failed.", detail: webSearch.payload?.error?.message || "Unknown provider error." });
+    }
+    if (!webSearch.text) return response(502, { error: "DeepSeek returned an empty candidate assessment." });
+    return response(200, {
+      analysis_type: analysisType,
+      as_of_at: input.as_of_at || new Date().toISOString(),
+      template: { id: template.id, key: template.template_key, version: template.version, response_schema_version: template.response_schema_version, prompt_override_used: Boolean(promptOverride) },
+      model: webSearch.payload?.model || selectedModel,
+      usage: webSearch.payload?.usage || null,
+      result: { candidate_advice: webSearch.text.slice(0, 6000), web_sources: webSearch.sources }
+    });
+  }
 
   const deepSeekResult = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -310,9 +412,7 @@ exports.handler = async (event) => {
       model: selectedModel,
       messages: [
         { role: "system", content: effectivePrompt },
-        { role: "user", content: isCandidateInvestment
-          ? `以下是本次候选个体与当前种群的结构化事实。请直接给出采购建议。\n${JSON.stringify(input)}`
-          : `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
+        { role: "user", content: `以下是本次分析的结构化事实输入。请按系统要求仅输出 JSON。\n${JSON.stringify(input)}` }
       ],
       // 结构化业务输出优先保证最终 JSON。开启思考时，模型可能只产出 reasoning token，
       // 在达到 token 上限前没有留下 message.content；这些 token 仍会计费。
@@ -343,14 +443,10 @@ exports.handler = async (event) => {
     });
   }
   let result;
-  if (isCandidateInvestment) {
-    result = { candidate_advice: content.trim().slice(0, 2400) };
-  } else {
-    try { result = parseModelJson(content); }
-    catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
-    try { result = validateResult(result, analysisType); }
-    catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
-  }
+  try { result = parseModelJson(content); }
+  catch (error) { return response(502, { error: "DeepSeek returned invalid JSON.", detail: error.message }); }
+  try { result = validateResult(result, analysisType); }
+  catch (error) { return response(502, { error: "DeepSeek response does not match the required schema.", detail: error.message }); }
 
   return response(200, {
     analysis_type: analysisType,

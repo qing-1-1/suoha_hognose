@@ -1834,7 +1834,7 @@ Holds the fixed server-side system prompt for `pairing`, `annual_plan`, `investm
 
 `analysis_runs.source_snapshot` is the structured, as-of-time input sent to the model. `response_payload` records the validated JSON response, while `model_name`, `prompt_template_id`, `prompt_version`, and `response_schema_version` provide provenance. `ai_recommendations` stores individual proposals with review status; acceptance is not execution.
 
-Investment analyses have two snapshot scopes: `population` is the existing whole-population gap analysis, while `candidate_investment` evaluates one external, not-yet-owned candidate against the current population, routes, and investments. Both use `analysis_type = investment`, but only population recommendations enter the investment review queue. Candidate evaluation is stored as an `analysis_runs` snapshot with a plain-language `response_payload.candidate_advice`; it never creates an investment record or enters review. Candidate `gene_text` is not treated as a genetic fact unless it resolves to a recorded atomic gene in `candidate.atomic_genes`.
+Investment analyses have two snapshot scopes: `population` is the existing whole-population gap analysis, while `candidate_investment` evaluates one external, not-yet-owned candidate against the current population, routes, investments, and recent public market information. Its candidate snapshot may include `asking_price { amount, currency }`, `breeding_ready_at { year, month }`, `provenance_notes`, and `reference_notes`; `breeding_ready_at` means the earliest year/month when the candidate may be scheduled for breeding, not its birth date or general age. Nullable fields remain explicit so missing data is not mistaken for zero or a verified fact. Both use `analysis_type = investment`, but only population recommendations enter the investment review queue. Candidate evaluation uses DeepSeek Responses API server-side `web_search` and is stored as an `analysis_runs` snapshot with plain-language `response_payload.candidate_advice` plus normalized `response_payload.web_sources`; it never creates an investment record or enters review. Candidate `gene_text` is not treated as a genetic fact unless it resolves to a recorded atomic gene in `candidate.atomic_genes`. Web sources may support market, price, availability, scarcity, trend, and public seller-reputation judgments, but never fill missing individual genetics or pedigree facts.
 
 ### `public.ai_conversations`
 
@@ -1858,6 +1858,7 @@ supabase/migrations/008_ai_review_workflow.sql
 supabase/migrations/009_ai_review_backfill_links.sql
 supabase/migrations/013_candidate_investment_prompt.sql
 supabase/migrations/014_candidate_investment_plain_advice_prompt.sql
+supabase/migrations/015_candidate_investment_web_search_prompt.sql
 ```
 
 `008_ai_review_workflow.sql` keeps AI and manual decisions in the same business tables. `investments` and `annual_breeding_plans` carry `source_type` (`manual` / `ai`) and `review_status` (`pending` / `approved` / `returned`). AI rows reference their originating `ai_recommendations` record through `ai_recommendation_id`. Only approved records are rendered in the normal investment and annual-planning pages; pending AI records appear in the separate investment and annual review queues.
