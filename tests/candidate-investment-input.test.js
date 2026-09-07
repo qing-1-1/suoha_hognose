@@ -21,3 +21,10 @@ test("candidate investment snapshot carries the additional form values", () => {
   assert.match(source, /breedingReadyAt\.year<2000\|\|breedingReadyAt\.year>2200/);
   assert.match(source, /breedingReadyAt\.month<1\|\|breedingReadyAt\.month>12/);
 });
+
+test("candidate investment uses a background function and polls its saved run", () => {
+  const source = fs.readFileSync(path.join(root, "js", "ai.js"), "utf8");
+  assert.match(source, /\/\.netlify\/functions\/ai-analyze-background/);
+  assert.match(source, /status:"running"/);
+  assert.match(source, /waitForCandidateAnalysis\(created\.id,host\)/);
+});
