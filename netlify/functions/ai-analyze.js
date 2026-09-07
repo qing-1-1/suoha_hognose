@@ -320,8 +320,16 @@ exports.handler = async (event) => {
   const apiKey = configured("DEEPSEEK_API_KEY");
   const supabaseUrl = configured("SUPABASE_URL");
   const publishableKey = configured("SUPABASE_PUBLISHABLE_KEY");
-  if (!apiKey || !supabaseUrl || !publishableKey) {
-    return response(503, { error: "AI service is not configured on the server." });
+  const missingConfiguration = [
+    ["DEEPSEEK_API_KEY", apiKey],
+    ["SUPABASE_URL", supabaseUrl],
+    ["SUPABASE_PUBLISHABLE_KEY", publishableKey]
+  ].filter(([, value]) => !value).map(([name]) => name);
+  if (missingConfiguration.length) {
+    return response(503, {
+      error: "AI service is not configured on the server.",
+      detail: `Missing server environment variables: ${missingConfiguration.join(", ")}.`
+    });
   }
 
   const authorization = event.headers.authorization || event.headers.Authorization || "";
