@@ -41,12 +41,29 @@ test("snake purchase prices are counted into the matching user's population inve
   assert.match(appSource, /SNAKE_INVESTMENT_PREFIX_OWNERS=Object\.freeze/);
   assert.match(appSource, /M:"1442399241@qq\.com"/);
   assert.match(appSource, /Y:"569850649@qq\.com"/);
+  assert.match(appSource, /function investmentOwnerFromIdentity\(value\)/);
+  assert.match(appSource, /const explicitOwner=investmentOwnerFromIdentity\(snake\?\.investor\)/);
   assert.match(appSource, /function snakeInvestmentRows\(\)/);
   assert.match(appSource, /Number\(snake\.price\|\|0\)/);
   assert.match(appSource, /category:"population"/);
   assert.match(appSource, /source:"snake_inventory"/);
   assert.match(appSource, /const statRows=ledgerStatRows\(rows\)/);
   assert.match(appSource, /statRows\.filter\(row=>row\.category===key\)/);
+});
+
+test("new snakes default their investor to the current logged in user", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /function currentInvestorName\(\)/);
+  assert.match(appSource, /const investorValue=row\.id\?\(row\.investor\|\|""\):\(row\.investor\|\|currentInvestorName\(\)\)/);
+  assert.match(appSource, /if\(!editContext\.id&&!o\.investor\)o\.investor=currentInvestorName\(\)\|\|null/);
+});
+
+test("ledger user meta displays category counts instead of a generic manual count", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /function ledgerMetaParts\(autoCount,categoryCounts=\{\}\)/);
+  assert.match(appSource, /parts\.push\(`\$\{meta\.label\} \$\{count\} 笔`\)/);
+  assert.doesNotMatch(appSource, /手工 \$\{user\.manualCount\} 笔/);
+  assert.doesNotMatch(appSource, /笔手工支出/);
 });
 
 test("investment ledger maps known emails to display usernames", () => {

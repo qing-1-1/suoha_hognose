@@ -210,15 +210,17 @@ function ledgerRows(){
 }
 function ledgerExpenseAmount(row){return Number(row.amount||0)}
 function snakeInvestmentOwner(snake){
+  const explicitOwner=investmentOwnerFromIdentity(snake?.investor);
+  if(explicitOwner)return explicitOwner;
   const prefix=String(snake?.id||"").trim().charAt(0).toUpperCase();
   const email=SNAKE_INVESTMENT_PREFIX_OWNERS[prefix];
-  return email?{email,name:displayNameForEmail(email)||email}:null;
+  return email?investmentOwnerFromIdentity(email):null;
 }
 function snakeInvestmentRows(){
   return (DATA.snakes||[]).map(snake=>{
     const owner=snakeInvestmentOwner(snake),amount=Number(snake.price||0);
     if(!owner||amount<=0)return null;
-    return {id:`snake:${snake.id}`,category:"population",amount,note:`${snake.id} · ${snake.gene||"种群个体"}`,spent_at:"",created_at:"",owner_email:owner.email,owner_name:owner.name,source:"snake_inventory"};
+    return {id:`snake:${snake.id}`,category:"population",amount,note:`${snake.id} · ${snake.gene||"种群个体"}`,spent_at:"",created_at:"",owner_email:owner.email||"",owner_name:owner.name,source:"snake_inventory"};
   }).filter(Boolean);
 }
 function ledgerStatRows(manualRows=ledgerRows()){
@@ -239,10 +241,17 @@ function ledgerOwnerName(row){
   if(alias)return alias;
   return name||email||"未命名用户";
 }
-function ledgerUserMeta(user){
+function ledgerMetaParts(autoCount,categoryCounts={}){
   const parts=[];
-  if(user.autoCount)parts.push(`种群 ${user.autoCount} 条`);
-  if(user.manualCount)parts.push(`手工 ${user.manualCount} 笔`);
+  if(autoCount)parts.push(`种群 ${autoCount} 条`);
+  Object.entries(LEDGER_CATEGORIES).forEach(([key,meta])=>{
+    const count=categoryCounts[key]||0;
+    if(count)parts.push(`${meta.label} ${count} 笔`);
+  });
+  return parts;
+}
+function ledgerUserMeta(user){
+  const parts=ledgerMetaParts(user.autoCount,user.categoryCounts);
   return parts.join(" · ")||`${user.count} 项`;
 }
 function ledgerDateLabel(value){return value?String(value).replaceAll("-","/"):"—"}
@@ -256,15 +265,24 @@ function renderInvestmentLedger(){
   DATA.ledgerExpenses=rows;
   const total=statRows.reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
   const byUser=new Map();
+  const totalCategoryCounts={};
+  let totalAutoCount=0;
   statRows.forEach(row=>{
     const key=ledgerOwnerKey(row);
-    const current=byUser.get(key)||{name:ledgerOwnerName(row),total:0,count:0,autoCount:0,manualCount:0};
+    const current=byUser.get(key)||{name:ledgerOwnerName(row),total:0,count:0,autoCount:0,categoryCounts:{}};
     current.total+=ledgerExpenseAmount(row);current.count+=1;
-    if(row.source==="snake_inventory")current.autoCount+=1;else current.manualCount+=1;
+    if(row.source==="snake_inventory"){
+      totalAutoCount+=1;
+      current.autoCount+=1;
+    }else{
+      current.categoryCounts[row.category]=(current.categoryCounts[row.category]||0)+1;
+      totalCategoryCounts[row.category]=(totalCategoryCounts[row.category]||0)+1;
+    }
     byUser.set(key,current);
   });
   const userRows=[...byUser.values()].sort((a,b)=>b.total-a.total);
-  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${statRows.length} 项投入 · ${rows.length} 笔手工支出</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(ledgerUserMeta(user))}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
+  const totalMeta=ledgerMetaParts(totalAutoCount,totalCategoryCounts).join(" · ")||`${statRows.length} 项投入`;
+  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${esc(totalMeta)}</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(ledgerUserMeta(user))}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
 
   $("#ledgerCategorySummary").innerHTML=Object.entries(LEDGER_CATEGORIES).map(([key,meta])=>{
     const amount=statRows.filter(row=>row.category===key).reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
@@ -391,6 +409,16 @@ function resolveLoginEmail(value){
 }
 function displayNameForEmail(value){
   return USER_DISPLAY_NAMES[String(value||"").trim().toLowerCase()]||"";
+}
+function investmentOwnerFromIdentity(value){
+  const identity=String(value||"").trim();
+  if(!identity)return null;
+  const aliasEmail=LOGIN_ALIASES[identity.toLowerCase()]||"";
+  const email=aliasEmail||(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity)?identity:"");
+  return {email,name:displayNameForEmail(email)||displayNameForEmail(identity)||identity};
+}
+function currentInvestorName(){
+  return currentProfile?.display_name||displayNameForEmail(currentUser?.email)||currentUser?.email||"";
 }
 function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
@@ -766,6 +794,7 @@ function renderGeneEditor(){
 }
 function nextSnakeId(){const max=Math.max(0,...REMOTE_RAW.snakes.map(s=>{const m=String(s.id||"").match(/^S(\d+)$/i);return m?Number(m[1]):0}));return `S${String(max+1).padStart(2,"0")}`}
 function snakeFormHtml(row={}){
+  const investorValue=row.id?(row.investor||""):(row.investor||currentInvestorName());
   return `<div class="formGrid">
     <div class="formField"><label>ID</label><input name="id" value="${esc(row.id||nextSnakeId())}" ${row.id?"readonly":""} required placeholder="S33"></div>
     <div class="formField"><label>Series</label><input name="series" value="${esc(row.series||"")}" required></div>
@@ -776,7 +805,7 @@ function snakeFormHtml(row={}){
     <div class="formField"><label>Mature date</label><input name="mature_date" type="date" value="${esc(row.mature_date||"")}"></div>
     <div class="formField"><label>Price</label><input name="price" type="number" min="0" step="0.01" value="${row.price??0}"></div>
     <div class="formField"><label>Strategic score</label><input name="strategic_score" type="number" min="0" max="100" value="${row.strategic_score??""}"></div>
-    <div class="formField"><label>Investor</label><input name="investor" value="${esc(row.investor||"")}"></div>
+    <div class="formField"><label>Investor</label><input name="investor" value="${esc(investorValue)}"></div>
     <div class="formField"><label>Origin</label><select name="origin">${["purchased","produced","other"].map(x=>`<option ${row.origin===x?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="formField full"><label>Role</label><input name="role" value="${esc(row.role||"")}"></div>
     <div class="formField full"><label>Notes</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
@@ -854,6 +883,7 @@ async function saveEdit(){
   const t=editContext.table;
   if(t==="snakes"){
     ["price","strategic_score"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
+    if(!editContext.id&&!o.investor)o.investor=currentInvestorName()||null;
   }else if(t==="annual_breeding_plans"){
     ["plan_year","planned_clutches"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     if("scenario_id" in o)o.scenario_id=o.scenario_id?Number(o.scenario_id):null;
