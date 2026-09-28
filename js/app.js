@@ -966,7 +966,39 @@ async function deleteRecord(table,id,label){
 }
 async function markRecordCompleted(table,id,label){if(!canWrite())return toast("当前账号没有写权限",true);try{const {error}=await sb.from(table).update({status:"completed"}).eq("id",id);if(error)throw error;await refreshRemote(false);toast(`${label}已设为完成`)}catch(err){toast(err.message||String(err),true)}}
 async function deleteSnake(id){
-  return retireSnake(id);
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const snake=REMOTE_RAW.snakes.find(row=>String(row.id)===String(id));
+  if(!snake)return toast("找不到这个个体，请先刷新数据库。",true);
+  const linkedNodes=REMOTE_RAW.nodes.filter(node=>String(node.snake_id)===String(id));
+  const nodeIds=linkedNodes.map(node=>node.id).filter(Boolean);
+  const nodeIdSet=new Set(nodeIds.map(String));
+  const linkedPlans=REMOTE_RAW.plans.filter(plan=>String(plan.female_snake_id)===String(id)||String(plan.male_snake_id)===String(id)||nodeIdSet.has(String(plan.female_node_id))||nodeIdSet.has(String(plan.male_node_id)));
+  const routeNames=[...new Set(linkedNodes.map(node=>REMOTE_RAW.routes.find(route=>route.id===node.route_id)?.name||node.route_id).filter(Boolean))];
+  const warnings=[];
+  if(linkedNodes.length)warnings.push(`已在 ${routeNames.join("、")} 配置 ${linkedNodes.length} 个繁殖路线节点，删除会同时移除相关路线节点和连线。`);
+  if(linkedPlans.length)warnings.push(`已被 ${linkedPlans.length} 条年度计划引用，删除会清空这些计划里的个体/节点引用。`);
+  if(!warnings.length)warnings.push("未发现关联繁殖路线或年度计划。");
+  const ok=await confirmWorkflow({title:"永久删除这个个体？",sub:`${id} 删除后会从种群结构表移除，种群投入金额会随刷新自动扣除。${warnings.join(" ")}`,confirm:"永久删除",danger:true});
+  if(!ok)return;
+  const run=async query=>{const {error}=await query;if(error)throw error};
+  try{
+    if(REMOTE_RAW.plans.some(plan=>String(plan.female_snake_id)===String(id)))await run(sb.from("annual_breeding_plans").update({female_snake_id:null}).eq("female_snake_id",id));
+    if(REMOTE_RAW.plans.some(plan=>String(plan.male_snake_id)===String(id)))await run(sb.from("annual_breeding_plans").update({male_snake_id:null}).eq("male_snake_id",id));
+    if(nodeIds.length){
+      if(REMOTE_RAW.plans.some(plan=>nodeIdSet.has(String(plan.female_node_id))))await run(sb.from("annual_breeding_plans").update({female_node_id:null}).in("female_node_id",nodeIds));
+      if(REMOTE_RAW.plans.some(plan=>nodeIdSet.has(String(plan.male_node_id))))await run(sb.from("annual_breeding_plans").update({male_node_id:null}).in("male_node_id",nodeIds));
+      await run(sb.from("route_edges").delete().in("from_node_id",nodeIds));
+      await run(sb.from("route_edges").delete().in("to_node_id",nodeIds));
+      await run(sb.from("route_nodes").delete().in("id",nodeIds));
+    }
+    await run(sb.from("snake_genes").delete().eq("snake_id",id));
+    await run(sb.from("snakes").delete().eq("id",id));
+    $("#drawer").classList.remove("open");
+    await refreshRemote(false);
+    toast("个体已删除，投资金额已更新");
+  }catch(err){
+    toast(err.message||String(err),true);
+  }
 }
 async function retireSnake(id){
   if(!canWrite())return toast("当前账号没有写权限",true);
@@ -987,7 +1019,7 @@ function renderAdmin(){
   if(!canWrite()){$("#adminTable").innerHTML='<div class="configWarning">当前账号没有 editor/admin 权限。请在 public.profiles 中为该用户分配角色。</div>';return}
   let html="";
   if(adminTab==="snakes"){
-    html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>状态</th><th>战略分</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.snakes.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.series)}</td><td>${esc(r.gene_text)}</td><td>${esc(r.sex)}</td><td>${esc(r.status)}</td><td>${r.strategic_score??""}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-snake="${esc(r.id)}">编辑</button><button class="iconBtn danger" data-admin-retire-snake="${esc(r.id)}">停用</button></div></td></tr>`).join("")}</tbody></table></div>`;
+    html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>状态</th><th>战略分</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.snakes.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.series)}</td><td>${esc(r.gene_text)}</td><td>${esc(r.sex)}</td><td>${esc(r.status)}</td><td>${r.strategic_score??""}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-snake="${esc(r.id)}">编辑</button><button class="iconBtn danger" data-admin-retire-snake="${esc(r.id)}">停用</button><button class="iconBtn danger" data-admin-delete-snake="${esc(r.id)}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else if(adminTab==="plans"){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>Priority</th><th>Project</th><th>Female</th><th>Male</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.plans.map(r=>`<tr><td>${r.plan_year}</td><td>${r.priority}</td><td>${esc(r.project_name)}</td><td>${r.female_snake_id||"—"}</td><td>${r.male_snake_id||"—"}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-plan="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else if(adminTab==="investments"){
@@ -1002,6 +1034,7 @@ function renderAdmin(){
   $("#adminTable").innerHTML=html;
   $$("[data-admin-edit-snake]").forEach(x=>x.onclick=()=>openSnakeForm(x.dataset.adminEditSnake));
   $$("[data-admin-retire-snake]").forEach(x=>x.onclick=()=>retireSnake(x.dataset.adminRetireSnake));
+  $$("[data-admin-delete-snake]").forEach(x=>x.onclick=()=>deleteSnake(x.dataset.adminDeleteSnake));
   $$("[data-admin-edit-plan]").forEach(x=>x.onclick=()=>openPlanForm(x.dataset.adminEditPlan));
   $$("[data-admin-del-plan]").forEach(x=>x.onclick=()=>deleteRecord("annual_breeding_plans",x.dataset.adminDelPlan,"年度计划 #"+x.dataset.adminDelPlan));
   $$("[data-admin-edit-invest]").forEach(x=>x.onclick=()=>openInvestmentForm(x.dataset.adminEditInvest));

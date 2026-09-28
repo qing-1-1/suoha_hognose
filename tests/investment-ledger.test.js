@@ -66,6 +66,24 @@ test("ledger user meta displays category counts instead of a generic manual coun
   assert.doesNotMatch(appSource, /笔手工支出/);
 });
 
+test("admin can hard delete snakes while keeping retire as a separate action", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /data-admin-retire-snake/);
+  assert.match(appSource, /data-admin-delete-snake/);
+  assert.match(appSource, /\[data-admin-delete-snake\][\s\S]*deleteSnake/);
+  assert.match(appSource, /function deleteSnake\(id\)/);
+  assert.doesNotMatch(appSource, /async function deleteSnake\(id\)\{\s*return retireSnake\(id\);/);
+  assert.match(appSource, /REMOTE_RAW\.nodes\.filter\(node=>String\(node\.snake_id\)===String\(id\)\)/);
+  assert.match(appSource, /删除会同时移除相关路线节点和连线/);
+  assert.match(appSource, /种群投入金额会随刷新自动扣除/);
+  assert.match(appSource, /sb\.from\("route_edges"\)\.delete\(\)\.in\("from_node_id",nodeIds\)/);
+  assert.match(appSource, /sb\.from\("route_edges"\)\.delete\(\)\.in\("to_node_id",nodeIds\)/);
+  assert.match(appSource, /sb\.from\("route_nodes"\)\.delete\(\)\.in\("id",nodeIds\)/);
+  assert.match(appSource, /sb\.from\("snake_genes"\)\.delete\(\)\.eq\("snake_id",id\)/);
+  assert.match(appSource, /sb\.from\("snakes"\)\.delete\(\)\.eq\("id",id\)/);
+  assert.match(appSource, /toast\("个体已删除，投资金额已更新"\)/);
+});
+
 test("population overview shows total population and other investment cards", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const cssSource = fs.readFileSync(path.join(root, "assets", "app.css"), "utf8");
