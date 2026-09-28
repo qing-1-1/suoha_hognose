@@ -16,6 +16,7 @@
   }
 
   async function fetchBusinessTables(client) {
+    const expenseLedger = await fetchInvestmentExpenses(client);
     const results = throwFirstError(await Promise.all([
       client.from("snakes").select("*").order("id"),
       client.from("breeding_routes").select("*").order("priority", { ascending: false }),
@@ -34,8 +35,24 @@
       snakes: results[0].data || [], routes: results[1].data || [], nodes: results[2].data || [],
       edges: results[3].data || [], plans: results[4].data || [], investments: results[5].data || [],
       genes: results[6].data || [], aliases: results[7].data || [], morphs: results[8].data || [],
-      morphComponents: results[9].data || [], snakeGenes: results[10].data || []
+      morphComponents: results[9].data || [], snakeGenes: results[10].data || [],
+      investmentExpenses: expenseLedger
     };
+  }
+
+  async function fetchInvestmentExpenses(client) {
+    const { data, error } = await client
+      .from("investment_expenses")
+      .select("*")
+      .order("spent_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (error) {
+      console.warn("investment_expenses unavailable:", error.message);
+      return [];
+    }
+    return data || [];
   }
 
   async function fetchDecisionTables(client) {
