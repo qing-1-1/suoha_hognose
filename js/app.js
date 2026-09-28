@@ -398,8 +398,10 @@ let workspaceUnlockInProgress=false;
 let adminTab="snakes";
 let editContext=null;
 let editGenes=[];
+let editMorphComponents=[];
+let editMorphAliases=[];
 let AI_LAYER_READY=false;
-let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],investmentExpenses:[],genes:[],aliases:[],morphs:[],morphComponents:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]};
+let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],investmentExpenses:[],genes:[],aliases:[],morphs:[],morphComponents:[],morphAliases:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]};
 const LOGIN_ALIASES=Object.freeze({
   suohama:"1442399241@qq.com",
   suohayu:"569850649@qq.com"
@@ -720,7 +722,7 @@ async function loadRemoteData(){
     snakes:res[0].data||[],routes:res[1].data||[],nodes:res[2].data||[],
     edges:res[3].data||[],plans:res[4].data||[],investments:res[5].data||[],
     genes:res[6].data||[],aliases:res[7].data||[],morphs:res[8].data||[],
-    morphComponents:res[9].data||[],snakeGenes:res[10].data||[],investmentExpenses:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]
+    morphComponents:res[9].data||[],morphAliases:[],snakeGenes:res[10].data||[],investmentExpenses:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]
   };
   const decisionRes=await Promise.all([
     sb.from("planning_scenarios").select("*").order("created_at",{ascending:false}),
@@ -776,38 +778,65 @@ async function refreshRemote(showMessage=true){
 }
 
 const GENE_STATES=["visual","het","possible_het","super","line_trait","unknown"];
+const GENE_INHERITANCE_TYPES=["recessive","incomplete_dominant","dominant","polygenic","line_trait","unknown"];
 function geneOptionHtml(selected){return `<option value="">选择原子基因</option>${REMOTE_RAW.genes.map(g=>`<option value="${esc(g.id)}" ${g.id===selected?"selected":""}>${esc(geneLabel(g))} · ${esc(g.id)}</option>`).join("")}`}
 function currentGeneRows(snakeId){return snakeId?snakeGeneRows(snakeId).map(x=>({gene_id:x.gene_id,state:x.state||"visual",probability:x.probability??1,source:x.source||"manual",notes:x.notes||""})):[]}
 function aliasText(a){return String(a.alias||a.alias_text||a.name||"").trim()}
 function aliasState(a,token){return a.state_hint||a.default_state||a.state||(/^超/.test(token)?"super":"visual")}
+function escapeRegExp(value){return String(value).replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}
+function morphAliasText(a){return String(a.alias||a.alias_text||a.name||"").trim()}
+function morphLabelsFor(morph){
+  const aliases=(REMOTE_RAW.morphAliases||[]).filter(a=>a.morph_id===morph.id).map(morphAliasText);
+  return [...new Set([morph.name_zh,morph.chinese_name,morph.name_cn,morph.display_name,morph.name,morph.name_en,morph.id,...aliases].filter(Boolean).map(x=>String(x).trim()).filter(Boolean))].sort((a,b)=>b.length-a.length);
+}
 function inferredGenes(geneText){
   const text=String(geneText||"");const out=new Map();
   const add=(geneId,state="visual",probability="",source="parser")=>{if(geneId&&!out.has(geneId))out.set(geneId,{gene_id:geneId,state,probability,source,notes:""})};
   REMOTE_RAW.aliases.map(a=>({...a,_alias:aliasText(a)})).filter(a=>a._alias).sort((a,b)=>b._alias.length-a._alias.length).forEach(a=>{
     if(!text.includes(a._alias))return;
-    const escaped=a._alias.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const escaped=escapeRegExp(a._alias);
     const possible=new RegExp(`(?:50|66)\\s*%?\\s*(?:隐\\s*)?${escaped}`).test(text);
     const het=new RegExp(`隐\\s*${escaped}`).test(text);
     add(a.gene_id,possible?"possible_het":het?"het":aliasState(a,a._alias),possible?(text.includes("66")?0.66:0.5):(a.probability_hint??1));
   });
   REMOTE_RAW.morphs.forEach(m=>{
-    const labels=[m.name_zh,m.chinese_name,m.name_cn,m.display_name,m.name,m.id].filter(Boolean).map(String);
+    const labels=morphLabelsFor(m);
     const label=labels.find(x=>text.includes(x));if(!label)return;
-    const hidden=new RegExp(`隐\\s*${label.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}`).test(text);
+    const hidden=new RegExp(`隐\\s*${escapeRegExp(label)}`).test(text);
     REMOTE_RAW.morphComponents.filter(c=>c.morph_id===m.id).forEach(c=>add(c.gene_id,hidden?"het":(c.required_state||"visual"),1));
   });
   return [...out.values()];
 }
 function renderGeneEditor(){
   const host=$("#geneEditor");if(!host)return;
-  const rowHtml=(g,i)=>g.isNew?`<div class="geneEditorRow geneEditorNew" data-gene-row="${i}"><input data-gene-field="gene_id" value="${esc(g.gene_id||"")}" placeholder="新基因 ID，如 caramel"><input data-gene-field="name_zh" value="${esc(g.name_zh||"")}" placeholder="中文名称"><input data-gene-field="name_en" value="${esc(g.name_en||"")}" placeholder="English name"><select data-gene-field="inheritance_type">${["recessive","incomplete_dominant","dominant","polygenic","line_trait","unknown"].map(x=>`<option value="${x}" ${g.inheritance_type===x?"selected":""}>${x}</option>`).join("")}</select><select data-gene-field="state">${GENE_STATES.map(x=>`<option value="${x}" ${g.state===x?"selected":""}>${x}</option>`).join("")}</select><input data-gene-field="probability" type="number" min="0" max="1" step="0.01" value="${g.probability??""}" placeholder="概率"><button type="button" data-remove-gene="${i}" title="删除子基因">×</button></div>`:`<div class="geneEditorRow" data-gene-row="${i}"><div class="geneExisting">${esc(geneLabel(REMOTE_RAW.genes.find(x=>x.id===g.gene_id)))} <small>${esc(g.gene_id)}</small></div><select data-gene-field="state">${GENE_STATES.map(x=>`<option value="${x}" ${g.state===x?"selected":""}>${x}</option>`).join("")}</select><input data-gene-field="probability" type="number" min="0" max="1" step="0.01" value="${g.probability??""}" placeholder="概率"><input class="geneSource" data-gene-field="source" value="${esc(g.source||"manual")}" placeholder="来源"><button type="button" data-remove-gene="${i}" title="删除子基因">×</button></div>`;
-  host.innerHTML=`<div class="geneEditorHead"><div><h4>原子子基因（snake_genes）</h4><p>“添加子基因”会新建 genes 字典记录并自动关联当前蛇；已有的原子基因只会由基因文本解析自动带出。</p></div><div class="spacer"></div><button type="button" class="pillBtn" id="inferGenesBtn">从基因文本补全</button><button type="button" class="pillBtn" id="addGeneBtn">＋ 新建子基因</button></div><div class="geneEditorRows">${editGenes.map(rowHtml).join("")||'<div class="geneEditorEmpty">尚未关联原子子基因。填写 Gene text 后点击“从基因文本补全”，或新建一个原子子基因。</div>'}</div><div class="geneEditorHelp">新基因 ID 必须是稳定的小写英文/数字/下划线标识；保存时先写入 genes，再同步 snake_genes。</div>`;
+  const rowHtml=(g,i)=>g.isNew?`<div class="geneEditorRow geneEditorNew" data-gene-row="${i}"><input data-gene-field="gene_id" value="${esc(g.gene_id||"")}" placeholder="新基因 ID，如 caramel"><input data-gene-field="name_zh" value="${esc(g.name_zh||"")}" placeholder="中文名称"><input data-gene-field="name_en" value="${esc(g.name_en||"")}" placeholder="English name"><select data-gene-field="inheritance_type">${GENE_INHERITANCE_TYPES.map(x=>`<option value="${x}" ${g.inheritance_type===x?"selected":""}>${x}</option>`).join("")}</select><select data-gene-field="state">${GENE_STATES.map(x=>`<option value="${x}" ${g.state===x?"selected":""}>${x}</option>`).join("")}</select><input data-gene-field="probability" type="number" min="0" max="1" step="0.01" value="${g.probability??""}" placeholder="概率"><button type="button" data-remove-gene="${i}" title="删除子基因">×</button></div>`:`<div class="geneEditorRow" data-gene-row="${i}"><div class="geneExisting">${esc(geneLabel(REMOTE_RAW.genes.find(x=>x.id===g.gene_id)))} <small>${esc(g.gene_id)}</small></div><select data-gene-field="state">${GENE_STATES.map(x=>`<option value="${x}" ${g.state===x?"selected":""}>${x}</option>`).join("")}</select><input data-gene-field="probability" type="number" min="0" max="1" step="0.01" value="${g.probability??""}" placeholder="概率"><input class="geneSource" data-gene-field="source" value="${esc(g.source||"manual")}" placeholder="来源"><button type="button" data-remove-gene="${i}" title="删除子基因">×</button></div>`;
+  host.innerHTML=`<div class="geneEditorHead"><div><h4>原子子基因（snake_genes）</h4><p>这里维护当前蛇关联了哪些原子基因；如果字典里没有这个基因，可以先去维护原子基因。</p></div><div class="spacer"></div><button type="button" class="pillBtn" id="inferGenesBtn">从基因文本补全</button><button type="button" class="pillBtn" id="openGeneDictionaryBtn">维护原子基因</button><button type="button" class="pillBtn" id="addGeneBtn">＋ 新建并关联</button></div><div class="geneEditorRows">${editGenes.map(rowHtml).join("")||'<div class="geneEditorEmpty">尚未关联原子子基因。填写 Gene text 后点击“从基因文本补全”，或新建一个原子子基因。</div>'}</div><div class="geneEditorHelp">“新建并关联”会在保存当前个体时同时写入 genes 和 snake_genes；“维护原子基因”会跳转到原子基因字典。</div>`;
   $("#addGeneBtn").onclick=()=>{editGenes.push({isNew:true,gene_id:"",name_zh:"",name_en:"",inheritance_type:"unknown",state:"visual",probability:1,source:"manual",notes:""});renderGeneEditor()};
+  $("#openGeneDictionaryBtn").onclick=openGeneDictionaryFromSnakeForm;
   const mergeInferred=()=>{const inferred=inferredGenes($("#editForm [name=gene_text]")?.value);const existing=new Set(editGenes.map(x=>x.gene_id).filter(Boolean));const additions=inferred.filter(x=>!existing.has(x.gene_id));editGenes.push(...additions);return additions.length};
   $("#inferGenesBtn").onclick=()=>{const added=mergeInferred();renderGeneEditor();$("#editMessage").textContent=added?`已补全 ${added} 条原子子基因，请复核状态与概率。`:"没有发现可新增的原子子基因。"};
   const geneTextInput=$("#editForm [name=gene_text]");if(!editContext?.id&&geneTextInput)geneTextInput.onchange=()=>{const added=mergeInferred();if(added){renderGeneEditor();$("#editMessage").textContent=`已自动带出 ${added} 条原子子基因，请复核状态与概率。`}};
   $$('[data-gene-row]').forEach(row=>{const i=Number(row.dataset.geneRow);[...row.querySelectorAll('[data-gene-field]')].forEach(input=>input.onchange=()=>{editGenes[i][input.dataset.geneField]=input.value})});
   $$('[data-remove-gene]').forEach(btn=>btn.onclick=()=>{editGenes.splice(Number(btn.dataset.removeGene),1);renderGeneEditor()});
+}
+function currentMorphComponentRows(morphId){return morphId?REMOTE_RAW.morphComponents.filter(x=>x.morph_id===morphId).map(x=>({gene_id:x.gene_id,required_state:x.required_state||"visual",notes:x.notes||""})):[]}
+function currentMorphAliasRows(morphId){return morphId?(REMOTE_RAW.morphAliases||[]).filter(x=>x.morph_id===morphId).map(x=>({alias:morphAliasText(x),notes:x.notes||""})):[]}
+function renderMorphAliasEditor(){
+  const host=$("#morphAliasEditor");if(!host)return;
+  const rowHtml=(row,i)=>`<div class="geneEditorRow morphAliasRow" data-morph-alias-row="${i}"><input data-morph-alias-field="alias" value="${esc(row.alias||"")}" placeholder="例如：爆炸"><input data-morph-alias-field="notes" value="${esc(row.notes||"")}" placeholder="备注"><button type="button" data-remove-morph-alias="${i}" title="删除别名">×</button></div>`;
+  host.innerHTML=`<div class="geneEditorHead"><div><h4>组合别名（morph_aliases）</h4><p>同一个组合可以有多个叫法，例如“爆炸”也可以指向“太阳爆炸”。</p></div><div class="spacer"></div><button type="button" class="pillBtn" id="addMorphAliasBtn">＋ 添加别名</button></div><div class="geneEditorRows">${editMorphAliases.map(rowHtml).join("")||'<div class="geneEditorEmpty">没有额外别名时，会使用中文名、英文名和组合 ID 识别。</div>'}</div>`;
+  $("#addMorphAliasBtn").onclick=()=>{editMorphAliases.push({alias:"",notes:""});renderMorphAliasEditor()};
+  $$("[data-morph-alias-row]").forEach(row=>{const i=Number(row.dataset.morphAliasRow);[...row.querySelectorAll("[data-morph-alias-field]")].forEach(input=>input.onchange=()=>{editMorphAliases[i][input.dataset.morphAliasField]=input.value})});
+  $$("[data-remove-morph-alias]").forEach(btn=>btn.onclick=()=>{editMorphAliases.splice(Number(btn.dataset.removeMorphAlias),1);renderMorphAliasEditor()});
+}
+function renderMorphComponentEditor(){
+  const host=$("#morphComponentEditor");if(!host)return;
+  const geneOptions=selected=>REMOTE_RAW.genes.map(g=>`<option value="${esc(g.id)}" ${g.id===selected?"selected":""}>${esc(geneLabel(g))} · ${esc(g.id)}</option>`).join("");
+  const rowHtml=(row,i)=>`<div class="geneEditorRow morphComponentRow" data-morph-component-row="${i}"><select data-morph-component-field="gene_id">${geneOptions(row.gene_id)}</select><select data-morph-component-field="required_state">${GENE_STATES.map(x=>`<option value="${x}" ${row.required_state===x?"selected":""}>${x}</option>`).join("")}</select><input data-morph-component-field="notes" value="${esc(row.notes||"")}" placeholder="备注"><button type="button" data-remove-morph-component="${i}" title="删除组成基因">×</button></div>`;
+  host.innerHTML=`<div class="geneEditorHead"><div><h4>组成原子基因（morph_components）</h4><p>组合黑话会按这里的组成自动带出多个原子子基因，例如“暴风云”可以配置为缺黄 + 紫貂。</p></div><div class="spacer"></div><button type="button" class="pillBtn" id="addMorphComponentBtn">＋ 添加组成基因</button></div><div class="geneEditorRows">${editMorphComponents.map(rowHtml).join("")||'<div class="geneEditorEmpty">至少添加一个组成原子基因。</div>'}</div><div class="geneEditorHelp">保存后，基因文本包含该中文名称或英文名称时，“从基因文本补全”会自动带出这些组成基因。</div>`;
+  $("#addMorphComponentBtn").onclick=()=>{editMorphComponents.push({gene_id:REMOTE_RAW.genes[0]?.id||"",required_state:"visual",notes:""});renderMorphComponentEditor()};
+  $$("[data-morph-component-row]").forEach(row=>{const i=Number(row.dataset.morphComponentRow);[...row.querySelectorAll("[data-morph-component-field]")].forEach(input=>input.onchange=()=>{editMorphComponents[i][input.dataset.morphComponentField]=input.value})});
+  $$("[data-remove-morph-component]").forEach(btn=>btn.onclick=()=>{editMorphComponents.splice(Number(btn.dataset.removeMorphComponent),1);renderMorphComponentEditor()});
 }
 function nextSnakeId(investor=currentInvestorName()){
   const prefix=snakeIdPrefixForInvestor(investor);
@@ -871,6 +900,39 @@ function investmentFormHtml(row={}){
     <div class="formField full"><label>Notes</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
   </div>`;
 }
+function geneCodeFromId(id){return String(id||"").trim().toUpperCase().replace(/[^A-Z0-9]+/g,"_").replace(/^_+|_+$/g,"")}
+function geneDefinitionFormHtml(row={}){
+  const id=String(row.id||"").trim();
+  return `<div class="formGrid">
+    <div class="formField"><label>原子基因 ID</label><input name="id" value="${esc(id)}" ${id?"readonly":""} required placeholder="例如 snow"></div>
+    <div class="formField"><label>Code</label><input name="code" value="${esc(row.code||geneCodeFromId(id))}" placeholder="例如 SNOW"></div>
+    <div class="formField"><label>中文名</label><input name="name_zh" value="${esc(row.name_zh||"")}" required placeholder="例如 雪"></div>
+    <div class="formField"><label>English name</label><input name="name_en" value="${esc(row.name_en||"")}" placeholder="例如 Snow"></div>
+    <div class="formField"><label>遗传类型</label><select name="inheritance_type">${GENE_INHERITANCE_TYPES.map(x=>`<option value="${x}" ${(row.inheritance_type||"unknown")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField"><label>Locus</label><input name="locus" value="${esc(row.locus||"")}" placeholder="可选，例如 axanthic"></div>
+    <div class="formField full"><label>说明</label><textarea name="description" placeholder="可选：记录定义、疑点或来源">${esc(row.description||"")}</textarea></div>
+  </div>`;
+}
+function aliasFormHtml(row={}){
+  const aliasValue=aliasText(row);
+  const selectedGene=row.gene_id||REMOTE_RAW.genes[0]?.id||"";
+  return `<div class="formGrid">
+    <div class="formField"><label>黑话 / 别名</label><input name="alias" value="${esc(aliasValue)}" ${aliasValue?"readonly":""} required placeholder="例如：薰衣草"></div>
+    <div class="formField"><label>映射原子基因</label><select name="gene_id" required>${REMOTE_RAW.genes.map(g=>`<option value="${esc(g.id)}" ${g.id===selectedGene?"selected":""}>${esc(geneLabel(g))} · ${esc(g.id)}</option>`).join("")}</select></div>
+    <div class="formField"><label>默认状态</label><select name="state_hint"><option value="">自动判断</option>${GENE_STATES.map(x=>`<option value="${x}" ${row.state_hint===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField"><label>概率</label><input name="probability_hint" type="number" min="0" max="1" step="0.01" value="${row.probability_hint??1}"></div>
+    <div class="formField full"><label>备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
+  </div>`;
+}
+function morphFormHtml(row={}){
+  return `<div class="formGrid">
+    <div class="formField"><label>组合 ID</label><input name="id" value="${esc(row.id||"")}" ${row.id?"readonly":""} required placeholder="例如 stormcloud"></div>
+    <div class="formField"><label>中文名称 / 黑话</label><input name="name_zh" value="${esc(row.name_zh||"")}" required placeholder="例如：暴风云"></div>
+    <div class="formField"><label>English name</label><input name="name_en" value="${esc(row.name_en||"")}"></div>
+    <div class="formField"><label>类型</label><select name="morph_type">${["named_combo","local_shorthand","line_name","unknown"].map(x=>`<option value="${x}" ${row.morph_type===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField full"><label>说明</label><textarea name="description">${esc(row.description||"")}</textarea></div>
+  </div><div id="morphAliasEditor"></div><div id="morphComponentEditor"></div>`;
+}
 function formObject(form){
   const o=Object.fromEntries(new FormData(form).entries());
   for(const k of Object.keys(o))if(o[k]==="")o[k]=null;
@@ -901,6 +963,41 @@ function openInvestmentForm(id=null){
   $("#editModalSub").textContent="public.investments";
   $("#editFormFields").innerHTML=investmentFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
 }
+function openGeneDefinitionForm(id=null){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const row=id?REMOTE_RAW.genes.find(x=>String(x.id)===String(id))||{}:{inheritance_type:"unknown"};
+  editContext={table:"genes",id:id||null};
+  $("#editModalTitle").textContent=id?`编辑原子基因 ${geneLabel(row)}`:"新增原子基因";
+  $("#editModalSub").textContent="public.genes";
+  $("#editFormFields").innerHTML=geneDefinitionFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
+}
+async function openGeneDictionaryFromSnakeForm(){
+  const ok=await confirmWorkflow({title:"去新增原子基因？",sub:"当前个体编辑窗口会关闭；如果已经填写很多信息，请先保存或记录后再跳转。",confirm:"去新增",danger:false});
+  if(!ok)return;
+  closeModal("editModal");
+  setPage("admin");
+  adminTab="genes";
+  renderAdmin();
+  openGeneDefinitionForm();
+}
+function openAliasForm(alias=null){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const row=alias?REMOTE_RAW.aliases.find(x=>aliasText(x)===alias)||{}:{};
+  editContext={table:"gene_aliases",id:alias||null};
+  $("#editModalTitle").textContent=alias?`编辑黑话 ${alias}`:"新增基因黑话";
+  $("#editModalSub").textContent="public.gene_aliases";
+  $("#editFormFields").innerHTML=aliasFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
+}
+function openMorphForm(id=null){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const row=id?REMOTE_RAW.morphs.find(x=>String(x.id)===String(id))||{}:{morph_type:"named_combo"};
+  editMorphComponents=currentMorphComponentRows(id);
+  editMorphAliases=currentMorphAliasRows(id);
+  editContext={table:"morphs",id:id||null};
+  $("#editModalTitle").textContent=id?`编辑组合黑话 ${row.name_zh||id}`:"新增组合黑话";
+  $("#editModalSub").textContent="public.morphs / public.morph_aliases / public.morph_components";
+  $("#editFormFields").innerHTML=morphFormHtml(row);renderMorphAliasEditor();renderMorphComponentEditor();$("#editMessage").textContent="";openModal("editModal");
+}
 async function saveEdit(){
   if(!sb||!canWrite())throw new Error("没有写权限");
   const o=formObject($("#editForm"));
@@ -914,9 +1011,38 @@ async function saveEdit(){
   }else if(t==="investments"){
     ["rank","strategic_score","planned_year","budget_min","budget_max"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     o.criteria=o.criteria?String(o.criteria).split(/\r?\n/).map(x=>x.trim()).filter(Boolean):[];
+  }else if(t==="genes"){
+    o.id=String(o.id||"").trim();
+    if(!/^[a-z][a-z0-9_]{1,63}$/.test(o.id))throw new Error("原子基因 ID 必须为小写英文、数字或下划线，例如 snow。");
+    if(!String(o.name_zh||"").trim())throw new Error("请填写原子基因中文名。");
+    o.code=String(o.code||"").trim()||geneCodeFromId(o.id)||null;
+    o.name_en=String(o.name_en||"").trim()||null;
+    o.locus=String(o.locus||"").trim()||null;
+    o.description=String(o.description||"").trim()||null;
+    o.inheritance_type=o.inheritance_type||"unknown";
+    if(!GENE_INHERITANCE_TYPES.includes(o.inheritance_type))throw new Error("请选择有效的遗传类型。");
+  }else if(t==="gene_aliases"){
+    o.alias=String(o.alias||"").trim();
+    if(!o.alias)throw new Error("请填写黑话/别名。");
+    if(!REMOTE_RAW.genes.some(g=>g.id===o.gene_id))throw new Error("请选择一个已存在的原子基因。");
+    if(o.state_hint&&!GENE_STATES.includes(o.state_hint))throw new Error("请选择有效的默认状态。");
+    if(o.probability_hint!=null)o.probability_hint=Number(o.probability_hint);
+    if(o.probability_hint!=null&&(!Number.isFinite(o.probability_hint)||o.probability_hint<0||o.probability_hint>1))throw new Error("概率必须在 0 到 1 之间。");
+  }else if(t==="morphs"){
+    o.id=String(o.id||"").trim();
+    if(!/^[a-z][a-z0-9_]{1,63}$/.test(o.id))throw new Error("组合 ID 必须为小写英文、数字或下划线，例如 stormcloud。");
+    if(!String(o.name_zh||"").trim())throw new Error("请填写中文名称/黑话。");
+    o.morph_type=o.morph_type||"named_combo";
+    normalizedEditMorphAliases(o.id);
+    normalizedEditMorphComponents();
   }
   let q;
-  if(editContext.id){
+  if(editContext.id&&t==="gene_aliases"){
+    q=sb.from(t).update(o).eq("alias",editContext.id);
+  }else if(editContext.id&&t==="morphs"){
+    delete o.id;
+    q=sb.from(t).update(o).eq("id",editContext.id);
+  }else if(editContext.id){
     const pk=t==="annual_breeding_plans"?"id":"id";
     delete o.id;
     q=sb.from(t).update(o).eq(pk,editContext.id);
@@ -932,6 +1058,16 @@ async function saveEdit(){
       }
       throw geneError;
     }
+  }else if(t==="morphs"){
+    const morphId=editContext.id||o.id;
+    try{await syncMorphAliases(morphId);await syncMorphComponents(morphId)}
+    catch(componentError){
+      if(!editContext.id){
+        const {error:rollbackError}=await sb.from("morphs").delete().eq("id",morphId);
+        if(rollbackError)console.error("Could not roll back morph after component sync failure:",rollbackError);
+      }
+      throw componentError;
+    }
   }
 }
 async function materializeNewGenes(){
@@ -942,7 +1078,7 @@ async function materializeNewGenes(){
     if(!/^[a-z][a-z0-9_]{1,63}$/.test(id))throw new Error(`新子基因 #${i+1} 的 ID 必须为小写英文、数字或下划线，例如 caramel。`);
     if(ids.has(id))throw new Error(`新子基因 ID 已存在：${id}`);ids.add(id);
     const nameZh=String(g.name_zh||"").trim();if(!nameZh)throw new Error(`新子基因 ${id} 必须填写中文名称。`);
-    const inheritance=["recessive","incomplete_dominant","dominant","polygenic","line_trait","unknown"].includes(g.inheritance_type)?g.inheritance_type:"unknown";
+    const inheritance=GENE_INHERITANCE_TYPES.includes(g.inheritance_type)?g.inheritance_type:"unknown";
     return {id,code:null,name_zh:nameZh,name_en:String(g.name_en||"").trim()||null,inheritance_type:inheritance};
   });
   const {data,error}=await sb.from("genes").insert(rows).select();if(error)throw error;
@@ -967,6 +1103,43 @@ async function syncSnakeGenes(snakeId){
   const removed=before.filter(id=>!retained.has(id));
   if(removed.length){const {error}=await sb.from("snake_genes").delete().eq("snake_id",snakeId).in("gene_id",removed);if(error)throw error;}
 }
+function normalizedEditMorphComponents(){
+  const seen=new Set();
+  return editMorphComponents.map((row,i)=>({gene_id:String(row.gene_id||"").trim(),required_state:row.required_state||"visual",notes:String(row.notes||"").trim()})).filter(row=>row.gene_id).map((row,i)=>{
+    if(!REMOTE_RAW.genes.some(g=>g.id===row.gene_id))throw new Error(`第 ${i+1} 个组成基因不存在：${row.gene_id}`);
+    if(seen.has(row.gene_id))throw new Error(`组成基因重复：${row.gene_id}`);
+    if(!GENE_STATES.includes(row.required_state))throw new Error(`无效组成状态：${row.required_state}`);
+    seen.add(row.gene_id);return row;
+  });
+}
+function normalizedEditMorphAliases(morphId){
+  const seen=new Set();
+  return editMorphAliases.map((row,i)=>({alias:String(row.alias||"").trim(),morph_id:morphId,notes:String(row.notes||"").trim()||null})).filter(row=>row.alias).map((row,i)=>{
+    const key=row.alias.toLowerCase();
+    if(seen.has(key))throw new Error(`组合别名重复：${row.alias}`);
+    const existing=(REMOTE_RAW.morphAliases||[]).find(item=>morphAliasText(item).toLowerCase()===key&&String(item.morph_id)!==String(morphId));
+    if(existing)throw new Error(`组合别名已被 ${existing.morph_id} 使用：${row.alias}`);
+    seen.add(key);return row;
+  });
+}
+async function syncMorphAliases(morphId){
+  const desired=normalizedEditMorphAliases(morphId);
+  const before=(REMOTE_RAW.morphAliases||[]).filter(row=>row.morph_id===morphId).map(morphAliasText);
+  if(desired.length){const {error}=await sb.from("morph_aliases").upsert(desired,{onConflict:"alias"});if(error)throw error;}
+  const retained=new Set(desired.map(row=>row.alias));
+  const removed=before.filter(alias=>!retained.has(alias));
+  if(removed.length){const {error:deleteError}=await sb.from("morph_aliases").delete().eq("morph_id",morphId).in("alias",removed);if(deleteError)throw deleteError;}
+}
+async function syncMorphComponents(morphId){
+  const desired=normalizedEditMorphComponents();
+  if(!desired.length)throw new Error("请至少添加一个组成原子基因。");
+  const rows=desired.map(row=>({...row,morph_id:morphId}));
+  const before=REMOTE_RAW.morphComponents.filter(row=>row.morph_id===morphId).map(row=>row.gene_id);
+  const {error}=await sb.from("morph_components").upsert(rows,{onConflict:"morph_id,gene_id"});if(error)throw error;
+  const retained=new Set(desired.map(row=>row.gene_id));
+  const removed=before.filter(id=>!retained.has(id));
+  if(removed.length){const {error:deleteError}=await sb.from("morph_components").delete().eq("morph_id",morphId).in("gene_id",removed);if(deleteError)throw deleteError;}
+}
 $("#editForm").onsubmit=async e=>{
   e.preventDefault();$("#editMessage").textContent="正在保存…";
   try{await saveEdit();closeModal("editModal");toast("保存成功");await refreshRemote(false)}
@@ -978,6 +1151,29 @@ async function deleteRecord(table,id,label){
   const {error}=await sb.from(table).delete().eq("id",id);
   if(error)return toast(error.message,true);
   $("#drawer").classList.remove("open");toast("已删除");await refreshRemote(false);
+}
+async function deleteAlias(alias){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  if(!await confirmWorkflow({title:"删除这个基因黑话？",sub:`删除 ${alias} 后，基因文本将不再自动通过这个叫法识别原子基因。`,confirm:"删除"}))return;
+  const {error}=await sb.from("gene_aliases").delete().eq("alias",alias);
+  if(error)return toast(error.message,true);
+  toast("基因黑话已删除");await refreshRemote(false);
+}
+async function deleteMorph(id){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const morph=REMOTE_RAW.morphs.find(row=>String(row.id)===String(id));
+  const componentCount=REMOTE_RAW.morphComponents.filter(row=>row.morph_id===id).length;
+  const aliasCount=(REMOTE_RAW.morphAliases||[]).filter(row=>row.morph_id===id).length;
+  if(!await confirmWorkflow({title:"删除这个组合黑话？",sub:`删除 ${morph?.name_zh||id} 后，基因文本将不再自动通过这个组合名和 ${aliasCount} 个别名带出 ${componentCount} 个组成基因。`,confirm:"删除"}))return;
+  if(aliasCount){
+    const {error:aliasError}=await sb.from("morph_aliases").delete().eq("morph_id",id);
+    if(aliasError)return toast(aliasError.message,true);
+  }
+  const {error:componentError}=await sb.from("morph_components").delete().eq("morph_id",id);
+  if(componentError)return toast(componentError.message,true);
+  const {error}=await sb.from("morphs").delete().eq("id",id);
+  if(error)return toast(error.message,true);
+  toast("组合黑话已删除");await refreshRemote(false);
 }
 async function markRecordCompleted(table,id,label){if(!canWrite())return toast("当前账号没有写权限",true);try{const {error}=await sb.from(table).update({status:"completed"}).eq("id",id);if(error)throw error;await refreshRemote(false);toast(`${label}已设为完成`)}catch(err){toast(err.message||String(err),true)}}
 async function deleteSnake(id){
@@ -1039,6 +1235,17 @@ function renderAdmin(){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>Priority</th><th>Project</th><th>Female</th><th>Male</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.plans.map(r=>`<tr><td>${r.plan_year}</td><td>${r.priority}</td><td>${esc(r.project_name)}</td><td>${r.female_snake_id||"—"}</td><td>${r.male_snake_id||"—"}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-plan="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else if(adminTab==="investments"){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Year</th><th>Score</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.investments.map(r=>`<tr><td>${r.id}</td><td>${esc(r.name)}</td><td>${r.category}</td><td>${r.planned_year||"—"}</td><td>${r.strategic_score??""}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-invest="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-invest="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
+  }else if(adminTab==="genes"){
+    const rows=[...REMOTE_RAW.genes].sort((a,b)=>String(a.name_zh||a.id).localeCompare(String(b.name_zh||b.id),"zh-CN"));
+    html=`<div class="factPanel"><b>原子基因字典</b><br>这里维护 public.genes：系统用它识别单个遗传位点。组合名不要写在这里，组合请放到“组合黑话”。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>Code</th><th>中文名</th><th>英文名</th><th>遗传类型</th><th>Locus</th><th>说明</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.code||"")}</td><td>${esc(r.name_zh||"")}</td><td>${esc(r.name_en||"")}</td><td>${esc(r.inheritance_type||"unknown")}</td><td>${esc(r.locus||"")}</td><td>${esc(r.description||"")}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-gene="${esc(r.id)}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="8">还没有配置原子基因。</td></tr>`}</tbody></table></div>`;
+  }else if(adminTab==="aliases"){
+    const rows=[...REMOTE_RAW.aliases].sort((a,b)=>aliasText(a).localeCompare(aliasText(b),"zh-CN"));
+    html=`<div class="factPanel"><b>基因黑话映射</b><br>这里维护基因文本里的别名、简称和圈内叫法；“从基因文本补全”会按这些映射自动带出原子子基因。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>黑话 / 别名</th><th>映射原子基因</th><th>默认状态</th><th>概率</th><th>备注</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>{const alias=aliasText(r),gene=REMOTE_RAW.genes.find(g=>g.id===r.gene_id);return `<tr><td>${esc(alias)}</td><td>${esc(geneLabel(gene))} <small>${esc(r.gene_id)}</small></td><td>${esc(r.state_hint||"自动判断")}</td><td>${r.probability_hint??"—"}</td><td>${esc(r.notes||"")}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-alias="${esc(alias)}">编辑</button><button class="iconBtn danger" data-admin-del-alias="${esc(alias)}">删除</button></div></td></tr>`}).join(""):`<tr><td colspan="6">还没有配置基因黑话。</td></tr>`}</tbody></table></div>`;
+  }else if(adminTab==="morphs"){
+    const rows=[...REMOTE_RAW.morphs].sort((a,b)=>String(a.name_zh||a.id).localeCompare(String(b.name_zh||b.id),"zh-CN"));
+    const componentText=id=>REMOTE_RAW.morphComponents.filter(c=>c.morph_id===id).map(c=>`${geneLabel(REMOTE_RAW.genes.find(g=>g.id===c.gene_id))} · ${c.required_state||"visual"}`).join(" + ")||"未配置组成";
+    const aliasTextForMorph=id=>(REMOTE_RAW.morphAliases||[]).filter(a=>a.morph_id===id).map(morphAliasText).filter(Boolean).join(" / ")||"—";
+    html=`<div class="factPanel"><b>组合黑话映射</b><br>这里维护 morphs、morph_aliases 和 morph_components：例如“爆炸”可以作为“太阳爆炸”的别名。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>中文名</th><th>英文名</th><th>别名</th><th>类型</th><th>组成原子基因</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.name_zh||"")}</td><td>${esc(r.name_en||"")}</td><td>${esc(aliasTextForMorph(r.id))}</td><td>${esc(r.morph_type||"")}</td><td>${esc(componentText(r.id))}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-morph="${esc(r.id)}">编辑</button><button class="iconBtn danger" data-admin-del-morph="${esc(r.id)}">删除</button></div></td></tr>`).join(""):`<tr><td colspan="7">还没有配置组合黑话。</td></tr>`}</tbody></table></div>`;
   }else if(adminTab==="annual-review"){
     const rows=REMOTE_RAW.plans.filter(r=>r.source_type==="ai");
     html=`<div class="factPanel"><b>年度计划审核</b><br>通过后保留在本表并灰显，同时自动出现在年度产出页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>项目</th><th>父本 × 母本</th><th>目标</th><th>来源</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${r.plan_year}</td><td>${esc(r.project_name)}</td><td>${esc(r.female_snake_id||"—")} × ${esc(r.male_snake_id||"—")}</td><td>${esc(r.goal||"—")}</td><td>AI · ${reviewStatusLabel(r)}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-annual="${r.id}">审核通过</button>`:`<span class="reviewedBadge">审核已通过</span>`}<button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 年度计划记录。</td></tr>`}</tbody></table></div>`;
@@ -1054,12 +1261,17 @@ function renderAdmin(){
   $$("[data-admin-del-plan]").forEach(x=>x.onclick=()=>deleteRecord("annual_breeding_plans",x.dataset.adminDelPlan,"年度计划 #"+x.dataset.adminDelPlan));
   $$("[data-admin-edit-invest]").forEach(x=>x.onclick=()=>openInvestmentForm(x.dataset.adminEditInvest));
   $$("[data-admin-del-invest]").forEach(x=>x.onclick=()=>deleteRecord("investments",x.dataset.adminDelInvest,x.dataset.adminDelInvest));
+  $$("[data-admin-edit-gene]").forEach(x=>x.onclick=()=>openGeneDefinitionForm(x.dataset.adminEditGene));
+  $$("[data-admin-edit-alias]").forEach(x=>x.onclick=()=>openAliasForm(x.dataset.adminEditAlias));
+  $$("[data-admin-del-alias]").forEach(x=>x.onclick=()=>deleteAlias(x.dataset.adminDelAlias));
+  $$("[data-admin-edit-morph]").forEach(x=>x.onclick=()=>openMorphForm(x.dataset.adminEditMorph));
+  $$("[data-admin-del-morph]").forEach(x=>x.onclick=()=>deleteMorph(x.dataset.adminDelMorph));
   $$("[data-approve-annual]").forEach(x=>x.onclick=()=>submitAiCard(x,()=>approveAnnualReview(Number(x.dataset.approveAnnual)),"正在审核…"));
   $$("[data-approve-investment]").forEach(x=>x.onclick=()=>submitAiCard(x,()=>approveInvestmentReview(x.dataset.approveInvestment),"正在审核…"));
 }
 $$(".adminTab").forEach(x=>x.onclick=()=>{adminTab=x.dataset.adminTab;renderAdmin()});
 $("#adminRefreshBtn").onclick=()=>refreshRemote();
-$("#adminAddBtn").onclick=()=>adminTab==="snakes"?openSnakeForm():adminTab==="plans"?openPlanForm():adminTab==="investments"?openInvestmentForm():toast("审核队列仅接收 AI 提交的业务记录。",true);
+$("#adminAddBtn").onclick=()=>adminTab==="snakes"?openSnakeForm():adminTab==="plans"?openPlanForm():adminTab==="investments"?openInvestmentForm():adminTab==="genes"?openGeneDefinitionForm():adminTab==="aliases"?openAliasForm():adminTab==="morphs"?openMorphForm():toast("审核队列仅接收 AI 提交的业务记录。",true);
 $("#addSnakeBtn").onclick=()=>openSnakeForm();
 $("#runPairingAiBtn").onclick=async()=>{try{await runAiSafely("pairing",pairingInput())}catch(err){toast(err.message||String(err),true)}};
 $("#runAnnualAiBtn").onclick=async()=>{try{await runAiSafely("annual_plan",annualPlanInput())}catch(err){toast(err.message||String(err),true)}};

@@ -17,6 +17,7 @@
 
   async function fetchBusinessTables(client) {
     const expenseLedger = await fetchInvestmentExpenses(client);
+    const morphAliases = await fetchMorphAliases(client);
     const results = throwFirstError(await Promise.all([
       client.from("snakes").select("*").order("id"),
       client.from("breeding_routes").select("*").order("priority", { ascending: false }),
@@ -36,7 +37,7 @@
       edges: results[3].data || [], plans: results[4].data || [], investments: results[5].data || [],
       genes: results[6].data || [], aliases: results[7].data || [], morphs: results[8].data || [],
       morphComponents: results[9].data || [], snakeGenes: results[10].data || [],
-      investmentExpenses: expenseLedger
+      investmentExpenses: expenseLedger, morphAliases
     };
   }
 
@@ -50,6 +51,19 @@
 
     if (error) {
       console.warn("investment_expenses unavailable:", error.message);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function fetchMorphAliases(client) {
+    const { data, error } = await client
+      .from("morph_aliases")
+      .select("*")
+      .order("alias");
+
+    if (error) {
+      console.warn("morph_aliases unavailable:", error.message);
       return [];
     }
     return data || [];
