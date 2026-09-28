@@ -111,6 +111,24 @@ test("admin exposes gene alias mapping controls", () => {
   assert.match(appSource, /adminTab==="aliases"\?openAliasForm\(\)/);
 });
 
+test("admin exposes atomic gene dictionary controls", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
+  assert.match(html, /data-admin-tab="genes"/);
+  assert.match(html, /原子基因/);
+  assert.match(dataSource, /from\("genes"\)\.select\("\*"\)\.order\("id"\)/);
+  assert.match(appSource, /const GENE_INHERITANCE_TYPES=\["recessive","incomplete_dominant","dominant","polygenic","line_trait","unknown"\]/);
+  assert.match(appSource, /function geneDefinitionFormHtml\(row=\{\}\)/);
+  assert.match(appSource, /function openGeneDefinitionForm\(id=null\)/);
+  assert.match(appSource, /function openGeneDictionaryFromSnakeForm\(\)/);
+  assert.match(appSource, /id="openGeneDictionaryBtn"/);
+  assert.match(appSource, /editContext=\{table:"genes",id:id\|\|null\}/);
+  assert.match(appSource, /adminTab==="genes"/);
+  assert.match(appSource, /data-admin-edit-gene/);
+  assert.match(appSource, /adminTab==="genes"\?openGeneDefinitionForm\(\)/);
+});
+
 test("admin exposes named morph combo controls", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
