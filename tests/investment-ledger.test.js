@@ -93,6 +93,24 @@ test("admin can hard delete snakes while keeping retire as a separate action", (
   assert.match(appSource, /toast\("个体已删除，投资金额已更新"\)/);
 });
 
+test("admin exposes gene alias mapping controls", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
+  assert.match(html, /data-admin-tab="aliases"/);
+  assert.match(html, /基因黑话/);
+  assert.match(dataSource, /from\("gene_aliases"\)\.select\("\*"\)/);
+  assert.match(appSource, /function aliasFormHtml\(row=\{\}\)/);
+  assert.match(appSource, /function openAliasForm\(alias=null\)/);
+  assert.match(appSource, /function deleteAlias\(alias\)/);
+  assert.match(appSource, /adminTab==="aliases"/);
+  assert.match(appSource, /data-admin-edit-alias/);
+  assert.match(appSource, /data-admin-del-alias/);
+  assert.match(appSource, /sb\.from\("gene_aliases"\)\.delete\(\)\.eq\("alias",alias\)/);
+  assert.match(appSource, /sb\.from\(t\)\.update\(o\)\.eq\("alias",editContext\.id\)/);
+  assert.match(appSource, /adminTab==="aliases"\?openAliasForm\(\)/);
+});
+
 test("population overview shows total population and other investment cards", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const cssSource = fs.readFileSync(path.join(root, "assets", "app.css"), "utf8");

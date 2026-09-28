@@ -871,6 +871,17 @@ function investmentFormHtml(row={}){
     <div class="formField full"><label>Notes</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
   </div>`;
 }
+function aliasFormHtml(row={}){
+  const aliasValue=aliasText(row);
+  const selectedGene=row.gene_id||REMOTE_RAW.genes[0]?.id||"";
+  return `<div class="formGrid">
+    <div class="formField"><label>黑话 / 别名</label><input name="alias" value="${esc(aliasValue)}" ${aliasValue?"readonly":""} required placeholder="例如：薰衣草"></div>
+    <div class="formField"><label>映射原子基因</label><select name="gene_id" required>${REMOTE_RAW.genes.map(g=>`<option value="${esc(g.id)}" ${g.id===selectedGene?"selected":""}>${esc(geneLabel(g))} · ${esc(g.id)}</option>`).join("")}</select></div>
+    <div class="formField"><label>默认状态</label><select name="state_hint"><option value="">自动判断</option>${GENE_STATES.map(x=>`<option value="${x}" ${row.state_hint===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField"><label>概率</label><input name="probability_hint" type="number" min="0" max="1" step="0.01" value="${row.probability_hint??1}"></div>
+    <div class="formField full"><label>备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
+  </div>`;
+}
 function formObject(form){
   const o=Object.fromEntries(new FormData(form).entries());
   for(const k of Object.keys(o))if(o[k]==="")o[k]=null;
@@ -901,6 +912,14 @@ function openInvestmentForm(id=null){
   $("#editModalSub").textContent="public.investments";
   $("#editFormFields").innerHTML=investmentFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
 }
+function openAliasForm(alias=null){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  const row=alias?REMOTE_RAW.aliases.find(x=>aliasText(x)===alias)||{}:{};
+  editContext={table:"gene_aliases",id:alias||null};
+  $("#editModalTitle").textContent=alias?`编辑黑话 ${alias}`:"新增基因黑话";
+  $("#editModalSub").textContent="public.gene_aliases";
+  $("#editFormFields").innerHTML=aliasFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
+}
 async function saveEdit(){
   if(!sb||!canWrite())throw new Error("没有写权限");
   const o=formObject($("#editForm"));
@@ -914,9 +933,18 @@ async function saveEdit(){
   }else if(t==="investments"){
     ["rank","strategic_score","planned_year","budget_min","budget_max"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     o.criteria=o.criteria?String(o.criteria).split(/\r?\n/).map(x=>x.trim()).filter(Boolean):[];
+  }else if(t==="gene_aliases"){
+    o.alias=String(o.alias||"").trim();
+    if(!o.alias)throw new Error("请填写黑话/别名。");
+    if(!REMOTE_RAW.genes.some(g=>g.id===o.gene_id))throw new Error("请选择一个已存在的原子基因。");
+    if(o.state_hint&&!GENE_STATES.includes(o.state_hint))throw new Error("请选择有效的默认状态。");
+    if(o.probability_hint!=null)o.probability_hint=Number(o.probability_hint);
+    if(o.probability_hint!=null&&(!Number.isFinite(o.probability_hint)||o.probability_hint<0||o.probability_hint>1))throw new Error("概率必须在 0 到 1 之间。");
   }
   let q;
-  if(editContext.id){
+  if(editContext.id&&t==="gene_aliases"){
+    q=sb.from(t).update(o).eq("alias",editContext.id);
+  }else if(editContext.id){
     const pk=t==="annual_breeding_plans"?"id":"id";
     delete o.id;
     q=sb.from(t).update(o).eq(pk,editContext.id);
@@ -979,6 +1007,13 @@ async function deleteRecord(table,id,label){
   if(error)return toast(error.message,true);
   $("#drawer").classList.remove("open");toast("已删除");await refreshRemote(false);
 }
+async function deleteAlias(alias){
+  if(!canWrite())return toast("当前账号没有写权限",true);
+  if(!await confirmWorkflow({title:"删除这个基因黑话？",sub:`删除 ${alias} 后，基因文本将不再自动通过这个叫法识别原子基因。`,confirm:"删除"}))return;
+  const {error}=await sb.from("gene_aliases").delete().eq("alias",alias);
+  if(error)return toast(error.message,true);
+  toast("基因黑话已删除");await refreshRemote(false);
+}
 async function markRecordCompleted(table,id,label){if(!canWrite())return toast("当前账号没有写权限",true);try{const {error}=await sb.from(table).update({status:"completed"}).eq("id",id);if(error)throw error;await refreshRemote(false);toast(`${label}已设为完成`)}catch(err){toast(err.message||String(err),true)}}
 async function deleteSnake(id){
   if(!canWrite())return toast("当前账号没有写权限",true);
@@ -1039,6 +1074,9 @@ function renderAdmin(){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>Priority</th><th>Project</th><th>Female</th><th>Male</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.plans.map(r=>`<tr><td>${r.plan_year}</td><td>${r.priority}</td><td>${esc(r.project_name)}</td><td>${r.female_snake_id||"—"}</td><td>${r.male_snake_id||"—"}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-plan="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
   }else if(adminTab==="investments"){
     html=`<div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Year</th><th>Score</th><th>Status</th><th>操作</th></tr></thead><tbody>${REMOTE_RAW.investments.map(r=>`<tr><td>${r.id}</td><td>${esc(r.name)}</td><td>${r.category}</td><td>${r.planned_year||"—"}</td><td>${r.strategic_score??""}</td><td>${r.status}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-invest="${r.id}">编辑</button><button class="iconBtn danger" data-admin-del-invest="${r.id}">删除</button></div></td></tr>`).join("")}</tbody></table></div>`;
+  }else if(adminTab==="aliases"){
+    const rows=[...REMOTE_RAW.aliases].sort((a,b)=>aliasText(a).localeCompare(aliasText(b),"zh-CN"));
+    html=`<div class="factPanel"><b>基因黑话映射</b><br>这里维护基因文本里的别名、简称和圈内叫法；“从基因文本补全”会按这些映射自动带出原子子基因。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>黑话 / 别名</th><th>映射原子基因</th><th>默认状态</th><th>概率</th><th>备注</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>{const alias=aliasText(r),gene=REMOTE_RAW.genes.find(g=>g.id===r.gene_id);return `<tr><td>${esc(alias)}</td><td>${esc(geneLabel(gene))} <small>${esc(r.gene_id)}</small></td><td>${esc(r.state_hint||"自动判断")}</td><td>${r.probability_hint??"—"}</td><td>${esc(r.notes||"")}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-alias="${esc(alias)}">编辑</button><button class="iconBtn danger" data-admin-del-alias="${esc(alias)}">删除</button></div></td></tr>`}).join(""):`<tr><td colspan="6">还没有配置基因黑话。</td></tr>`}</tbody></table></div>`;
   }else if(adminTab==="annual-review"){
     const rows=REMOTE_RAW.plans.filter(r=>r.source_type==="ai");
     html=`<div class="factPanel"><b>年度计划审核</b><br>通过后保留在本表并灰显，同时自动出现在年度产出页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>项目</th><th>父本 × 母本</th><th>目标</th><th>来源</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${r.plan_year}</td><td>${esc(r.project_name)}</td><td>${esc(r.female_snake_id||"—")} × ${esc(r.male_snake_id||"—")}</td><td>${esc(r.goal||"—")}</td><td>AI · ${reviewStatusLabel(r)}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-annual="${r.id}">审核通过</button>`:`<span class="reviewedBadge">审核已通过</span>`}<button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 年度计划记录。</td></tr>`}</tbody></table></div>`;
@@ -1054,12 +1092,14 @@ function renderAdmin(){
   $$("[data-admin-del-plan]").forEach(x=>x.onclick=()=>deleteRecord("annual_breeding_plans",x.dataset.adminDelPlan,"年度计划 #"+x.dataset.adminDelPlan));
   $$("[data-admin-edit-invest]").forEach(x=>x.onclick=()=>openInvestmentForm(x.dataset.adminEditInvest));
   $$("[data-admin-del-invest]").forEach(x=>x.onclick=()=>deleteRecord("investments",x.dataset.adminDelInvest,x.dataset.adminDelInvest));
+  $$("[data-admin-edit-alias]").forEach(x=>x.onclick=()=>openAliasForm(x.dataset.adminEditAlias));
+  $$("[data-admin-del-alias]").forEach(x=>x.onclick=()=>deleteAlias(x.dataset.adminDelAlias));
   $$("[data-approve-annual]").forEach(x=>x.onclick=()=>submitAiCard(x,()=>approveAnnualReview(Number(x.dataset.approveAnnual)),"正在审核…"));
   $$("[data-approve-investment]").forEach(x=>x.onclick=()=>submitAiCard(x,()=>approveInvestmentReview(x.dataset.approveInvestment),"正在审核…"));
 }
 $$(".adminTab").forEach(x=>x.onclick=()=>{adminTab=x.dataset.adminTab;renderAdmin()});
 $("#adminRefreshBtn").onclick=()=>refreshRemote();
-$("#adminAddBtn").onclick=()=>adminTab==="snakes"?openSnakeForm():adminTab==="plans"?openPlanForm():adminTab==="investments"?openInvestmentForm():toast("审核队列仅接收 AI 提交的业务记录。",true);
+$("#adminAddBtn").onclick=()=>adminTab==="snakes"?openSnakeForm():adminTab==="plans"?openPlanForm():adminTab==="investments"?openInvestmentForm():adminTab==="aliases"?openAliasForm():toast("审核队列仅接收 AI 提交的业务记录。",true);
 $("#addSnakeBtn").onclick=()=>openSnakeForm();
 $("#runPairingAiBtn").onclick=async()=>{try{await runAiSafely("pairing",pairingInput())}catch(err){toast(err.message||String(err),true)}};
 $("#runAnnualAiBtn").onclick=async()=>{try{await runAiSafely("annual_plan",annualPlanInput())}catch(err){toast(err.message||String(err),true)}};
