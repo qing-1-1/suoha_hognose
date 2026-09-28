@@ -29,4 +29,7 @@ test("profile display name migration updates known users", () => {
   assert.match(sql, /lower\(email\) = '1442399241@qq\.com'/);
   assert.match(sql, /display_name = 'suohayu'/);
   assert.match(sql, /lower\(email\) = '569850649@qq\.com'/);
+  assert.match(sql, /update public\.investment_expenses/);
+  assert.match(sql, /owner_name = 'suohama'/);
+  assert.match(sql, /owner_name = 'suohayu'/);
 });
