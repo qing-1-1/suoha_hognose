@@ -111,6 +111,29 @@ test("admin exposes gene alias mapping controls", () => {
   assert.match(appSource, /adminTab==="aliases"\?openAliasForm\(\)/);
 });
 
+test("admin exposes named morph combo controls", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
+  assert.match(html, /data-admin-tab="morphs"/);
+  assert.match(html, /组合黑话/);
+  assert.match(dataSource, /from\("morphs"\)\.select\("\*"\)/);
+  assert.match(dataSource, /from\("morph_components"\)\.select\("\*"\)/);
+  assert.match(appSource, /m\.name_en/);
+  assert.match(appSource, /function morphFormHtml\(row=\{\}\)/);
+  assert.match(appSource, /function renderMorphComponentEditor\(\)/);
+  assert.match(appSource, /function openMorphForm\(id=null\)/);
+  assert.match(appSource, /function normalizedEditMorphComponents\(\)/);
+  assert.match(appSource, /function syncMorphComponents\(morphId\)/);
+  assert.match(appSource, /function deleteMorph\(id\)/);
+  assert.match(appSource, /adminTab==="morphs"/);
+  assert.match(appSource, /data-admin-edit-morph/);
+  assert.match(appSource, /data-admin-del-morph/);
+  assert.match(appSource, /sb\.from\("morph_components"\)\.upsert\(rows,\{onConflict:"morph_id,gene_id"\}\)/);
+  assert.match(appSource, /sb\.from\("morphs"\)\.delete\(\)\.eq\("id",id\)/);
+  assert.match(appSource, /adminTab==="morphs"\?openMorphForm\(\)/);
+});
+
 test("population overview shows total population and other investment cards", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const cssSource = fs.readFileSync(path.join(root, "assets", "app.css"), "utf8");
