@@ -101,6 +101,16 @@ test("population overview shows total population and other investment cards", ()
   assert.doesNotMatch(appSource, /表内购入投入/);
 });
 
+test("population detail cards avoid stale hardcoded helper text", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(html, /id="sexStructureMeta"/);
+  assert.match(appSource, /#sexStructureMeta/);
+  assert.match(appSource, /现有 \$\{n\} 条个体/);
+  assert.doesNotMatch(html, /现有 32 条个体/);
+  assert.doesNotMatch(html, /按 Excel 系列字段/);
+});
+
 test("investment ledger maps known emails to display usernames", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(appSource, /USER_DISPLAY_NAMES=Object\.freeze/);
