@@ -36,6 +36,19 @@ test("investment expenses are loaded and rendered by the frontend", () => {
   assert.match(appSource, /ledgerPercent\(user\.total,total\)/);
 });
 
+test("snake purchase prices are counted into the matching user's population investment", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /SNAKE_INVESTMENT_PREFIX_OWNERS=Object\.freeze/);
+  assert.match(appSource, /M:"1442399241@qq\.com"/);
+  assert.match(appSource, /Y:"569850649@qq\.com"/);
+  assert.match(appSource, /function snakeInvestmentRows\(\)/);
+  assert.match(appSource, /Number\(snake\.price\|\|0\)/);
+  assert.match(appSource, /category:"population"/);
+  assert.match(appSource, /source:"snake_inventory"/);
+  assert.match(appSource, /const statRows=ledgerStatRows\(rows\)/);
+  assert.match(appSource, /statRows\.filter\(row=>row\.category===key\)/);
+});
+
 test("investment ledger maps known emails to display usernames", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(appSource, /USER_DISPLAY_NAMES=Object\.freeze/);

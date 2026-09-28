@@ -209,12 +209,41 @@ function ledgerRows(){
   });
 }
 function ledgerExpenseAmount(row){return Number(row.amount||0)}
+function snakeInvestmentOwner(snake){
+  const prefix=String(snake?.id||"").trim().charAt(0).toUpperCase();
+  const email=SNAKE_INVESTMENT_PREFIX_OWNERS[prefix];
+  return email?{email,name:displayNameForEmail(email)||email}:null;
+}
+function snakeInvestmentRows(){
+  return (DATA.snakes||[]).map(snake=>{
+    const owner=snakeInvestmentOwner(snake),amount=Number(snake.price||0);
+    if(!owner||amount<=0)return null;
+    return {id:`snake:${snake.id}`,category:"population",amount,note:`${snake.id} · ${snake.gene||"种群个体"}`,spent_at:"",created_at:"",owner_email:owner.email,owner_name:owner.name,source:"snake_inventory"};
+  }).filter(Boolean);
+}
+function ledgerStatRows(manualRows=ledgerRows()){
+  return [...snakeInvestmentRows(),...manualRows];
+}
+function ledgerOwnerKey(row){
+  const email=String(row.owner_email||"").trim().toLowerCase();
+  if(email)return email;
+  const name=String(row.owner_name||"").trim().toLowerCase();
+  if(LOGIN_ALIASES[name])return LOGIN_ALIASES[name];
+  if(displayNameForEmail(name))return name;
+  return String(row.owner_id||name||"unknown").toLowerCase();
+}
 function ledgerOwnerName(row){
   const email=row.owner_email||"";
   const name=row.owner_name||"";
   const alias=displayNameForEmail(email)||displayNameForEmail(name);
   if(alias)return alias;
   return name||email||"未命名用户";
+}
+function ledgerUserMeta(user){
+  const parts=[];
+  if(user.autoCount)parts.push(`种群 ${user.autoCount} 条`);
+  if(user.manualCount)parts.push(`手工 ${user.manualCount} 笔`);
+  return parts.join(" · ")||`${user.count} 项`;
 }
 function ledgerDateLabel(value){return value?String(value).replaceAll("-","/"):"—"}
 function ledgerPercent(value,total){return total?value/total*100:0}
@@ -223,19 +252,22 @@ function renderInvestmentLedger(){
   if(!$("#ledgerSummary"))return;
   syncLedgerFormDefaults(false);
   const rows=ledgerRows();
+  const statRows=ledgerStatRows(rows);
   DATA.ledgerExpenses=rows;
-  const total=rows.reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+  const total=statRows.reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
   const byUser=new Map();
-  rows.forEach(row=>{
-    const key=row.owner_id||row.owner_email||"unknown";
-    const current=byUser.get(key)||{name:ledgerOwnerName(row),email:row.owner_email||"",total:0,count:0};
-    current.total+=ledgerExpenseAmount(row);current.count+=1;byUser.set(key,current);
+  statRows.forEach(row=>{
+    const key=ledgerOwnerKey(row);
+    const current=byUser.get(key)||{name:ledgerOwnerName(row),total:0,count:0,autoCount:0,manualCount:0};
+    current.total+=ledgerExpenseAmount(row);current.count+=1;
+    if(row.source==="snake_inventory")current.autoCount+=1;else current.manualCount+=1;
+    byUser.set(key,current);
   });
   const userRows=[...byUser.values()].sort((a,b)=>b.total-a.total);
-  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${rows.length} 笔支出</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(user.email||`${user.count} 笔记录`)}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
+  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${statRows.length} 项投入 · ${rows.length} 笔手工支出</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(ledgerUserMeta(user))}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
 
   $("#ledgerCategorySummary").innerHTML=Object.entries(LEDGER_CATEGORIES).map(([key,meta])=>{
-    const amount=rows.filter(row=>row.category===key).reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+    const amount=statRows.filter(row=>row.category===key).reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
     const percent=ledgerPercent(amount,total);
     return `<div class="ledgerCategoryRow"><div><b>${meta.label}</b><span>${meta.hint}</span></div><strong>${ledgerMoney(amount)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`;
   }).join("");
@@ -348,6 +380,10 @@ const LOGIN_ALIASES=Object.freeze({
 const USER_DISPLAY_NAMES=Object.freeze({
   "1442399241@qq.com":"suohama",
   "569850649@qq.com":"suohayu"
+});
+const SNAKE_INVESTMENT_PREFIX_OWNERS=Object.freeze({
+  M:"1442399241@qq.com",
+  Y:"569850649@qq.com"
 });
 function resolveLoginEmail(value){
   const identity=String(value||"").trim();

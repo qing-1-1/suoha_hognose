@@ -12,6 +12,13 @@ test("login forms accept either username or email", () => {
   assert.match(html, /邮箱或用户名/);
 });
 
+test("login page does not expose known usernames in placeholder text", () => {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.match(html, /placeholder="邮箱或用户名"/);
+  assert.doesNotMatch(html, /placeholder="[^"]*suohama/);
+  assert.doesNotMatch(html, /placeholder="[^"]*suohayu/);
+});
+
 test("known usernames resolve to their Supabase auth emails", () => {
   const source = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(source, /suohama:"1442399241@qq\.com"/);
