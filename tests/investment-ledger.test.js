@@ -68,10 +68,15 @@ test("ledger user meta displays category counts instead of a generic manual coun
 
 test("population overview shows total population and other investment cards", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  const cssSource = fs.readFileSync(path.join(root, "assets", "app.css"), "utf8");
   assert.match(appSource, /function ledgerInvestmentTotals\(manualRows=ledgerRows\(\)\)/);
-  assert.match(appSource, /kpi\("总投入",fmt\(investTotals\.total\)/);
-  assert.match(appSource, /kpi\("种群投入",fmt\(investTotals\.population\)/);
-  assert.match(appSource, /kpi\("其他投入",fmt\(investTotals\.other\)/);
+  assert.match(appSource, /function investmentKpi\(totals\)/);
+  assert.match(appSource, /investmentKpi\(investTotals\)/);
+  assert.match(appSource, /<span>总投入<\/span>/);
+  assert.match(appSource, /<span>种群投入<\/span>/);
+  assert.match(appSource, /<span>其他投入<\/span>/);
+  assert.match(cssSource, /\.investmentKpi\{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr/);
+  assert.match(cssSource, /\.investmentKpiSide\{display:grid;grid-template-rows:1fr 1fr/);
   assert.doesNotMatch(appSource, /表内购入投入/);
 });
 
