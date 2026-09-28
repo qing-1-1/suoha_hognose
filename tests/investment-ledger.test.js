@@ -30,7 +30,19 @@ test("investment expenses are loaded and rendered by the frontend", () => {
   assert.match(dataSource, /investmentExpenses: expenseLedger/);
   assert.match(appSource, /function renderInvestmentLedger\(\)/);
   assert.match(appSource, /sb\.from\("investment_expenses"\)\.insert/);
+  assert.match(appSource, /function deleteLedgerExpense\(id\)/);
+  assert.match(appSource, /data-ledger-delete/);
+  assert.match(appSource, /sb\.from\("investment_expenses"\)\.delete\(\)\.eq\("id",id\)/);
   assert.match(appSource, /ledgerPercent\(user\.total,total\)/);
+});
+
+test("investment ledger maps known emails to display usernames", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /USER_DISPLAY_NAMES=Object\.freeze/);
+  assert.match(appSource, /"569850649@qq\.com":"suohayu"/);
+  assert.match(appSource, /"1442399241@qq\.com":"suohama"/);
+  assert.match(appSource, /function ledgerOwnerName\(row\)/);
+  assert.match(appSource, /displayNameForEmail\(email\)\|\|displayNameForEmail\(name\)/);
 });
 
 test("investment expense migration creates category and owner policies", () => {

@@ -209,7 +209,13 @@ function ledgerRows(){
   });
 }
 function ledgerExpenseAmount(row){return Number(row.amount||0)}
-function ledgerOwnerName(row){return row.owner_name||row.owner_email||"未命名用户"}
+function ledgerOwnerName(row){
+  const email=row.owner_email||"";
+  const name=row.owner_name||"";
+  const alias=displayNameForEmail(email)||displayNameForEmail(name);
+  if(alias)return alias;
+  return name||email||"未命名用户";
+}
 function ledgerDateLabel(value){return value?String(value).replaceAll("-","/"):"—"}
 function ledgerPercent(value,total){return total?value/total*100:0}
 function canManageLedgerExpense(row){return !!(currentUser&&(row.owner_id===currentUser.id||canWrite()))}
@@ -261,7 +267,7 @@ async function saveLedgerExpense(event){
     const {error}=await sb.from("investment_expenses").insert({
       category,amount,note,spent_at:spentAt,
       owner_email:currentUser.email||null,
-      owner_name:currentProfile?.display_name||currentUser.email||""
+      owner_name:currentProfile?.display_name||displayNameForEmail(currentUser.email)||currentUser.email||""
     });
     if(error)throw error;
     form.reset();syncLedgerFormDefaults(true);if(message)message.textContent="";
@@ -339,9 +345,16 @@ const LOGIN_ALIASES=Object.freeze({
   suohama:"1442399241@qq.com",
   suohayu:"569850649@qq.com"
 });
+const USER_DISPLAY_NAMES=Object.freeze({
+  "1442399241@qq.com":"suohama",
+  "569850649@qq.com":"suohayu"
+});
 function resolveLoginEmail(value){
   const identity=String(value||"").trim();
   return LOGIN_ALIASES[identity.toLowerCase()]||identity;
+}
+function displayNameForEmail(value){
+  return USER_DISPLAY_NAMES[String(value||"").trim().toLowerCase()]||"";
 }
 function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
