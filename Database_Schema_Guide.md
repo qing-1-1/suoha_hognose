@@ -33,6 +33,7 @@ Supabase
 │   ├── gene_aliases
 │   ├── snake_genes
 │   ├── morphs
+│   ├── morph_aliases
 │   └── morph_components
 │
 ├── Multi-generation planning
@@ -50,7 +51,8 @@ Supabase
 └── Longitudinal / media / finance
     ├── snake_measurements
     ├── snake_photos
-    └── financial_transactions
+    ├── financial_transactions
+    └── investment_expenses
 
 └── Auditable AI decision layer
     ├── planning_scenarios
@@ -95,6 +97,7 @@ actually exists.
 | Genetics | gene_aliases | Human shorthand/parser aliases | 23 |
 | Genetics | snake_genes | Normalized genotype/trait state for each snake | 108 |
 | Genetics | morphs | Named multi-gene combinations such as Mai Tai / Acid Rain | 5 |
+| Genetics | morph_aliases | Extra aliases for named composite morphs, e.g. 爆炸 → 太阳爆炸 | live/user-maintained |
 | Genetics | morph_components | Atomic requirements making up each named morph | 11 |
 | Planning | breeding_routes | Multi-generation breeding projects | 6 |
 | Planning | route_nodes | Graph nodes for snakes, future offspring, targets and gaps | 29 |
@@ -107,6 +110,7 @@ actually exists.
 | Tracking | snake_measurements | Weight/length/condition time series | 0 |
 | Media | snake_photos | Photo metadata; actual binary files live in Storage | 0 |
 | Finance | financial_transactions | Purchase/sale/feed/equipment/etc. transactions | 0 |
+| Finance | investment_expenses | User-entered investment expense ledger for population/equipment/consumables | grows |
 | AI planning | planning_scenarios | Formal baseline and reviewable planning scenarios | 1+ |
 | AI governance | ai_prompt_templates | Versioned fixed system prompts; only one active version per workflow | 4+ |
 | AI audit | analysis_runs | Immutable source snapshot, model, prompt version and structured AI output | grows |
@@ -127,6 +131,7 @@ erDiagram
     GENES ||--o{ SNAKE_GENES : describes
     GENES ||--o{ GENE_ALIASES : aliases
 
+    MORPHS ||--o{ MORPH_ALIASES : aliases
     MORPHS ||--o{ MORPH_COMPONENTS : consists_of
     GENES ||--o{ MORPH_COMPONENTS : requires
 
@@ -287,17 +292,22 @@ It should **not** contain imaginary F1/F2 animals before they hatch.
 
 ### Primary key convention
 
-Existing collection:
+Legacy seed collection:
 
 ```text
 S01 ... S32
 ```
 
-Future individuals should continue:
+Live collection:
 
 ```text
-S33, S34, ...
+Use the individual IDs imported from the workbook, currently following the investor/user prefix convention:
+suohama -> M...
+suohayu -> Y...
 ```
+
+New UI-created individuals should generate the next available ID for the current user's prefix range and
+must not collide with existing live IDs.
 
 ### Fields
 
@@ -377,6 +387,8 @@ lavender
 
 Named multi-gene combinations such as Acid Rain are **not** atomic genes.
 
+The current frontend exposes this table in `数据与审核看板 → 原子基因`. Editors can create or update atomic definitions there; when a purchased snake introduces a gene that is not in the dictionary yet, the snake editor offers a `维护原子基因` shortcut into this table.
+
 ### Fields
 
 | Field | Type | Required / Default | Constraint | Meaning |
@@ -428,7 +440,7 @@ Mai Tai = Sable + Toffee Belly
 Acid Rain = Axanthic + Sable + Toffee Belly
 ```
 
-Therefore these must be represented through `morphs + morph_components`.
+Therefore these must be represented through `morphs + morph_aliases + morph_components`.
 
 ---
 
@@ -509,13 +521,45 @@ double_super
 | id | text | PK | — | Stable machine ID. |
 | name_zh | text | required | — | Chinese display name. |
 | name_en | text | nullable | — | English display name. |
-| morph_type | text | required; default named_combo | named_combo / local_shorthand | Whether this is a standard named combo or local project shorthand. |
+| morph_type | text | required; default named_combo | named_combo / local_shorthand / line_name / unknown | Whether this is a standard named combo, local shorthand, line name, or uncertain label. |
 | description | text | nullable | — | Definition. |
 | created_at | timestamptz | default now() | — | Creation timestamp. |
 
+The frontend exposes this table in `数据与审核看板 → 组合黑话`, together with `morph_aliases` and `morph_components`.
+
 ---
 
-## 6.5 `public.morph_components`
+## 6.5 `public.morph_aliases`
+
+### Purpose
+
+Extra human-facing aliases for a named composite morph.
+
+Example:
+
+```text
+太阳爆炸
+  primary morph row: morphs.id = sunburst
+  alias row: alias = 爆炸, morph_id = sunburst
+```
+
+This lets a gene text such as `雪白爆炸` match both `雪白` and `爆炸`, then merge the underlying atomic requirements without duplicating shared genes such as `albino`.
+
+### Fields
+
+| Field | Type | Required / Default | Relationship / Constraint | Meaning |
+| --- | --- | --- | --- | --- |
+| alias | text | PK | non-empty; unique case-insensitive index recommended | Extra token users may type. |
+| morph_id | text | required | FK → morphs.id, ON DELETE CASCADE | Composite morph represented by this alias. |
+| notes | text | nullable | — | Human caveats or source notes. |
+| created_at | timestamptz | default now() | — | Creation timestamp. |
+| updated_at | timestamptz | default now() | — | Last update timestamp. |
+
+Do not use `morph_aliases` for one-gene nicknames. Those belong in `gene_aliases`.
+
+---
+
+## 6.6 `public.morph_components`
 
 ### Purpose
 
@@ -533,7 +577,7 @@ Defines what atomic states must all be satisfied for a named morph.
 | --- | --- | --- | --- | --- |
 | morph_id | text | PK part | FK → morphs.id, ON DELETE CASCADE | Named composite morph. |
 | gene_id | text | PK part | FK → genes.id, ON DELETE CASCADE | Required atomic gene. |
-| required_state | text | required | visual / super | Required state for morph recognition. |
+| required_state | text | required | visual / het / possible_het / super / line_trait / unknown | Required state for morph recognition. Most named combos should use `visual` or `super`. |
 | notes | text | nullable | — | Human explanation. |
 
 ### Current composite logic
@@ -561,14 +605,24 @@ Acid Rain
   conda = super
 ```
 
-### Recognition flow
+### Text parsing flow
+
+```text
+gene_text
+    ↓
+match gene_aliases, morph primary names, and morph_aliases
+    ↓
+expand matched morphs through morph_components
+    ↓
+write/review snake_genes atomic rows
+```
+
+### Derived display flow
 
 ```text
 snake_genes
     ↓
 atomic states
-    ↓
-compare against morph_components
     ↓
 all requirements satisfied?
     ↓ yes
@@ -579,7 +633,7 @@ A morph should be **derived**, not redundantly inserted into `snake_genes`.
 
 ---
 
-## 6.6 Mendelian probability engine
+## 6.7 Mendelian probability engine
 
 `js/genetics.js` consumes the live `genes`, `snake_genes`, `morphs`, and `morph_components` snapshot on the pairing-laboratory page. It calculates only loci that have a Mendelian inheritance model:
 
@@ -1270,6 +1324,7 @@ Delete behavior is deliberately mixed.
 | gene_aliases.gene_id → genes.id | CASCADE | Alias is meaningless without gene. |
 | snake_genes.snake_id → snakes.id | CASCADE | Genotype rows belong exclusively to snake. |
 | snake_genes.gene_id → genes.id | CASCADE | Normalized state cannot exist without gene definition. |
+| morph_aliases.morph_id → morphs.id | CASCADE | Aliases belong to a named composite morph. |
 | morph_components.morph_id → morphs.id | CASCADE | Components belong to morph. |
 | morph_components.gene_id → genes.id | CASCADE | Component requires gene. |
 | route_nodes.route_id → breeding_routes.id | CASCADE | Deleting a route removes its graph. |
@@ -1324,6 +1379,10 @@ clutches:
 
 morph_components:
   idx_morph_components_gene_id
+
+morph_aliases:
+  idx_morph_aliases_alias_lower
+  idx_morph_aliases_morph_id
 
 snake_measurements:
   idx_measurements_snake_date
@@ -1422,12 +1481,14 @@ genes
 gene_aliases
 snake_genes
 morphs
+morph_aliases
 morph_components
 breeding_routes
 route_nodes
 route_edges
 annual_breeding_plans
 investments
+investment_expenses
 ```
 
 ## More private operational tables
@@ -1565,12 +1626,17 @@ order by g.id;
 select
   m.id,
   m.name_zh,
+  array_remove(array_agg(distinct ma.alias), null) as aliases,
   mc.gene_id,
   mc.required_state
 from public.morphs m
 join public.morph_components mc
   on mc.morph_id = m.id
-where m.id = 'acid_rain';
+left join public.morph_aliases ma
+  on ma.morph_id = m.id
+where m.id = 'acid_rain'
+group by m.id, m.name_zh, mc.gene_id, mc.required_state
+order by mc.gene_id;
 ```
 
 ---
@@ -1792,7 +1858,7 @@ snakes → pedigree / clutches / measurements
 
 C. Human genetics vocabulary
 gene_aliases
-morphs → morph_components
+morphs → morph_aliases / morph_components
 
 D. Strategic planning
 breeding_routes → route_nodes → route_edges
@@ -1872,7 +1938,7 @@ Before changing database code:
 
 1. Treat the existing Supabase database as live.
 2. Do not DROP or recreate tables unless explicitly requested.
-3. Preserve S01–S32 IDs.
+3. Preserve existing live snake IDs and the current M/Y prefix convention for newly created snakes.
 4. Preserve atomic genes vs derived composite morphs.
 5. Preserve annual plan vs actual breeding event vs clutch separation.
 6. Preserve pedigree through sire_id, dam_id and clutch_id.
