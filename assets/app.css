@@ -39,7 +39,7 @@ button{color:inherit}
 .pageHead h1{font-size:24px;letter-spacing:-.7px;margin:0}.pageHead p{font-size:10px;color:#718096;line-height:1.5;margin:5px 0 0;max-width:760px}
 .headActions{display:flex;gap:7px;flex-wrap:wrap}.pillBtn{border:1px solid var(--line);background:#0f151e;padding:7px 10px;border-radius:9px;color:#7e8b9e;font-size:9px;cursor:pointer}
 .pillBtn.active,.pillBtn:hover{border-color:rgba(232,183,109,.28);color:#efc88f;background:rgba(232,183,109,.07)}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:12px}
 .kpi{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:15px;background:linear-gradient(145deg,rgba(19,26,37,.97),rgba(10,14,20,.98));padding:13px 14px;min-height:94px}
 .kpi:after{content:"";position:absolute;width:100px;height:100px;border-radius:50%;right:-45px;top:-50px;background:radial-gradient(circle,rgba(169,133,255,.11),transparent 65%)}
 .kpiTop{display:flex;justify-content:space-between;align-items:center;color:#667489;font-size:8px;text-transform:uppercase;letter-spacing:.9px}.kpiIcon{width:25px;height:25px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;background:#101721;color:#b6c0cc}

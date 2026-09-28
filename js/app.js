@@ -99,10 +99,10 @@ function deleteRouteEdge(id){if(!canWrite())return toast("当前账号没有路�
 document.addEventListener("focusin",event=>{const select=event.target;if(!select.matches?.('#routeEditor select[name="snake_id"]')||select.parentElement.querySelector(".routeSnakeSearch"))return;const search=document.createElement("input");search.type="search";search.className="routeSnakeSearch";search.placeholder="搜索编号、系列或基因型";select.parentElement.insertBefore(search,select);search.oninput=()=>{const query=search.value.trim().toLowerCase();[...select.options].forEach(option=>option.hidden=!!query&&!option.text.toLowerCase().includes(query));const first=[...select.options].find(option=>!option.hidden);if(first)select.value=first.value};setTimeout(()=>search.focus(),0)});
 function counts(){const o={};DATA.snakes.forEach(s=>o[s.series]=(o[s.series]||0)+1);return o}
 function renderPopulation(){
- const rs=DATA.snakes.filter(ready),rf=rs.filter(s=>s.sex==="F").length,rm=rs.filter(s=>s.sex==="M").length,total=DATA.snakes.reduce((a,s)=>a+(s.price||0),0);
+ const rs=DATA.snakes.filter(ready),rf=rs.filter(s=>s.sex==="F").length,rm=rs.filter(s=>s.sex==="M").length,investTotals=ledgerInvestmentTotals();
  const complete=Object.keys(counts()).filter(k=>{const x=DATA.snakes.filter(s=>s.series===k&&ready(s));return x.some(s=>s.sex==="F")&&x.some(s=>s.sex==="M")}).length;
  const f=DATA.snakes.filter(s=>s.sex==="F").length,m=DATA.snakes.filter(s=>s.sex==="M").length,n=DATA.snakes.length;if($("#sideSnakeCount"))$("#sideSnakeCount").textContent=n;if($("#sideSnakeMeta"))$("#sideSnakeMeta").innerHTML=`个体已载入<br>${f}F / ${m}M · Supabase`;
- $("#popKpis").innerHTML=kpi("总个体",n,`${f} Female · ${m} Male`,"◫")+kpi(`${state.year} 可繁`,rs.length,`${rf}F / ${rm}M 已成熟`,"◎","gold")+kpi("表内购入投入",fmt(total),"不含饲养与基础设施","¥")+kpi("已形成公母结构系列",complete,`按 ${state.year} 成熟状态`,"⌁","violet");
+ $("#popKpis").innerHTML=kpi("总个体",n,`${f} Female · ${m} Male`,"◫")+kpi(`${state.year} 可繁`,rs.length,`${rf}F / ${rm}M 已成熟`,"◎","gold")+kpi("总投入",fmt(investTotals.total),"种群 + 设备 + 耗材","¥","gold")+kpi("种群投入",fmt(investTotals.population),"含个体价格与种群扩张","¥")+kpi("其他投入",fmt(investTotals.other),"设备购买与耗材","¥")+kpi("已形成公母结构系列",complete,`按 ${state.year} 成熟状态`,"⌁","violet");
   $("#sexChart").innerHTML=`<div class="donutWrap"><div class="donut" style="background:conic-gradient(#0066cc 0 ${n?f/n*100:0}%,#1d1d1f ${n?f/n*100:0}% 100%)"><div class="donutCenter"><strong>${n}</strong><span>TOTAL</span></div></div><div class="legendList"><div class="legendLine"><span><i class="dot" style="background:#0066cc"></i>Female</span><b>${f}</b></div><div class="legendLine"><span><i class="dot" style="background:#1d1d1f"></i>Male</span><b>${m}</b></div><div class="legendLine"><span>Female : Male</span><b>${m?(f/m).toFixed(1):"∞"} : 1</b></div></div></div>`;
  const sc=counts(),mx=Math.max(1,...Object.values(sc));$("#seriesBars").innerHTML=Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/mx*100}%"></i></div><span>${v}</span></div>`).join("")||'<div class="miniCard"><p>暂无个体数据。</p></div>';
  drawMaturity();const ys=planningYears();$("#maturityStrip").innerHTML=ys.map(y=>`<div class="yearTile ${y===state.year?"active":""}" data-y="${y}"><b>${y}</b><strong>${DATA.snakes.filter(s=>mature(s)<=y).length}</strong><span>累计成熟 / ${DATA.snakes.length}</span></div>`).join("")||'<div class="geneEditorEmpty">暂无可用年份数据。</div>';$$("[data-y]").forEach(x=>x.onclick=()=>syncYear(x.dataset.y));
@@ -225,6 +225,12 @@ function snakeInvestmentRows(){
 }
 function ledgerStatRows(manualRows=ledgerRows()){
   return [...snakeInvestmentRows(),...manualRows];
+}
+function ledgerInvestmentTotals(manualRows=ledgerRows()){
+  const statRows=ledgerStatRows(manualRows);
+  const total=statRows.reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+  const population=statRows.filter(row=>row.category==="population").reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+  return {total,population,other:Math.max(0,total-population)};
 }
 function ledgerOwnerKey(row){
   const email=String(row.owner_email||"").trim().toLowerCase();

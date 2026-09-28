@@ -66,6 +66,15 @@ test("ledger user meta displays category counts instead of a generic manual coun
   assert.doesNotMatch(appSource, /笔手工支出/);
 });
 
+test("population overview shows total population and other investment cards", () => {
+  const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
+  assert.match(appSource, /function ledgerInvestmentTotals\(manualRows=ledgerRows\(\)\)/);
+  assert.match(appSource, /kpi\("总投入",fmt\(investTotals\.total\)/);
+  assert.match(appSource, /kpi\("种群投入",fmt\(investTotals\.population\)/);
+  assert.match(appSource, /kpi\("其他投入",fmt\(investTotals\.other\)/);
+  assert.doesNotMatch(appSource, /表内购入投入/);
+});
+
 test("investment ledger maps known emails to display usernames", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(appSource, /USER_DISPLAY_NAMES=Object\.freeze/);
