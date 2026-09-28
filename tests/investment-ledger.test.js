@@ -54,7 +54,16 @@ test("snake purchase prices are counted into the matching user's population inve
 test("new snakes default their investor to the current logged in user", () => {
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(appSource, /function currentInvestorName\(\)/);
+  assert.match(appSource, /SNAKE_ID_PREFIX_BY_OWNER=Object\.freeze/);
+  assert.match(appSource, /"1442399241@qq\.com":"M"/);
+  assert.match(appSource, /"569850649@qq\.com":"Y"/);
+  assert.match(appSource, /function snakeIdPrefixForInvestor\(value\)/);
+  assert.match(appSource, /function nextSnakeId\(investor=currentInvestorName\(\)\)/);
+  assert.match(appSource, /const prefix=snakeIdPrefixForInvestor\(investor\)/);
+  assert.match(appSource, /REMOTE_RAW\.snakes\.map\(s=>String\(s\.id\|\|""\)\.trim\(\)\.match\(pattern\)\)/);
+  assert.match(appSource, /return `\$\{prefix\}\$\{String\(max\+1\)\.padStart\(width,"0"\)\}`/);
   assert.match(appSource, /const investorValue=row\.id\?\(row\.investor\|\|""\):\(row\.investor\|\|currentInvestorName\(\)\)/);
+  assert.match(appSource, /nextSnakeId\(investorValue\)/);
   assert.match(appSource, /if\(!editContext\.id&&!o\.investor\)o\.investor=currentInvestorName\(\)\|\|null/);
 });
 

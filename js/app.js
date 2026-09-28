@@ -412,6 +412,10 @@ const SNAKE_INVESTMENT_PREFIX_OWNERS=Object.freeze({
   M:"1442399241@qq.com",
   Y:"569850649@qq.com"
 });
+const SNAKE_ID_PREFIX_BY_OWNER=Object.freeze({
+  "1442399241@qq.com":"M",
+  "569850649@qq.com":"Y"
+});
 function resolveLoginEmail(value){
   const identity=String(value||"").trim();
   return LOGIN_ALIASES[identity.toLowerCase()]||identity;
@@ -428,6 +432,10 @@ function investmentOwnerFromIdentity(value){
 }
 function currentInvestorName(){
   return currentProfile?.display_name||displayNameForEmail(currentUser?.email)||currentUser?.email||"";
+}
+function snakeIdPrefixForInvestor(value){
+  const owner=investmentOwnerFromIdentity(value)||investmentOwnerFromIdentity(currentUser?.email);
+  return SNAKE_ID_PREFIX_BY_OWNER[owner?.email]||"S";
 }
 function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
@@ -801,11 +809,18 @@ function renderGeneEditor(){
   $$('[data-gene-row]').forEach(row=>{const i=Number(row.dataset.geneRow);[...row.querySelectorAll('[data-gene-field]')].forEach(input=>input.onchange=()=>{editGenes[i][input.dataset.geneField]=input.value})});
   $$('[data-remove-gene]').forEach(btn=>btn.onclick=()=>{editGenes.splice(Number(btn.dataset.removeGene),1);renderGeneEditor()});
 }
-function nextSnakeId(){const max=Math.max(0,...REMOTE_RAW.snakes.map(s=>{const m=String(s.id||"").match(/^S(\d+)$/i);return m?Number(m[1]):0}));return `S${String(max+1).padStart(2,"0")}`}
+function nextSnakeId(investor=currentInvestorName()){
+  const prefix=snakeIdPrefixForInvestor(investor);
+  const pattern=new RegExp(`^${prefix}(\\d+)$`,"i");
+  const used=REMOTE_RAW.snakes.map(s=>String(s.id||"").trim().match(pattern)).filter(Boolean).map(match=>({number:Number(match[1]),width:match[1].length}));
+  const max=Math.max(0,...used.map(item=>item.number));
+  const width=Math.max(2,...used.map(item=>item.width));
+  return `${prefix}${String(max+1).padStart(width,"0")}`;
+}
 function snakeFormHtml(row={}){
   const investorValue=row.id?(row.investor||""):(row.investor||currentInvestorName());
   return `<div class="formGrid">
-    <div class="formField"><label>ID</label><input name="id" value="${esc(row.id||nextSnakeId())}" ${row.id?"readonly":""} required placeholder="S33"></div>
+    <div class="formField"><label>ID</label><input name="id" value="${esc(row.id||nextSnakeId(investorValue))}" ${row.id?"readonly":""} required placeholder="自动生成"></div>
     <div class="formField"><label>Series</label><input name="series" value="${esc(row.series||"")}" required></div>
     <div class="formField full"><label>Gene text</label><input name="gene_text" value="${esc(row.gene_text||"")}" required></div>
     <div class="formField"><label>Sex</label><select name="sex"><option value="F" ${row.sex==="F"?"selected":""}>Female</option><option value="M" ${row.sex==="M"?"selected":""}>Male</option><option value="U" ${row.sex==="U"?"selected":""}>Unknown</option></select></div>
