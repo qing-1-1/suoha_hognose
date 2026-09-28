@@ -335,6 +335,14 @@ let editContext=null;
 let editGenes=[];
 let AI_LAYER_READY=false;
 let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],investmentExpenses:[],genes:[],aliases:[],morphs:[],morphComponents:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]};
+const LOGIN_ALIASES=Object.freeze({
+  suohama:"1442399241@qq.com",
+  suohayu:"569850649@qq.com"
+});
+function resolveLoginEmail(value){
+  const identity=String(value||"").trim();
+  return LOGIN_ALIASES[identity.toLowerCase()]||identity;
+}
 function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
 
@@ -425,8 +433,9 @@ async function applySession(session){
   }
   renderAdmin();
 }
-async function login(email,password){
+async function login(identity,password){
   if(!sb)throw new Error("Supabase 尚未配置。");
+  const email=resolveLoginEmail(identity);
   const {data,error}=await sb.auth.signInWithPassword({email,password});
   if(error)throw error;
   return data.session;
@@ -458,13 +467,13 @@ $("#logoutBtn").onclick=logout;
 $("#loginForm").onsubmit=async e=>{
   e.preventDefault();$("#loginMessage").textContent="正在登录…";
   try{const session=await login($("#loginEmail").value.trim(),$("#loginPassword").value);await validateAndOpenWorkspace(session);$("#loginMessage").textContent="";closeModal("loginModal")}
-  catch(err){$("#loginMessage").textContent="登录失败：请确认该邮箱已在 Supabase Authentication > Users 中完成账号设置，并确认密码正确。"}
+  catch(err){$("#loginMessage").textContent="登录失败：请确认该邮箱或用户名已授权，并确认密码正确。"}
 };
 
 
 $("#gateLoginForm").onsubmit=async e=>{
   e.preventDefault();
-  const email=$("#gateEmail").value.trim(),password=$("#gatePassword").value;
+  const identity=$("#gateEmail").value.trim(),password=$("#gatePassword").value;
   $("#gateMessage").classList.remove("ok");
   $("#gateMessage").textContent="正在验证账号…";
   try{
@@ -472,7 +481,7 @@ $("#gateLoginForm").onsubmit=async e=>{
     // It is only validated after the user explicitly presses this button.
     let session=null;
     if(password){
-      session=await login(email,password);
+      session=await login(identity,password);
     }else{
       const {data:{session:storedSession},error}=await sb.auth.getSession();
       if(error)throw error;
@@ -482,14 +491,15 @@ $("#gateLoginForm").onsubmit=async e=>{
     $("#gateMessage").textContent="";
   }catch(err){
     console.warn("Login:",err);
-    $("#gateMessage").textContent="登录失败。请先确认该邮箱存在于 Authentication > Users，并且已经完成邀请/密码设置；如果不确定，点“首次登录 / 忘记密码”。";
+    $("#gateMessage").textContent="登录失败。请先确认该邮箱或用户名已授权，并且已经完成邀请/密码设置；如果不确定，点“首次登录 / 忘记密码”。";
   }
 };
 
 $("#gateResetBtn").onclick=async()=>{
-  const email=$("#gateEmail").value.trim();
+  const identity=$("#gateEmail").value.trim();
   $("#gateMessage").classList.remove("ok");
-  if(!email){$("#gateMessage").textContent="先填写邮箱地址，再发送密码设置邮件。";return}
+  if(!identity){$("#gateMessage").textContent="先填写邮箱或用户名，再发送密码设置邮件。";return}
+  const email=resolveLoginEmail(identity);
   if(!sb){$("#gateMessage").textContent="Supabase 尚未连接。";return}
   $("#gateMessage").textContent="正在发送邮件…";
   try{
