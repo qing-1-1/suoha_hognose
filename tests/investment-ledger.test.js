@@ -119,16 +119,25 @@ test("admin exposes named morph combo controls", () => {
   assert.match(html, /组合黑话/);
   assert.match(dataSource, /from\("morphs"\)\.select\("\*"\)/);
   assert.match(dataSource, /from\("morph_components"\)\.select\("\*"\)/);
+  assert.match(dataSource, /from\("morph_aliases"\)/);
+  assert.match(dataSource, /morphAliases/);
   assert.match(appSource, /m\.name_en/);
+  assert.match(appSource, /function morphLabelsFor\(morph\)/);
+  assert.match(appSource, /REMOTE_RAW\.morphAliases\|\|\[\]/);
   assert.match(appSource, /function morphFormHtml\(row=\{\}\)/);
+  assert.match(appSource, /function renderMorphAliasEditor\(\)/);
   assert.match(appSource, /function renderMorphComponentEditor\(\)/);
   assert.match(appSource, /function openMorphForm\(id=null\)/);
+  assert.match(appSource, /function normalizedEditMorphAliases\(morphId\)/);
+  assert.match(appSource, /function syncMorphAliases\(morphId\)/);
   assert.match(appSource, /function normalizedEditMorphComponents\(\)/);
   assert.match(appSource, /function syncMorphComponents\(morphId\)/);
   assert.match(appSource, /function deleteMorph\(id\)/);
   assert.match(appSource, /adminTab==="morphs"/);
   assert.match(appSource, /data-admin-edit-morph/);
   assert.match(appSource, /data-admin-del-morph/);
+  assert.match(appSource, /data-morph-alias-row/);
+  assert.match(appSource, /sb\.from\("morph_aliases"\)\.upsert\(desired,\{onConflict:"alias"\}\)/);
   assert.match(appSource, /sb\.from\("morph_components"\)\.upsert\(rows,\{onConflict:"morph_id,gene_id"\}\)/);
   assert.match(appSource, /sb\.from\("morphs"\)\.delete\(\)\.eq\("id",id\)/);
   assert.match(appSource, /adminTab==="morphs"\?openMorphForm\(\)/);
@@ -179,5 +188,17 @@ test("investment expense migration creates category and owner policies", () => {
   assert.match(sql, /category in \('population', 'equipment', 'consumables'\)/);
   assert.match(sql, /alter table public\.investment_expenses enable row level security/);
   assert.match(sql, /owner_id = auth\.uid\(\)/);
+  assert.match(sql, /public\.can_edit_app\(\)/);
+});
+
+test("morph alias migration creates secure combo aliases", () => {
+  const sql = fs.readFileSync(
+    path.join(root, "supabase", "migrations", "018_morph_aliases.sql"),
+    "utf8",
+  );
+  assert.match(sql, /create table if not exists public\.morph_aliases/);
+  assert.match(sql, /morph_id text not null references public\.morphs\(id\) on delete cascade/);
+  assert.match(sql, /create unique index if not exists idx_morph_aliases_alias_lower/);
+  assert.match(sql, /alter table public\.morph_aliases enable row level security/);
   assert.match(sql, /public\.can_edit_app\(\)/);
 });
