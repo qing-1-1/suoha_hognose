@@ -135,6 +135,28 @@
 <section class="page" id="page-investment">
   <div class="pageHead"><div><div class="eyebrow">Genetic capital allocation</div><h1>未来投资计划</h1><p>把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。</p></div></div>
   <div class="kpis" id="investKpis"></div><div class="investGrid" id="investCards"></div>
+  <div class="ledgerGrid" id="investmentLedger">
+    <div class="card ledgerEntryCard">
+      <div class="cardHead"><div><h3>投入记账</h3><p>登录用户分别录入自己的实际开销，系统自动计算投入比例。</p></div></div>
+      <div class="cardBody">
+        <form class="ledgerForm" id="ledgerExpenseForm">
+          <div class="formField"><label for="ledgerExpenseCategory">分类</label><select id="ledgerExpenseCategory" name="category" required><option value="population">种群扩张</option><option value="equipment">设备购买</option><option value="consumables">耗材</option></select></div>
+          <div class="formField"><label for="ledgerExpenseAmount">金额</label><input id="ledgerExpenseAmount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></div>
+          <div class="formField"><label for="ledgerExpenseDate">日期</label><input id="ledgerExpenseDate" name="spent_at" type="date"></div>
+          <div class="formField full"><label for="ledgerExpenseNote">备注</label><textarea id="ledgerExpenseNote" name="note" maxlength="240" placeholder="品系 + 性别，例如 Toffee Conda 雌" required></textarea><p class="ledgerHint" id="ledgerNoteHint">种群扩张：备注写明蛇的品系、性别。</p></div>
+          <div class="ledgerFormFooter"><div class="authMessage" id="ledgerFormMessage"></div><button class="primaryBtn" type="submit">保存支出</button></div>
+        </form>
+      </div>
+    </div>
+    <div class="card ledgerSummaryCard">
+      <div class="cardHead"><div><h3>投入比例</h3><p>按用户累计金额计算，占比实时更新。</p></div></div>
+      <div class="cardBody"><div class="ledgerSummary" id="ledgerSummary"></div></div>
+    </div>
+  </div>
+  <div class="gridEqual ledgerBottomGrid">
+    <div class="card"><div class="cardHead"><div><h3>分类投入</h3><p>种群、设备与耗材的实际支出结构。</p></div></div><div class="cardBody"><div class="ledgerCategorySummary" id="ledgerCategorySummary"></div></div></div>
+    <div class="card"><div class="cardHead"><div><h3>最近支出</h3><p>个人记录可由本人删除；editor/admin 可维护全部记录。</p></div></div><div class="cardBody"><div class="ledgerRows" id="ledgerRows"></div></div></div>
+  </div>
   <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>最大结构性缺口</h3><p>由当前种群实时计算</p></div></div><div class="gapMap" id="gapMap"></div></div><div class="card"><div class="cardHead"><div><h3>实时投资结构诊断</h3><p>种群、成熟、数据完整度与路线覆盖</p></div></div><div class="cardBody"><div class="reasons" id="investmentDiagnostics"></div></div></div></div>
   <div class="analysisSplit">
     <div class="card candidateInvestmentCard">

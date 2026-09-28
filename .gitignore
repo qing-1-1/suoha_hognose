@@ -9,3 +9,4 @@
 !/supabase/migrations/013_candidate_investment_prompt.sql
 !/supabase/migrations/014_candidate_investment_plain_advice_prompt.sql
 !/supabase/migrations/015_candidate_investment_web_search_prompt.sql
+!/supabase/migrations/016_investment_expense_ledger.sql

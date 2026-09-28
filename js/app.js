@@ -1,6 +1,6 @@
 // Business data is loaded only from Supabase after authentication.  Do not add
 // fallback stock, routes, plans, or investment fixtures here.
-const EMPTY_DATA=()=>({snakes:[],routes:{},investments:[]});
+const EMPTY_DATA=()=>({snakes:[],routes:{},investments:[],ledgerExpenses:[]});
 let DATA=EMPTY_DATA();
 let snakeById={};
 const state={page:"population",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
@@ -190,7 +190,92 @@ function renderInvestment(){const series=Object.keys(counts()),gaps=series.filte
  $$("[data-page-edit-invest]").forEach(x=>x.onclick=()=>openInvestmentForm(x.dataset.pageEditInvest));
  $$("[data-page-complete-invest]").forEach(x=>x.onclick=()=>markRecordCompleted("investments",x.dataset.pageCompleteInvest,"投资计划"));
  $$("[data-page-delete-invest]").forEach(x=>x.onclick=()=>deleteRecord("investments",x.dataset.pageDeleteInvest,"投资计划 "+x.dataset.pageDeleteInvest));
+ renderInvestmentLedger();
  const active=DATA.snakes.filter(s=>s.status==="active"),activeF=active.filter(s=>s.sex==="F"),activeM=active.filter(s=>s.sex==="M"),readyF=activeF.filter(ready),readyM=activeM.filter(ready),uncertain=REMOTE_RAW.snakeGenes.filter(x=>active.some(s=>s.id===x.snake_id)&&["unknown","possible_het"].includes(x.state)),routedIds=new Set(REMOTE_RAW.nodes.map(n=>n.snake_id||n.id).filter(Boolean)),unrouted=active.filter(s=>!routedIds.has(s.id));const uncertainDetails=uncertain.map(row=>`${row.snake_id} · ${geneLabel(REMOTE_RAW.genes.find(g=>g.id===row.gene_id))} · ${row.state}${row.state==="possible_het"?` ${pct(row.probability)}`:""}`),routeDetails=unrouted.map(s=>`${s.id} · ${s.gene}`),diagnostics=[["种群与成熟窗口",`活跃 ${active.length} 条：${activeF.length} 母 / ${activeM.length} 公；${state.year} 年可繁 ${readyF.length} 母 / ${readyM.length} 公。`,[]],["性别结构缺口",gaps.length?`${gaps.length} 个系列有活跃母蛇但无活跃公蛇：${gaps.join(" / ")}。`:"当前未发现“有活跃母蛇但无活跃公蛇”的系列缺口。",[]],["基因数据待确认",uncertain.length?`活跃个体共有 ${uncertain.length} 条 unknown 或 possible het 记录；先补全证据再据此投入。`:"活跃个体未发现 unknown 或 possible het 的原子基因记录。",uncertainDetails],["路线覆盖",unrouted.length?`${unrouted.length} 条活跃个体尚未进入路线节点。`:"所有活跃个体均已进入至少一个路线节点。",routeDetails]];$("#investmentDiagnostics").innerHTML=diagnostics.map(([a,b,details])=>`<div class="reason"><i style="background:#0066cc"></i><div><b>${esc(a)}</b><span>${esc(b)}</span>${details.length?`<details class="diagnosticDetails"><summary>查看全部 ${details.length} 条</summary><p>${details.map(esc).join("<br>")}</p></details>`:""}</div></div>`).join("")}
+
+const LEDGER_CATEGORIES={
+  population:{label:"种群扩张",hint:"备注写明蛇的品系、性别。",placeholder:"品系 + 性别，例如 Toffee Conda 雌"},
+  equipment:{label:"设备购买",hint:"备注写明设备类型。",placeholder:"设备类型，例如 温控箱 / 饲养架 / 加热垫"},
+  consumables:{label:"耗材",hint:"备注写明垫材、水碗、食物。",placeholder:"垫材 / 水碗 / 食物，例如 Aspen 垫材"}
+};
+function ledgerMoney(value){
+  return "¥"+Number(value||0).toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function ledgerRows(){
+  return [...(REMOTE_RAW.investmentExpenses||[])].sort((a,b)=>{
+    const da=String(a.spent_at||""),db=String(b.spent_at||"");
+    if(da!==db)return db.localeCompare(da);
+    return String(b.created_at||"").localeCompare(String(a.created_at||""));
+  });
+}
+function ledgerExpenseAmount(row){return Number(row.amount||0)}
+function ledgerOwnerName(row){return row.owner_name||row.owner_email||"未命名用户"}
+function ledgerDateLabel(value){return value?String(value).replaceAll("-","/"):"—"}
+function ledgerPercent(value,total){return total?value/total*100:0}
+function canManageLedgerExpense(row){return !!(currentUser&&(row.owner_id===currentUser.id||canWrite()))}
+function renderInvestmentLedger(){
+  if(!$("#ledgerSummary"))return;
+  syncLedgerFormDefaults(false);
+  const rows=ledgerRows();
+  DATA.ledgerExpenses=rows;
+  const total=rows.reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+  const byUser=new Map();
+  rows.forEach(row=>{
+    const key=row.owner_id||row.owner_email||"unknown";
+    const current=byUser.get(key)||{name:ledgerOwnerName(row),email:row.owner_email||"",total:0,count:0};
+    current.total+=ledgerExpenseAmount(row);current.count+=1;byUser.set(key,current);
+  });
+  const userRows=[...byUser.values()].sort((a,b)=>b.total-a.total);
+  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${rows.length} 笔支出</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(user.email||`${user.count} 笔记录`)}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
+
+  $("#ledgerCategorySummary").innerHTML=Object.entries(LEDGER_CATEGORIES).map(([key,meta])=>{
+    const amount=rows.filter(row=>row.category===key).reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
+    const percent=ledgerPercent(amount,total);
+    return `<div class="ledgerCategoryRow"><div><b>${meta.label}</b><span>${meta.hint}</span></div><strong>${ledgerMoney(amount)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`;
+  }).join("");
+
+  $("#ledgerRows").innerHTML=rows.length?rows.slice(0,18).map(row=>{const meta=LEDGER_CATEGORIES[row.category]||LEDGER_CATEGORIES.population;return `<div class="ledgerRow"><div class="ledgerRowMain"><span>${esc(meta.label)}</span><b>${esc(row.note)}</b><small>${esc(ledgerOwnerName(row))} · ${esc(ledgerDateLabel(row.spent_at))}</small></div><strong>${ledgerMoney(row.amount)}</strong>${canManageLedgerExpense(row)?`<button class="iconBtn danger" data-ledger-delete="${esc(row.id)}">删除</button>`:""}</div>`}).join(""):'<div class="analysisEmpty">最近支出会显示在这里。</div>';
+  $$("[data-ledger-delete]").forEach(button=>button.onclick=()=>deleteLedgerExpense(button.dataset.ledgerDelete));
+}
+function syncLedgerFormDefaults(setToday=true){
+  const category=$("#ledgerExpenseCategory"),note=$("#ledgerExpenseNote"),hint=$("#ledgerNoteHint"),date=$("#ledgerExpenseDate");
+  const meta=LEDGER_CATEGORIES[category?.value]||LEDGER_CATEGORIES.population;
+  if(note)note.placeholder=meta.placeholder;
+  if(hint)hint.textContent=`${meta.label}：${meta.hint}`;
+  if(setToday&&date&&!date.value)date.value=new Date().toISOString().slice(0,10);
+}
+async function saveLedgerExpense(event){
+  event.preventDefault();
+  const message=$("#ledgerFormMessage");
+  if(message)message.textContent="正在保存…";
+  if(!sb||!currentUser){if(message)message.textContent="请先登录。";return}
+  const form=event.currentTarget,data=Object.fromEntries(new FormData(form).entries());
+  const category=LEDGER_CATEGORIES[data.category]?data.category:null;
+  const amount=Math.round(Number(data.amount)*100)/100;
+  const note=String(data.note||"").trim();
+  const spentAt=String(data.spent_at||"").trim()||new Date().toISOString().slice(0,10);
+  if(!category){if(message)message.textContent="请选择支出分类。";return}
+  if(!Number.isFinite(amount)||amount<=0){if(message)message.textContent="请输入大于 0 的金额。";return}
+  if(!note){if(message)message.textContent="请填写备注。";return}
+  try{
+    const {error}=await sb.from("investment_expenses").insert({
+      category,amount,note,spent_at:spentAt,
+      owner_email:currentUser.email||null,
+      owner_name:currentProfile?.display_name||currentUser.email||""
+    });
+    if(error)throw error;
+    form.reset();syncLedgerFormDefaults(true);if(message)message.textContent="";
+    await refreshRemote(false);toast("支出已保存");
+  }catch(err){if(message)message.textContent=err.message||String(err)}
+}
+async function deleteLedgerExpense(id){
+  const row=(REMOTE_RAW.investmentExpenses||[]).find(item=>String(item.id)===String(id));
+  if(!row||!canManageLedgerExpense(row))return toast("只能删除自己的记录，或使用 editor/admin 权限维护。",true);
+  if(!await confirmWorkflow({title:"删除这笔支出？",sub:`${LEDGER_CATEGORIES[row.category]?.label||"支出"} · ${ledgerMoney(row.amount)}`,confirm:"删除"}))return;
+  const {error}=await sb.from("investment_expenses").delete().eq("id",id);
+  if(error)return toast(error.message,true);
+  await refreshRemote(false);toast("支出已删除");
+}
 
 function geneLabel(g){return g?.name_zh||g?.chinese_name||g?.name_cn||g?.display_name||g?.name||g?.id||"未知基因"}
 function snakeGeneRows(snakeId){return REMOTE_RAW.snakeGenes.filter(x=>x.snake_id===snakeId)}
@@ -249,7 +334,7 @@ let adminTab="snakes";
 let editContext=null;
 let editGenes=[];
 let AI_LAYER_READY=false;
-let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],genes:[],aliases:[],morphs:[],morphComponents:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]};
+let REMOTE_RAW={snakes:[],routes:[],nodes:[],edges:[],plans:[],investments:[],investmentExpenses:[],genes:[],aliases:[],morphs:[],morphComponents:[],snakeGenes:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]};
 function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
 
@@ -531,7 +616,7 @@ async function loadRemoteData(){
     snakes:res[0].data||[],routes:res[1].data||[],nodes:res[2].data||[],
     edges:res[3].data||[],plans:res[4].data||[],investments:res[5].data||[],
     genes:res[6].data||[],aliases:res[7].data||[],morphs:res[8].data||[],
-    morphComponents:res[9].data||[],snakeGenes:res[10].data||[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]
+    morphComponents:res[9].data||[],snakeGenes:res[10].data||[],investmentExpenses:[],scenarios:[],analysisRuns:[],recommendations:[],promptTemplates:[],conversations:[],conversationMessages:[]
   };
   const decisionRes=await Promise.all([
     sb.from("planning_scenarios").select("*").order("created_at",{ascending:false}),
@@ -559,6 +644,7 @@ async function loadRemoteData(){
   DATA.routes=built.routes;
   ANNUAL_PLANS=buildAnnualPlans(acceptedPlanRows(),built.nodeLabel);
   DATA.investments=REMOTE_RAW.investments.filter(r=>r.review_status!=="pending"&&r.review_status!=="returned").map(dbInvestmentToUi);
+  DATA.ledgerExpenses=REMOTE_RAW.investmentExpenses||[];
   if(!DATA.routes[state.route])state.route=Object.keys(DATA.routes)[0]||"flagship";
 }
 async function loadRemoteData(){
@@ -576,6 +662,7 @@ async function loadRemoteData(){
   DATA.routes=built.routes;
   ANNUAL_PLANS=buildAnnualPlans(acceptedPlanRows(),built.nodeLabel);
   DATA.investments=REMOTE_RAW.investments.filter(r=>r.review_status!=="pending"&&r.review_status!=="returned").map(dbInvestmentToUi);
+  DATA.ledgerExpenses=REMOTE_RAW.investmentExpenses||[];
   if(!DATA.routes[state.route])state.route=Object.keys(DATA.routes)[0]||"flagship";
 }
 async function refreshRemote(showMessage=true){
@@ -833,6 +920,9 @@ $("#runAnnualAiBtn").onclick=async()=>{try{await runAiSafely("annual_plan",annua
 $("#runInvestmentAiBtn").onclick=async()=>{try{await runAiSafely("investment",investmentInput())}catch(err){toast(err.message||String(err),true)}};
 $("#candidateGeneText").oninput=renderCandidateGenePreview;
 $("#candidateSex").onchange=renderCandidateGenePreview;
+$("#ledgerExpenseCategory")?.addEventListener("change",()=>syncLedgerFormDefaults(false));
+$("#ledgerExpenseForm")?.addEventListener("submit",saveLedgerExpense);
+syncLedgerFormDefaults(true);
 $("#runCandidateInvestmentAiBtn").onclick=async()=>{try{await runCandidateInvestmentAi(candidateInvestmentInput())}catch(err){toast(err.message||String(err),true)}};
 $("#aiChatForm").onsubmit=sendAiFollowUp;
 
@@ -914,5 +1004,3 @@ runAIAnalysisWithMotion=async(analysisType,input)=>{const previous=analysis_type
 const runAIAnalysisCore=runAIAnalysis;
 runAIAnalysis=async(analysisType,input)=>{const previous=analysis_type;analysis_type=analysisType;try{return await runAIAnalysisCore(analysisType,input)}finally{analysis_type=previous}};
 initApp();
-
-
