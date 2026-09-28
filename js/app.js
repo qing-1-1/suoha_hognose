@@ -12,7 +12,7 @@ const fmt=n=>"¥"+Number(n||0).toLocaleString("zh-CN"), mature=s=>Number(String(
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function kpi(a,b,c,d,cls=""){return `<div class="kpi"><div class="kpiTop"><span>${a}</span><span class="kpiIcon">${d}</span></div><div class="kpiNum ${cls}">${b}</div><div class="kpiFoot">${c}</div></div>`}
 function investmentKpi(totals){
-  return `<div class="kpi investmentKpi"><div class="investmentKpiMain"><div class="investmentKpiTop"><span>总投入</span><i>¥</i></div><strong>${fmt(totals.total)}</strong><small>种群 + 设备 + 耗材</small></div><div class="investmentKpiSide"><div><span>种群投入</span><strong>${fmt(totals.population)}</strong><small>个体价格与种群扩张</small></div><div><span>其他投入</span><strong>${fmt(totals.other)}</strong><small>设备购买与耗材</small></div></div></div>`;
+  return `<div class="kpi investmentKpi"><div class="investmentKpiMain"><div class="investmentKpiTop"><span>总投入</span><i>¥</i></div><strong>${fmt(totals.total)}</strong></div><div class="investmentKpiSide"><div><span>种群投入</span><strong>${fmt(totals.population)}</strong></div><div><span>其他投入</span><strong>${fmt(totals.other)}</strong></div></div></div>`;
 }
 function setPage(p){state.page=p;$$(".page").forEach(x=>x.classList.toggle("active",x.id==="page-"+p));$$(".navItem").forEach(x=>x.classList.toggle("active",x.dataset.page===p));$("#crumb").textContent=({routes:"繁殖路线",population:"种群总览",production:"年度产出",investment:"投资计划",lab:"配对实验室",admin:"数据与审核看板"})[p];window.scrollTo({top:0,left:0,behavior:"instant"});if(p==="admin")renderAdmin()}
 $$(".navItem").forEach(x=>x.onclick=()=>setPage(x.dataset.page));

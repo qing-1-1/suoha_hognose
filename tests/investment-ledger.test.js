@@ -75,6 +75,9 @@ test("population overview shows total population and other investment cards", ()
   assert.match(appSource, /<span>总投入<\/span>/);
   assert.match(appSource, /<span>种群投入<\/span>/);
   assert.match(appSource, /<span>其他投入<\/span>/);
+  assert.doesNotMatch(appSource, /种群 \+ 设备 \+ 耗材/);
+  assert.doesNotMatch(appSource, /个体价格与种群扩张/);
+  assert.doesNotMatch(appSource, /设备购买与耗材/);
   assert.match(cssSource, /\.investmentKpi\{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr/);
   assert.match(cssSource, /\.investmentKpiSide\{display:grid;grid-template-rows:1fr 1fr/);
   assert.doesNotMatch(appSource, /表内购入投入/);
