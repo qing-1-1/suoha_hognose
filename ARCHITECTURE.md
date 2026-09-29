@@ -73,3 +73,6 @@ Supabase    -> Auth, RLS, PostgreSQL, Storage and future Realtime events
 
 These are deliberately separate steps so the live Supabase data model and the
 existing user interface can be verified after each move.
+# Inventory libraries (2026-09-29 follow-up)
+
+`023_inventory_libraries.sql` adds `snakes.inventory_library` (`stock` / `nursery`). Existing individuals stay in stock; inserted homebred individuals enter nursery through a trigger, including the existing hatchling RPC. `transfer_inventory_animal` preserves identity and pedigree and records the transfer. `inventory_sale_states` exposes only member-visible sales badges, derived from current listings, with no customer data. UI integration lives in `js/inventory.js`; the second visual pass lives in `assets/workspace-refinements.css`. See `优化建议与实施记录.md` for behavior and rollout. This migration has not been applied to production by this code change.
