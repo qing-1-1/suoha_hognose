@@ -17,9 +17,9 @@
   const animal=id=>REMOTE_RAW.snakes.find(s=>s.id===id);
   const animalName=id=>`${id || '—'} · ${animal(id)?.gene_text || '资料待补充'}`;
   const options=(rows,value,label,selected='')=>rows.map(row=>`<option value="${escape(value(row))}" ${String(value(row))===String(selected)?'selected':''}>${escape(label(row))}</option>`).join('');
-  const animalOptions=(sex,selected)=>options(REMOTE_RAW.snakes.filter(s=>!sex||s.sex===sex),s=>s.id,s=>`${s.id} · ${s.gene_text}`,selected);
+  const animalOptions=(sex,selected)=>options(REMOTE_RAW.snakes.filter(s=>!sex||s.sex===sex),s=>s.id,s=>`${s.inventory_library==='nursery'?'[自繁库]':'[种群库]'} ${s.id} · ${s.gene_text}`,selected);
   const input=(name,label,value='',type='text',extra='')=>`<label>${label}<input name="${name}" type="${type}" value="${escape(value)}" ${extra}></label>`;
-  const select=(name,label,content)=>`<label>${label}<select name="${name}">${content}</select></label>`;
+  const select=(name,label,content)=>`<label>${label}<select name="${name}" aria-label="${escape(label)}">${content}</select></label>`;
   const area=(name,label,value='',max=4000)=>`<label class="full">${label}<textarea name="${name}" maxlength="${max}">${escape(value)}</textarea></label>`;
 
   async function load(force=false){
@@ -37,7 +37,7 @@
         if(own!==generation||currentUser?.id!==user)return;
         for(const {key,result} of results){model[key]=result.data||[];model.counts[key]=result.count||0;model.errors[key]=result.error?.message||'';}
       }
-      if(own!==generation)return;model.loaded=true;render();
+      if(own!==generation)return;model.loaded=true;render();window.dispatchEvent(new Event("suoha:listings"));
     })().catch(()=>{model.errors.listings='读取失败，请刷新重试';render();}).finally(()=>{if(own===generation)loading=null;});
     return loading;
   }
@@ -105,7 +105,7 @@
     if(!available.length)return toast('所有个体已有展示配置，请编辑现有档案。');
     const locked=['reserved','sold'].includes(row.sale_status);
     formDialog(row.id?'编辑公开档案':'新增展示档案','只发布已确认的资料。售价独立于购入成本；售出和预留状态通过销售流程维护。',
-      select('snake_id','真实个体',options(available,s=>s.id,s=>`${s.id} · ${s.gene_text}`,row.snake_id))+
+      select('library_filter','从哪个库选择','<option value="all">全部个体</option><option value="stock">种群库</option><option value="nursery">自繁库</option>')+select('snake_id','真实个体',options(available,s=>s.id,s=>`${s.inventory_library==='nursery'?'[自繁库]':'[种群库]'} ${s.id} · ${s.gene_text}`,row.snake_id))+
       input('slug','公开网址标识',row.slug||'specimen-'+available[0].id.toLowerCase().replace(/[^a-z0-9-]/g,'-'),'text','required pattern="[a-z0-9][a-z0-9-]{0,79}" maxlength="80"')+
       input('title','公开标题',row.title||available[0].gene_text,'text','required maxlength="150"')+
       select('birth_precision','出生时间公开精度',options(['unknown','year','month','day'],x=>x,x=>({unknown:'不公开 / 未确认',year:'只知道年份',month:'精确到月份',day:'已确认具体日期'})[x],row.birth_precision||'month'))+
@@ -115,8 +115,10 @@
       area('description','公开描述',row.description)+area('husbandry_summary','公开个体情况（注明测量日期，勿填写内部备注）',row.husbandry_summary,1000)+area('pedigree_summary','已确认且允许公开的谱系说明',row.pedigree_summary,1000)+
       `<label class="check"><input name="featured" type="checkbox" ${row.featured?'checked':''}>作为精选优先展示</label><label class="check"><input name="published" type="checkbox" ${row.published?'checked':''}>公开发布（未勾选为私有草稿）</label>`,
       async(values,form)=>{const data={snake_id:row.snake_id||values.snake_id,slug:values.slug.trim(),title:values.title.trim(),description:values.description,husbandry_summary:values.husbandry_summary,pedigree_summary:values.pedigree_summary,birth_precision:values.birth_precision,asking_price:values.asking_price===''?null:Number(values.asking_price),currency:values.currency,sale_status:locked?row.sale_status:values.sale_status,published:form.elements.published.checked,featured:form.elements.featured.checked};await checked(row.id?sb.from('specimen_listings').update(data).eq('id',row.id):sb.from('specimen_listings').insert(data));});
-    if(row.id)dialog.querySelector('[name=snake_id]').disabled=true;
-    else dialog.querySelector('[name=snake_id]').onchange=event=>{const s=animal(event.target.value);dialog.querySelector('[name=title]').value=s?.gene_text||s?.id;dialog.querySelector('[name=slug]').value='specimen-'+s.id.toLowerCase().replace(/[^a-z0-9-]/g,'-');};
+    dialog.querySelector('[name=snake_id]').required=true;
+    dialog.querySelector('[name=library_filter]').onchange=event=>{const selected=dialog.querySelector('[name=snake_id]');selected.innerHTML=options(available.filter(s=>event.target.value==='all'||(s.inventory_library||'stock')===event.target.value),s=>s.id,s=>`${s.id} · ${s.gene_text}`);selected.dispatchEvent(new Event('change'));};
+    if(row.id){dialog.querySelector('[name=snake_id]').disabled=true;dialog.querySelector('[name=library_filter]').disabled=true;}
+    else dialog.querySelector('[name=snake_id]').onchange=event=>{const s=animal(event.target.value);if(!s)return;dialog.querySelector('[name=title]').value=s?.gene_text||s?.id;dialog.querySelector('[name=slug]').value='specimen-'+s.id.toLowerCase().replace(/[^a-z0-9-]/g,'-');};
   }
   async function photos(id){
     const row=model.listings.find(l=>l.id===id);if(!row)return;
@@ -152,7 +154,7 @@
     async v=>checked(sb.rpc('record_clutch',{p_id:row.id||null,p_event_id:Number(v.event),p_code:v.code,p_date:v.laid,p_eggs:Number(v.eggs),p_fertile:v.fertile===''?null:Number(v.fertile),p_hatched:v.hatched===''?null:Number(v.hatched),p_status:v.status})));
   }
   function measurementForm(){formDialog('记录体重与成长','只记录实际测量；空白表示未测量，不以零代替未知。',select('snake_id','个体',animalOptions())+input('measured_at','测量日期',today(),'date',`required max="${today()}"`)+input('weight_g','体重 g','','number','min="0" step="0.01"')+input('length_cm','体长 cm','','number','min="0" step="0.01"')+input('feeding_status','进食情况','','text','maxlength="300"')+area('condition_note','状态说明','',1000),async v=>{if(!v.weight_g&&!v.length_cm&&!v.feeding_status&&!v.condition_note)throw new Error('请至少填写一项实际记录。');await checked(sb.from('snake_measurements').insert({...v,weight_g:v.weight_g===''?null:Number(v.weight_g),length_cm:v.length_cm===''?null:Number(v.length_cm)}));});}
-  function hatchlingForm(id){const clutch=model.clutches.find(c=>String(c.id)===String(id));if(!clutch)return;formDialog('幼体入库','建立真实个体并自动关联母本、公本和窝次。不会从亲本概率自动推断幼体基因。',input('id','个体编号',nextSnakeId(),'text','required pattern="[A-Za-z0-9_-]{1,64}"')+select('sex','性别',options(['U','F','M'],x=>x,x=>({U:'未知',F:'母',M:'公'})[x]))+input('birth','实际孵化日期',today(),'date',`required max="${today()}"`)+input('series','系列',animal(clutch.female_snake_id)?.series||'','text','required maxlength="100"')+input('gene_text','个体基因描述（不确定请注明）','待确认','text','required maxlength="300"'),async v=>{await checked(sb.rpc('register_hatchling',{p_clutch:clutch.id,p_id:v.id,p_sex:v.sex,p_birth:v.birth,p_series:v.series,p_gene_text:v.gene_text,p_investor:currentInvestorName()}));await refreshRemote(false);});}
+  function hatchlingForm(id){const clutch=model.clutches.find(c=>String(c.id)===String(id));if(!clutch)return;formDialog('幼体入库','幼体默认进入自繁库，并关联母本、公本和窝次。确认留种后可转入种群库；不会从亲本概率自动推断幼体基因。',input('id','个体编号',nextSnakeId(),'text','required pattern="[A-Za-z0-9_-]{1,64}"')+select('sex','性别',options(['U','F','M'],x=>x,x=>({U:'未知',F:'母',M:'公'})[x]))+input('birth','实际孵化日期',today(),'date',`required max="${today()}"`)+input('series','系列',animal(clutch.female_snake_id)?.series||'','text','required maxlength="100"')+input('gene_text','个体基因描述（不确定请注明）','待确认','text','required maxlength="300"'),async v=>{await checked(sb.rpc('register_hatchling',{p_clutch:clutch.id,p_id:v.id,p_sex:v.sex,p_birth:v.birth,p_series:v.series,p_gene_text:v.gene_text,p_investor:currentInvestorName()}));await refreshRemote(false);});}
 
   async function handleAction(action,id){
     if(action==='individual'){showIndividual(id);return;}
@@ -183,7 +185,7 @@
     const filter=event.target.closest('[data-sales-filter]');if(filter){salesFilter=filter.dataset.salesFilter;renderSales();return;}
     const action=event.target.closest('[data-ws-action]');if(action){action.disabled=true;Promise.resolve(handleAction(action.dataset.wsAction,action.dataset.id)).catch(error=>toast(error.message||String(error),true)).finally(()=>action.disabled=false);}
   });
-  window.SuohaWorkspace={render,load};
+  window.SuohaWorkspace={render,load,showClutches(){recordTab='clutches';setPage('records');renderRecords();}};
   const previousDrawer=openDrawer;
   openDrawer=function(s){previousDrawer(s);const action=document.createElement('button');action.className='ws-action primary';action.textContent='打开完整档案 ↗';action.style.marginTop='20px';action.onclick=()=>showIndividual(s.id);byId('drawerContent').appendChild(action);};
   const previousLab=renderLab;

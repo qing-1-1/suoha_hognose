@@ -1,0 +1,38 @@
+/* Inventory and conversation surfaces use a single, accessible palette. */
+.aiPanel{background:#fdfef9;color:#243026;border-color:#d8e2cc}
+.aiPanel .cardHead{background:#eaf0df;border-color:#d8e2cc}
+.aiPanel .cardHead h3,.aiPanel .aiRecommendation h4,.aiPanel .aiPromptEditor summary,.aiPanel .reason b{color:#243026}
+.aiPanel .cardHead p,.aiPanel .aiRecommendation p,.aiPanel .aiMeta,.aiPanel .aiRunStatus,.aiPanel .reason span,.aiPanel .aiPromptEditor p,.aiPanel .aiPromptEditorActions span{color:#526348}
+.aiPanel .pillBtn,.aiPanel .primaryBtn,.aiActions button.primary,.aiChatComposer button{background:#304a35;border-color:#304a35;color:#fff}
+.aiPanel .pillBtn:hover,.aiChatComposer button:hover{background:#233b27;color:#fff}
+.aiActions button{background:#fff;border:1px solid #bdccb1;color:#304a35;border-radius:5px}
+.aiActions button:hover{background:#eef3e6;color:#233b27}
+.aiPanel .analysisEmpty,.analysisEmpty{color:#617057;border-color:#d1dcc7;background:#f5f7ee;line-height:1.7}
+.aiPanel .aiMeta span,.aiPanel .aiBadge{background:#e8efdb;color:#455d35}
+.aiPanel .aiRecommendation,.aiPanel .aiPromptEditor{border-color:#d8e2cc;background:#fff}
+.aiPanel .aiPromptEditor textarea{color:#243026;background:#f8faf3;border-color:#c9d5bc}
+.aiPanel .aiGenerating{background:#edf3e3;border-color:#d1dcc7}.aiPanel .aiGenerating b{color:#243026}.aiPanel .aiGenerating span{color:#526348}
+.aiChatMessage.user{background:#304a35;border-color:#304a35;color:#fff}.aiChatMessage{border-radius:12px;background:#f3f6ed;border-color:#dde4d3;font-size:14px;line-height:1.75}
+.aiChatModalPanel{width:min(900px,96vw)}.aiChatMessages{padding:12px;scrollbar-width:thin}.aiChatComposer textarea{background:#fff;border-color:#c6d3b9;border-radius:7px;font-size:14px}
+.aiChatComposer button:disabled{opacity:.55}.aiRunStatus.error{color:#a43834}
+.aiResultToolbar{background:#edf2e5;border-color:#d4dfc8;border-radius:8px;padding:18px;box-shadow:none}
+.aiResultToolbar h4,.aiAdviceCard h4,.aiAdviceFacts b{color:#243026}
+.aiResultToolbar p,.aiAdviceCard .aiAdviceSummary,.aiAdviceFacts p{color:#526348}
+.aiOpenChatBtn,.aiAcceptBtn{background:#304a35;color:#fff;border:1px solid #304a35;border-radius:6px;box-shadow:none;font-family:inherit}
+.aiOpenChatBtn:hover,.aiAcceptBtn:hover{background:#233b27;color:#fff;box-shadow:0 4px 12px #20351c18;transform:translateY(-1px)}
+.aiAdviceCard{background:#fff;border-color:#dae4cf;box-shadow:none;border-radius:8px}.aiAdviceMeta span{background:#edf3e3;color:#516e3b;border-color:#d5e1c6}.aiAdviceFacts{border-color:#e0e6d8}.aiAdviceDone{color:#466a3a}
+.aiWorkspace .emptyState{color:#637358;background:#f4f7ed;border-color:#d4dfc8;border-radius:8px}
+.inventory-badge{display:inline-flex;padding:4px 8px;font-size:11px;line-height:1.3;border-radius:4px;background:#edf1e6;color:#4d6144;margin:4px 4px 4px 0;white-space:nowrap}
+.inventory-badge.available{background:#fff0ce;color:#825007;border:1px solid #edce86}.inventory-badge.reserved{background:#eae6f5;color:#654582}.inventory-badge.sold{background:#e9eced;color:#56616a}.inventory-badge.unknown{background:#f4ede6;color:#795d45}
+.inventory-status{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.ws-metric strong{font-size:30px;line-height:1.2;margin-top:14px;color:#304a35;font-weight:600}
+.nursery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:16px;margin-top:20px}
+.nursery-card{border:1px solid #dde5d4;border-radius:10px;padding:22px;background:linear-gradient(145deg,#fbfcf8,#f2f5eb)}
+.nursery-card-top{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#617057}
+.nursery-card h2{font-size:19px;line-height:1.5;margin:16px 0 6px;overflow-wrap:anywhere}.nursery-card p{font-size:12px;color:#617057}
+.nursery-card dl{margin:20px 0;border-top:1px solid #dfe6d5;padding-top:10px}.nursery-card dl>div{display:flex;justify-content:space-between;gap:14px;margin:10px 0;font-size:12px}.nursery-card dt{color:#78866d}.nursery-card dd{margin:0;text-align:right}
+.ws-toolbar input,.ws-toolbar select{padding:10px 12px;border:1px solid #cfdbc3;background:#fff;border-radius:5px;color:#30432c;font-size:13px}
+.cardHead{gap:12px;flex-wrap:wrap}.cardHead .toolbar{flex-wrap:wrap;gap:8px}.dataTable th{white-space:nowrap}.dataTable tbody tr:hover{background:#eef3e5}.dataTable td{line-height:1.65}.dataTable td:nth-child(3){min-width:150px;max-width:340px;white-space:normal}
+.pageHead p{max-width:680px}.ws-metric strong{display:block}.formGrid{gap:16px}.formField textarea{min-height:96px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #7b983d;outline-offset:3px}
+@media(max-width:833px){.nursery-grid{grid-template-columns:1fr}.ws-toolbar{flex-wrap:wrap}.ws-toolbar input{min-width:0;flex:1}.aiChatMessages{max-height:48dvh;padding:6px}.aiChatMessage{max-width:95%}.aiChatComposer{flex-wrap:wrap}.aiChatComposer textarea{min-width:100%}.aiChatComposer button{margin-left:auto}.topbar .topBtn{display:inline-flex}.cardHead .toolbar{width:100%}.cardHead .toolbar .search{width:100%}}

@@ -11,6 +11,7 @@
 <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/js/data.js"></script>
+<link rel="stylesheet" href="/assets/workspace-refinements.css">
 </head>
 <body class="auth-locked">
 
@@ -123,8 +124,9 @@
   <aside class="canvasSidePanel writeOnly" id="canvasSidePanel" hidden></aside>
 </section>
 
+<section class="page" id="page-nursery"><div id="nurseryWorkspace"></div></section>
 <section class="page" id="page-population">
-  <div class="pageHead"><div><div class="eyebrow">Population intelligence</div><h1>种群总览</h1><p>看系列结构、性别分布、成熟节奏和当前年份真正能动用的繁殖资源。点击任意个体打开详情抽屉。</p></div><div class="headActions"><button class="pillBtn writeOnly" id="addSnakeBtn">＋ 新增个体</button></div></div>
+  <div class="pageHead"><div><div class="eyebrow">Population intelligence</div><h1>种群库</h1><p>管理购入与选育留种的个体。自繁幼体在独立的自繁库中管理，确认留种后再转入。</p></div><div class="headActions"><button class="pillBtn writeOnly" id="addSnakeBtn">＋ 新增个体</button></div></div>
   <div class="kpis" id="popKpis"></div>
   <div class="grid3">
     <div class="card"><div class="cardHead"><div><h3>性别结构</h3><p id="sexStructureMeta">等待种群数据</p></div></div><div class="cardBody" id="sexChart"></div></div>
@@ -132,7 +134,7 @@
     <div class="card"><div class="cardHead"><div><h3>成熟节奏</h3><p>累计可繁公母</p></div></div><div class="cardBody"><div class="chartArea" id="maturityChart"></div></div></div>
   </div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>成熟年份切片</h3><p>点击年份会同步所有页面</p></div></div><div class="cardBody"><div class="maturityStrip" id="maturityStrip"></div></div></div>
-  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>个体数据库</h3><p>可筛选与搜索</p></div><div class="spacer"></div><div class="toolbar"><input class="search" id="popSearch" placeholder="搜索基因 / 系列 / ID"><select class="filter" id="popSeries"><option value="">全部系列</option></select><select class="filter" id="popSex"><option value="">全部性别</option><option value="F">Female</option><option value="M">Male</option></select></div></div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>成年</th><th>所选年份</th><th>价格</th><th>角色</th><th>战略分</th></tr></thead><tbody id="popRows"></tbody></table></div></div>
+  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>个体数据库</h3><p>可筛选与搜索</p></div><div class="spacer"></div><div class="toolbar"><input class="search" id="popSearch" placeholder="搜索基因 / 系列 / ID"><select class="filter" id="popSeries"><option value="">全部系列</option></select><select class="filter" id="popSex"><option value="">全部性别</option><option value="F">Female</option><option value="M">Male</option></select></div></div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>成年</th><th>所选年份 / 销售</th><th>价格</th><th>角色</th><th>战略分</th></tr></thead><tbody id="popRows"></tbody></table></div></div>
 </section>
 
 <section class="page" id="page-production">
@@ -282,4 +284,6 @@
 <script src="/js/workspace.js"></script>
 <script src="/js/route-history.js"></script>
 <script src="/js/workspace-interactions.js"></script>
+<script src="/js/inventory.js"></script>
+
 </body></html>
