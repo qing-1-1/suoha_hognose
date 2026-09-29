@@ -18,6 +18,7 @@
   async function fetchBusinessTables(client) {
     const expenseLedger = await fetchInvestmentExpenses(client);
     const morphAliases = await fetchMorphAliases(client);
+    const acquisitionCosts = await fetchAcquisitionCosts(client);
     const results = throwFirstError(await Promise.all([
       client.from("snakes").select("*").order("id"),
       client.from("breeding_routes").select("*").order("priority", { ascending: false }),
@@ -37,23 +38,28 @@
       edges: results[3].data || [], plans: results[4].data || [], investments: results[5].data || [],
       genes: results[6].data || [], aliases: results[7].data || [], morphs: results[8].data || [],
       morphComponents: results[9].data || [], snakeGenes: results[10].data || [],
-      investmentExpenses: expenseLedger, morphAliases
+      investmentExpenses: expenseLedger, morphAliases, acquisitionCosts
     };
   }
 
   async function fetchInvestmentExpenses(client) {
-    const { data, error } = await client
-      .from("investment_expenses")
-      .select("*")
-      .order("spent_at", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(500);
-
-    if (error) {
-      console.warn("investment_expenses unavailable:", error.message);
-      return [];
+    const rows = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await client.from("investment_expenses").select("*").order("spent_at", {ascending:false}).order("id").range(offset,offset+999);
+      if(error) { console.warn("investment_expenses unavailable:",error.message); return []; }
+      rows.push(...(data || []));
+      if((data || []).length < 1000) return rows;
     }
-    return data || [];
+  }
+
+  async function fetchAcquisitionCosts(client) {
+    const rows = [];
+    for(let offset=0; ; offset+=1000) {
+      const {data,error}=await client.from("snake_acquisition_costs").select("*").order("id").range(offset,offset+999);
+      if(error) { console.warn("acquisition cost history unavailable:",error.message); return null; }
+      rows.push(...(data||[]));
+      if((data||[]).length<1000)return rows;
+    }
   }
 
   async function fetchMorphAliases(client) {

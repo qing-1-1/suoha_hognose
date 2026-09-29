@@ -7,7 +7,7 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 
 test("candidate investment form exposes price, currency, breeding-ready month and reference notes", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   for (const id of ["candidatePrice", "candidateCurrency", "candidateBreedingReadyMonth", "candidateBreedingReadyYear", "candidateBreedingReadyMonthSelect", "candidateReferenceNotes"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
@@ -30,10 +30,11 @@ test("candidate breeding-ready month accepts localized browser display values", 
   const context = {};
   vm.runInNewContext(`${helper};this.parseCandidateBreedingReadyMonth=parseCandidateBreedingReadyMonth;`, context);
 
-  assert.deepEqual(context.parseCandidateBreedingReadyMonth("2028-12"), { year: 2028, month: 12 });
-  assert.deepEqual(context.parseCandidateBreedingReadyMonth("2028年12月"), { year: 2028, month: 12 });
-  assert.deepEqual(context.parseCandidateBreedingReadyMonth("2028/12"), { year: 2028, month: 12 });
-  assert.deepEqual(context.parseCandidateBreedingReadyMonth("2028-12-01"), { year: 2028, month: 12 });
+  // VM objects have a different prototype; compare the actual parsed fields.
+  for (const input of ["2028-12", "2028年12月", "2028/12", "2028-12-01"]) {
+    const { year, month } = context.parseCandidateBreedingReadyMonth(input);
+    assert.deepEqual({ year, month }, { year: 2028, month: 12 });
+  }
   assert.throws(() => context.parseCandidateBreedingReadyMonth("2028年13月"), /2000-01 至 2200-12/);
 });
 

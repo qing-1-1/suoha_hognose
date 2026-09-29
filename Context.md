@@ -1,5 +1,7 @@
 # Suoha Hognose Breeding OS — Codex Project Context
 
+> **2026-09-29 implementation update:** The repository now separates the public `index.html` storefront from the private `admin.html` workspace. Read [README.md](README.md) and the V2 section in [ARCHITECTURE.md](ARCHITECTURE.md) first for current routes, modules, testing and deployment instructions. New migrations `019–022` are provided but have not been applied to the live database by this implementation. The original domain constraints below remain applicable; the previous single-entry UI description is historical.
+
 > **Purpose of this document**
 >
 > This file is the handoff/context document for Codex. Treat it as the current project baseline.

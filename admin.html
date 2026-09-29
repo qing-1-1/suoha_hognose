@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="robots" content="noindex,nofollow">
+<title>Suoha Hognose · Breeding OS · Supabase</title>
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/workspace.css">
+<link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/data.js"></script>
+</head>
+<body class="auth-locked">
+
+<div class="appIntro" id="appIntro" aria-hidden="true"><div class="introRays"><i></i><i></i><i></i><i></i><i></i></div><div class="introMark"><div class="introOrb">S</div><strong>Suoha Hognose</strong><span>Breeding OS</span><i class="introLine"></i></div></div>
+<div class="workspaceReveal" id="workspaceReveal" aria-hidden="true"></div>
+<div class="successPulse" id="successPulse" role="status" aria-live="polite"><div class="successDisc"></div><p id="successMessage">已保存</p></div>
+
+<div class="authGate" id="authGate">
+  <div class="authGateCard">
+    <div class="authGateHero">
+      <div class="authGateBrand">
+        <div class="authGateLogo">S</div>
+        <div><h1>Suoha Hognose</h1><p>Private Breeding OS · Authorized users only</p></div>
+      </div>
+    </div>
+    <div class="authGateBody">
+      <form id="gateLoginForm">
+        <div class="formField"><label for="gateEmail">邮箱或用户名</label><input id="gateEmail" type="text" autocomplete="username" required placeholder="邮箱或用户名"></div>
+        <div class="formField"><label for="gatePassword">密码</label><input id="gatePassword" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
+        <div class="authGateMessage" id="gateMessage"></div>
+        <div class="authGateActions">
+          <button type="button" class="linkBtn" id="gateResetBtn">首次登录 / 忘记密码</button>
+          <button class="primaryBtn" type="submit">登录系统</button>
+        </div>
+      </form>
+      <div class="authGateFoot"><i id="gateDbDot"></i><span id="gateDbText">正在连接工作区…</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modalBackdrop" id="passwordModal">
+  <div class="modalPanel">
+    <div class="modalHead"><div><h3>设置新密码</h3><p>你已通过 Supabase 的密码恢复链接验证身份</p></div></div>
+    <div class="modalBody">
+      <form id="passwordForm">
+        <div class="formGrid">
+          <div class="formField full"><label>New password</label><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+          <div class="formField full"><label>Confirm password</label><input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+        </div>
+        <div class="passwordHint">设置成功后会继续进入系统。建议至少 8 位，并使用密码管理器保存。</div>
+        <div class="authMessage" id="passwordMessage"></div>
+        <div class="modalActions"><button class="primaryBtn" type="submit">保存新密码</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="brand"><div class="logo">S</div><div><strong>Suoha Hognose</strong><span>Private workspace</span></div></div>
+  <div class="navLabel">Workspace</div>
+  <button class="navItem" data-page="overview"><span class="navIcon">◈</span><span class="navText"><b>工作概览</b><small>Overview</small></span></button>
+  <button class="navItem active" data-page="routes"><span class="navIcon">⌁</span><span class="navText"><b>繁殖路线</b><small>Multi-generation graph</small></span></button>
+  <button class="navItem" data-page="population"><span class="navIcon">◫</span><span class="navText"><b>种群总览</b><small>Population intelligence</small></span></button>
+  <button class="navItem" data-page="production"><span class="navIcon">↗</span><span class="navText"><b>年度产出</b><small>2026–2031 roadmap</small></span></button>
+  <button class="navItem" data-page="investment"><span class="navIcon">◇</span><span class="navText"><b>投资计划</b><small>Genetic gap strategy</small></span></button>
+  <button class="navItem" data-page="lab"><span class="navIcon">⌬</span><span class="navText"><b>配对实验室</b><small>Pairing sandbox</small></span></button>
+
+  <button class="navItem adminNav" data-page="admin"><span class="navIcon">⚙</span><span class="navText"><b>数据与审核看板</b><small>Authorized CRUD</small></span></button>
+  <div class="navLabel">展示与运营</div>
+  <button class="navItem writeOnly" data-page="publishing"><span class="navIcon">▧</span><span class="navText"><b>公开展示</b><small>Publishing</small></span></button>
+  <button class="navItem writeOnly" data-page="sales"><span class="navIcon">↗</span><span class="navText"><b>意向与销售</b><small>Sales desk</small></span></button>
+  <button class="navItem writeOnly" data-page="records"><span class="navIcon">▤</span><span class="navText"><b>繁育与成长记录</b><small>Husbandry</small></span></button>
+  <a class="publicSiteLink" href="/" target="_blank" rel="noopener">查看公开网站 ↗</a>
+  <div class="sideBottom"><div class="status"><div class="statusTop"><span>Database</span><i class="live"></i></div><strong id="sideSnakeCount">—</strong><small id="sideSnakeMeta">等待已认证数据库数据</small></div></div>
+</aside>
+
+<nav class="mobileNav" aria-label="移动端导航">
+  <button class="navItem" data-page="overview"><span class="navText"><b>概览</b></span></button>
+  <button class="navItem writeOnly" data-page="publishing"><span class="navText"><b>展示</b></span></button>
+  <button class="navItem writeOnly" data-page="sales"><span class="navText"><b>销售</b></span></button>
+  <button class="navItem writeOnly" data-page="records"><span class="navText"><b>记录</b></span></button>
+  <button class="navItem active" data-page="routes"><span class="navIcon">⌁</span><span class="navText"><b>路线</b><small>Routes</small></span></button>
+  <button class="navItem" data-page="population"><span class="navIcon">◫</span><span class="navText"><b>种群</b><small>Population</small></span></button>
+  <button class="navItem" data-page="production"><span class="navIcon">↗</span><span class="navText"><b>产出</b><small>Production</small></span></button>
+  <button class="navItem" data-page="investment"><span class="navIcon">◇</span><span class="navText"><b>投资</b><small>Investment</small></span></button>
+  <button class="navItem" data-page="lab"><span class="navIcon">⌬</span><span class="navText"><b>配对</b><small>Lab</small></span></button>
+  <button class="navItem adminNav" data-page="admin"><span class="navIcon">⚙</span><span class="navText"><b>数据与审核</b><small>Admin</small></span></button>
+</nav>
+
+<main class="main">
+<header class="topbar">
+  <div class="crumb"><span>Suoha</span><span>/</span><b id="crumb">繁殖路线</b></div><div class="spacer"></div>
+  <div class="yearCtl"><label>规划年份</label><select id="globalYear" aria-label="Planning year"></select></div>
+  <div class="yearCtl aiModelCtl"><label>分析模型</label><select id="aiModel" aria-label="AI model"><option value="deepseek-v4-flash">DeepSeek Flash</option><option value="deepseek-v4-pro">DeepSeek Pro</option></select></div>
+  <button class="topBtn" id="topSnake">★ 高价值个体</button>
+  <div class="authWrap">
+    <div class="authBadge hidden" id="authBadge"><i></i><b id="authName">—</b><span id="authRole">viewer</span></div>
+    <button class="topBtn" id="authBtn">登录</button>
+    <button class="topBtn hidden" id="logoutBtn">退出</button>
+  </div>
+</header>
+
+<div class="content">
+<section class="page" id="page-overview"><div id="workspaceOverview"></div></section>
+<section class="page" id="page-publishing"><div id="workspacePublishing"></div></section>
+<section class="page" id="page-sales"><div id="workspaceSales"></div></section>
+<section class="page" id="page-records"><div id="workspaceRecords"></div></section>
+<section class="page" id="page-individual"><div id="workspaceIndividual"></div></section>
+
+<section class="page active" id="page-routes">
+  <div class="pageHead"><div><div class="eyebrow">Multi-generation planning</div><h1>繁殖路线图</h1><p>现有个体、关键 F1 留种和 F2 / 回交方向放在同一张图里。年份会真实改变成熟状态与路线可执行性；点击节点会高亮直接上下游并刷新右侧详情。</p></div><div class="headActions"><button class="pillBtn active" id="futureBtn">显示未来节点</button><button class="pillBtn active" id="f2Btn">显示 F2</button><button class="pillBtn" id="highBtn">高价值模式</button><button class="pillBtn writeOnly" id="routeNewBtn">新建路线</button></div></div>
+  <div class="kpis" id="routeKpis"></div><div class="routeTabs" id="routeTabs"></div>
+  <div class="grid2">
+    <div class="card routeShell" id="routeShell"><div class="routeTools"><button class="routeChip" id="routeReset">重置选择</button><button class="routeChip" id="routeAll">显示完整路线</button><button class="routeChip writeOnly" id="routeEditBtn">编辑</button><button class="routeChip writeOnly" id="routeConnectBtn">连线模式</button><select class="routeChip writeOnly" id="routeConnectType" aria-label="连线类型"><option value="link">战略关联</option><option value="pair">配对</option><option value="next">下一代</option><option value="backcross">回交</option></select><button class="routeChip writeOnly" id="canvasDoneBtn" hidden>完成编辑</button><span class="routeChip routeYear" id="routeYear"></span></div>
+      <svg id="routeSvg" viewBox="0 0 1000 650"><defs><marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#68798d"/></marker><marker id="arrV" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3z" fill="#a985ff"/></marker></defs><g id="routeEdges"></g><g id="routeNodes"></g></svg>
+      <div class="legend routeLegend"><span><i class="dot female"></i>母蛇</span><span><i class="dot male"></i>公蛇</span><span><i class="dot offspring"></i>关键后代</span><span><i class="dot gap"></i>投资缺口</span></div>
+    </div>
+    <div class="card inspector" id="inspector"></div>
+  </div>
+  <aside class="canvasSidePanel writeOnly" id="canvasSidePanel" hidden></aside>
+</section>
+
+<section class="page" id="page-population">
+  <div class="pageHead"><div><div class="eyebrow">Population intelligence</div><h1>种群总览</h1><p>看系列结构、性别分布、成熟节奏和当前年份真正能动用的繁殖资源。点击任意个体打开详情抽屉。</p></div><div class="headActions"><button class="pillBtn writeOnly" id="addSnakeBtn">＋ 新增个体</button></div></div>
+  <div class="kpis" id="popKpis"></div>
+  <div class="grid3">
+    <div class="card"><div class="cardHead"><div><h3>性别结构</h3><p id="sexStructureMeta">等待种群数据</p></div></div><div class="cardBody" id="sexChart"></div></div>
+    <div class="card"><div class="cardHead"><div><h3>系列分布</h3></div></div><div class="cardBody"><div class="bars" id="seriesBars"></div></div></div>
+    <div class="card"><div class="cardHead"><div><h3>成熟节奏</h3><p>累计可繁公母</p></div></div><div class="cardBody"><div class="chartArea" id="maturityChart"></div></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>成熟年份切片</h3><p>点击年份会同步所有页面</p></div></div><div class="cardBody"><div class="maturityStrip" id="maturityStrip"></div></div></div>
+  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>个体数据库</h3><p>可筛选与搜索</p></div><div class="spacer"></div><div class="toolbar"><input class="search" id="popSearch" placeholder="搜索基因 / 系列 / ID"><select class="filter" id="popSeries"><option value="">全部系列</option></select><select class="filter" id="popSex"><option value="">全部性别</option><option value="F">Female</option><option value="M">Male</option></select></div></div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>系列</th><th>基因</th><th>性别</th><th>成年</th><th>所选年份</th><th>价格</th><th>角色</th><th>战略分</th></tr></thead><tbody id="popRows"></tbody></table></div></div>
+</section>
+
+<section class="page" id="page-production">
+  <div class="pageHead"><div><div class="eyebrow">Production roadmap</div><h1>年度产出计划</h1><p>规划的是繁殖容量与项目优先级，不等于成熟母蛇必须全部繁殖；主动给休养、失败配对和关键留种留空间。</p></div></div>
+  <div class="productionHero"><div class="card bigPlan"><div class="cardBody" id="prodHero"></div></div><div class="card"><div class="cardHead"><div><h3>项目 Pipeline</h3><p>关键后代进入下一阶段</p></div></div><div class="cardBody"><div class="pipeline" id="pipeline"></div></div></div></div>
+  <div class="card yearBreedingCard">
+    <div class="yearBreedingHead">
+      <div><h3 id="annualPlanTitle">本年度繁育计划</h3><p id="annualPlanSubtitle">按照当前 planning year 自动切换推荐排配；A 为优先执行，B 为次级，R 为备用，G 为投资缺口。</p></div>
+      <div class="yearBreedingSummary" id="annualPlanSummary"></div>
+    </div>
+    <div class="breedingPlanList" id="annualPlanList"></div>
+  </div>
+  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>规划范围容量</h3><p>成熟母蛇 vs 已录入计划窝数</p></div></div><div class="cardBody"><div class="chartArea" id="prodChart"></div></div></div><div class="card"><div class="cardHead"><div><h3>所选年份项目配额</h3><p>优先旗舰与桥梁项目</p></div></div><div class="cardBody" id="quota"></div></div></div>
+  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>年度执行层级</h3><p>A 必须优先 / B 条件允许 / C 主动留白</p></div></div><div class="cardBody"><div class="grid3" id="checklist"></div></div></div>
+  <div class="analysisSplit"><div class="card"><div class="cardHead"><div><h3>固定规则检查</h3><p>基于实时成熟状态、现有计划与路线依赖</p></div></div><div class="cardBody" id="annualFacts"></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 年度规划草案</h3><p>固定 Prompt 由数据库版本化加载；只生成草案</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runAnnualAiBtn">生成草案</button></div><div class="cardBody" id="annualAi"></div></div></div>
+</section>
+
+<section class="page" id="page-investment">
+  <div class="pageHead"><div><div class="eyebrow">Genetic capital allocation</div><h1>未来投资计划</h1><p>把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。</p></div></div>
+  <div class="kpis" id="investKpis"></div><div class="investGrid" id="investCards"></div>
+  <div class="ledgerGrid" id="investmentLedger">
+    <div class="card ledgerEntryCard">
+      <div class="cardHead"><div><h3>投入记账</h3><p>登录用户分别录入自己的实际开销，系统自动计算投入比例。</p></div></div>
+      <div class="cardBody">
+        <form class="ledgerForm" id="ledgerExpenseForm">
+          <div class="formField"><label for="ledgerExpenseCategory">分类</label><select id="ledgerExpenseCategory" name="category" required><option value="population">种群扩张</option><option value="equipment">设备购买</option><option value="consumables">耗材</option></select></div>
+          <div class="formField"><label for="ledgerExpenseAmount">金额</label><input id="ledgerExpenseAmount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required></div>
+          <div class="formField"><label for="ledgerExpenseDate">日期</label><input id="ledgerExpenseDate" name="spent_at" type="date"></div>
+          <div class="formField full"><label for="ledgerAcquisition">关联已录入个体的购入成本（可选，关联后替代原成本计入，避免重复）</label><select id="ledgerAcquisition" name="acquisition_id"><option value="">独立支出 / 不关联</option></select></div>
+          <div class="formField full"><label for="ledgerExpenseNote">备注</label><textarea id="ledgerExpenseNote" name="note" maxlength="240" placeholder="品系 + 性别，例如 Toffee Conda 雌" required></textarea><p class="ledgerHint" id="ledgerNoteHint">种群扩张：备注写明蛇的品系、性别。</p></div>
+          <div class="ledgerFormFooter"><div class="authMessage" id="ledgerFormMessage"></div><button class="primaryBtn" type="submit">保存支出</button></div>
+        </form>
+      </div>
+    </div>
+    <div class="card ledgerSummaryCard">
+      <div class="cardHead"><div><h3>投入比例</h3><p>按用户累计金额计算，占比实时更新。</p></div></div>
+      <div class="cardBody"><div class="ledgerSummary" id="ledgerSummary"></div></div>
+    </div>
+  </div>
+  <div class="gridEqual ledgerBottomGrid">
+    <div class="card"><div class="cardHead"><div><h3>分类投入</h3><p>种群、设备与耗材的实际支出结构。</p></div></div><div class="cardBody"><div class="ledgerCategorySummary" id="ledgerCategorySummary"></div></div></div>
+    <div class="card"><div class="cardHead"><div><h3>最近支出</h3><p>个人记录可由本人删除；editor/admin 可维护全部记录。</p></div></div><div class="cardBody"><div class="ledgerRows" id="ledgerRows"></div></div></div>
+  </div>
+  <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>最大结构性缺口</h3><p>由当前种群实时计算</p></div></div><div class="gapMap" id="gapMap"></div></div><div class="card"><div class="cardHead"><div><h3>实时投资结构诊断</h3><p>种群、成熟、数据完整度与路线覆盖</p></div></div><div class="cardBody"><div class="reasons" id="investmentDiagnostics"></div></div></div></div>
+  <div class="analysisSplit">
+    <div class="card candidateInvestmentCard">
+      <div class="cardHead"><div><h3>候选个体投资评估</h3><p>综合候选事实、当前种群结构与近期公开市场资料，辅助判断是否值得采购。</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runCandidateInvestmentAiBtn">联网评估候选</button></div>
+      <div class="cardBody">
+        <div class="candidateInvestmentForm">
+          <div class="formField full"><label for="candidateGeneText">候选基因型</label><input id="candidateGeneText" maxlength="300" placeholder="例如：白化北极康隐薰巧"></div>
+          <div class="formField"><label for="candidateSex">性别</label><select id="candidateSex"><option value="U">未知</option><option value="F">母</option><option value="M">公</option></select></div>
+          <div class="formField"><label for="candidatePrice">卖方报价</label><input id="candidatePrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="例如：3500"></div>
+          <div class="formField"><label for="candidateCurrency">币种</label><select id="candidateCurrency"><option value="CNY">CNY 人民币</option><option value="USD">USD 美元</option><option value="EUR">EUR 欧元</option><option value="GBP">GBP 英镑</option><option value="JPY">JPY 日元</option></select></div>
+          <div class="formField"><label for="candidateBreedingReadyYear">预计可繁殖时间（年/月）</label><div class="candidateMonthPicker"><select id="candidateBreedingReadyYear" aria-label="预计可繁殖年份"><option value="">年份</option></select><select id="candidateBreedingReadyMonthSelect" aria-label="预计可繁殖月份"><option value="">月份</option></select><input id="candidateBreedingReadyMonth" type="hidden"></div></div>
+          <div class="formField full"><label for="candidateNotes">来源 / 谱系参考（可选）</label><input id="candidateNotes" maxlength="600" placeholder="例如：亲本信息、het 证明、卖家名称或商品链接"></div>
+          <div class="formField full"><label for="candidateReferenceNotes">其他参考信息（可选）</label><textarea id="candidateReferenceNotes" maxlength="1200" placeholder="例如：所在地、健康状态、体重、进食记录、运输费用、议价空间及你特别关注的问题"></textarea></div>
+        </div>
+        <div class="candidateGenePreview" id="candidateGenePreview">输入基因型后会显示系统可识别的原子基因；未识别部分会作为缺失数据提醒 AI。</div>
+        <div class="aiCandidateResult" id="candidateInvestmentAi"></div>
+      </div>
+    </div>
+    <div class="card aiPanel"><div class="cardHead"><div><h3>AI 投资建议</h3><p>固定 Prompt + 结构化输出；不推测外部市场</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runInvestmentAiBtn">生成建议</button></div><div class="cardBody" id="investmentAi"></div></div>
+  </div>
+</section>
+
+  <section class="page" id="page-lab">
+   <div class="pageHead"><div><div class="eyebrow">Pairing sandbox</div><h1>配对实验室</h1><p>固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；孟德尔引擎只计算已定义的单基因位点，并会公开其假设和缺失数据。</p></div></div>
+    <div class="labGrid"><div class="card"><div class="cardHead"><div><h3>选择父母</h3><p>真实库存个体</p></div></div><div class="cardBody"><div class="selector"><div class="selectBlock"><label>Female</label><select id="labF"></select></div><div class="selectBlock"><label>Male</label><select id="labM"></select></div></div><div class="pairVisual" id="pairVisual"></div><div class="warning">概率仅使用 snake_genes 中已定义为单基因遗传的位点。可能携带率会纳入计算；unknown、line trait、polygenic 及同位点冲突不会被伪造为精确概率。</div></div></div><div class="card"><div class="cardHead"><div><h3>固定规则结果</h3><p>事实与确定性约束，不是 AI 判断</p></div><div class="spacer"></div><span class="cardTag" id="labYear"></span></div><div class="cardBody" id="labResult"></div></div></div>
+   <div class="card mendelianCard" style="margin-top:12px"><div class="cardHead"><div><h3>孟德尔后代概率</h3><p>按 loci 分离计算；组合形态仅在所需位点均可计算时派生</p></div></div><div class="cardBody" id="mendelianResult"></div></div>
+  <div class="card aiPanel" style="margin-top:12px"><div class="cardHead"><div><h3>AI 配对建议</h3><p>固定 Prompt、模型、时间与审核状态均会保存</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runPairingAiBtn">分析当前配对</button></div><div class="cardBody" id="pairingAi"></div></div>
+  <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>系统推荐候选</h3><p>按当前年份和策略匹配分排序</p></div></div><div class="cardBody"><div class="tableWrap"><table class="dataTable"><thead><tr><th>母蛇</th><th>公蛇</th><th>系列关系</th><th>成熟</th><th>策略分</th><th>用途</th></tr></thead><tbody id="labRows"></tbody></table></div></div></div>
+</section>
+
+
+<section class="page" id="page-admin">
+  <div class="pageHead">
+    <div><div class="eyebrow">Authorized workspace</div><h1>数据与审核看板</h1><p>只有 profiles 中 role 为 editor / admin 且 active=true 的登录用户才能写入。这里提供核心业务表与 AI 审核入口。</p></div>
+    <div class="headActions"><button class="pillBtn" id="adminRefreshBtn">↻ 刷新数据库</button><button class="pillBtn writeOnly" id="adminAddBtn">＋ 新增</button></div>
+  </div>
+  <div class="adminHero">
+    <div class="adminInfo"><label>Current user</label><strong id="adminUser">未登录</strong><span id="adminUserId">—</span></div>
+    <div class="adminInfo"><label>Application role</label><strong id="adminRole">viewer</strong><span>viewer / editor / admin</span></div>
+    <div class="adminInfo"><label>Supabase</label><strong class="dbStatus" id="adminDbStatus"><i></i><span>Not configured</span></strong><span>RLS remains the source of truth</span></div>
+  </div>
+  <div class="card">
+    <div class="cardHead"><div><h3>核心数据表</h3><p>前端按钮只是体验层；真正权限由 Supabase RLS 控制。</p></div></div>
+    <div class="cardBody">
+      <div class="adminTabs">
+        <div class="adminTabGroup"><span>数据表</span><button class="adminTab active" data-admin-tab="snakes">Snakes</button><button class="adminTab" data-admin-tab="plans">Annual plans</button><button class="adminTab" data-admin-tab="investments">Investments</button><button class="adminTab" data-admin-tab="genes">原子基因</button><button class="adminTab" data-admin-tab="aliases">基因黑话</button><button class="adminTab" data-admin-tab="morphs">组合黑话</button></div>
+        <div class="adminTabGroup"><span>审核表</span><button class="adminTab" data-admin-tab="annual-review">年度审核</button><button class="adminTab" data-admin-tab="investment-review">投资审核</button></div>
+      </div>
+      <div id="adminTable"></div>
+    </div>
+  </div>
+</section>
+
+</div>
+</main>
+
+
+<div class="modalBackdrop" id="loginModal">
+  <div class="modalPanel">
+    <div class="modalHead"><div><h3>Suoha 登录</h3><p>使用 Supabase Auth 已授权账号</p></div><button class="modalClose" data-close-modal="loginModal">×</button></div>
+    <div class="modalBody">
+      <div class="configWarning hidden" id="configWarning">请先在 HTML 中填写 SUPABASE_URL 和 SUPABASE_PUBLISHABLE_KEY。</div>
+      <form id="loginForm">
+        <div class="formGrid">
+          <div class="formField full"><label>邮箱或用户名</label><input id="loginEmail" type="text" autocomplete="username" required></div>
+          <div class="formField full"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required></div>
+        </div>
+        <div class="authMessage" id="loginMessage"></div>
+        <div class="modalActions"><button type="button" class="topBtn" data-close-modal="loginModal">取消</button><button class="primaryBtn" type="submit">登录</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modalBackdrop" id="editModal">
+  <div class="modalPanel">
+    <div class="modalHead"><div><h3 id="editModalTitle">编辑数据</h3><p id="editModalSub">Authorized write</p></div><button class="modalClose" data-close-modal="editModal">×</button></div>
+    <div class="modalBody"><form id="editForm"><div id="editFormFields"></div><div class="authMessage" id="editMessage"></div><div class="modalActions"><button type="button" class="topBtn" data-close-modal="editModal">取消</button><button class="primaryBtn" type="submit">保存</button></div></form></div>
+  </div>
+</div>
+
+<div class="modalBackdrop" id="workflowModal" aria-hidden="true">
+  <div class="modalPanel workflowModalPanel" role="dialog" aria-modal="true" aria-labelledby="workflowModalTitle">
+    <div class="modalHead"><div><h3 id="workflowModalTitle">操作</h3><p id="workflowModalSub"></p></div><button class="modalClose" type="button" data-close-modal="workflowModal">×</button></div>
+    <div class="modalBody"><form id="workflowModalForm"><div class="formGrid" id="workflowModalFields"></div><div class="authMessage" id="workflowModalMessage"></div><div class="modalActions"><button type="button" class="topBtn" data-close-modal="workflowModal">取消</button><button class="primaryBtn" id="workflowModalSubmit" type="submit">确认</button></div></form></div>
+  </div>
+</div>
+
+<div class="modalBackdrop" id="aiChatModal">
+  <div class="modalPanel aiChatModalPanel">
+    <div class="modalHead"><div><h3 id="aiChatTitle">AI 分析对话</h3><p id="aiChatMeta">正在读取当前分析会话</p></div><button class="modalClose" data-close-modal="aiChatModal">×</button></div>
+    <div class="modalBody aiChatBody"><div class="aiChatMessages" id="aiChatMessages"></div><div class="aiChatStatus" id="aiChatStatus" aria-live="polite"></div><form class="aiChatComposer" id="aiChatForm"><textarea id="aiChatInput" rows="3" maxlength="2000" placeholder="基于当前分析继续追问，例如：这条建议最需要补充哪项数据？"></textarea><button class="primaryBtn" id="aiChatSend" type="submit">发送追问</button></form></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="drawer" id="drawer"><button class="drawerClose" id="drawerClose">×</button><div id="drawerContent"></div></div>
+
+<!-- AI defines its analysis functions first; app.js installs the UI wrappers and starts the app. -->
+<script src="/js/ai.js"></script>
+<script src="/js/genetics.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/workspace.js"></script>
+<script src="/js/route-history.js"></script>
+<script src="/js/workspace-interactions.js"></script>
+</body></html>
