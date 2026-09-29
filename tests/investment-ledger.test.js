@@ -6,7 +6,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 
 test("investment ledger UI exposes expense entry and summary targets", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   for (const id of [
     "ledgerExpenseForm",
     "ledgerExpenseCategory",
@@ -94,7 +94,7 @@ test("admin can hard delete snakes while keeping retire as a separate action", (
 });
 
 test("admin exposes gene alias mapping controls", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="aliases"/);
@@ -112,7 +112,7 @@ test("admin exposes gene alias mapping controls", () => {
 });
 
 test("admin exposes atomic gene dictionary controls", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="genes"/);
@@ -130,7 +130,7 @@ test("admin exposes atomic gene dictionary controls", () => {
 });
 
 test("admin exposes named morph combo controls", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="morphs"/);
@@ -179,7 +179,7 @@ test("population overview shows total population and other investment cards", ()
 });
 
 test("population detail cards avoid stale hardcoded helper text", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   const appSource = fs.readFileSync(path.join(root, "js", "app.js"), "utf8");
   assert.match(html, /id="sexStructureMeta"/);
   assert.match(appSource, /#sexStructureMeta/);

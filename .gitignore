@@ -2,6 +2,11 @@
 .env.*
 !.env.example
 .netlify
+node_modules/
+dist/
+test-results/
+playwright-report/
+/artifacts/
 /supabase/migrations/*
 !/supabase/migrations/010_mendelian_genetics_metadata.sql
 !/supabase/migrations/011_correct_skullface_and_frosted_metadata.sql
@@ -11,3 +16,4 @@
 !/supabase/migrations/015_candidate_investment_web_search_prompt.sql
 !/supabase/migrations/016_investment_expense_ledger.sql
 !/supabase/migrations/017_profile_display_names.sql
+!/supabase/migrations/*.sql

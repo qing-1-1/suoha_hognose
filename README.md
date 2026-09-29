@@ -1,0 +1,82 @@
+# Suoha Hognose
+
+公开个体档案与私有繁育工作台。原生 HTML/CSS/JavaScript + Netlify Functions + Supabase，不需要前端框架。
+
+## 本地启动
+
+```sh
+npm install
+npm run dev
+```
+
+- 首页：`http://127.0.0.1:4173/`
+- 公开目录：`http://127.0.0.1:4173/collection`
+- 个体详情：`/specimens/<slug>`
+- 私有工作台：`http://127.0.0.1:4173/admin`
+- 内部个体档案：`/admin?snake=<ID>#individual`
+
+本地服务仅读取 `.env`，不会通过 HTTP 提供它。真实数据仍使用配置的 Supabase；本地浏览不会自动导入示例个体。
+
+## 启用新功能
+
+本次代码改造没有自动执行线上迁移、发布个体或部署网站。
+
+1. 确认现有原始业务表、Auth / profiles / RLS 以及 `005–018` 迁移已经具备。
+2. 在验证数据库依次执行以下增量迁移并核对后，再应用到生产：
+   - `019_public_catalog_and_sales.sql`：展示配置、媒体、购买意向、销售状态和公开数据接口。
+   - `020_breeding_operations.sql`：真实配种、窝次和幼体入库事务。
+   - `021_acquisition_cost_history.sql`：保存现有购入成本快照，关联手工支出去重。
+   - `022_route_move_transactions.sql`：路线移动的并发校验与撤销／重做支持。
+3. Netlify 服务端环境变量：`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`。购买意向另需 `SUPABASE_SERVICE_ROLE_KEY` 和至少 32 字节随机值的 `INQUIRY_HASH_SECRET`。AI 继续使用原有 DeepSeek 配置，详见 `.env.example`。
+4. 核对 Supabase Auth 的 Site URL / Redirect URLs，允许实际域名的 `/admin` 密码恢复入口。
+5. 登录后台“公开展示”，新建草稿、编辑公开资料、上传真实照片，再主动勾选发布。
+
+所有现有个体默认保持私有；迁移不会自动上架。后台显示功能不可用时，应先检查迁移与账号权限。公开目录连接失败会显示重试状态，不用假数据补位。
+
+`019` 创建独立私有 Storage bucket `specimen-media`；只有已发布档案的关联照片允许匿名读取。上传图片会生成最长边 1800px 的 WebP 展示副本，不更改现有原始图库。下架后公开媒体接口重新校验发布状态；已被第三方下载的图片无法追回。
+
+## 已实现
+
+- 公开品牌首页：响应式排版、原创 Canvas 品牌视觉、精选、理念、购买指南。
+- 目录筛选、搜索、分页、独立详情、照片放大、明确的基因不确定性与出生时间精度。
+- 无需注册的购买意向、提交幂等、服务端校验、数据库频率限制。
+- 后台概览、展示与照片管理、意向处理、预留／收款／交付／成交及操作历史。
+- 事务保护有效预留唯一性，成交同时更新个体和展示状态。
+- 配种、窝次、测量、真实幼体入库；内部完整档案与父母／直接后代关联。
+- 配对比较、加入年度计划；路线移动并发校验和位置撤销／重做。
+- 购入成本快照及关联支出去重；个体删除后保留成本记录。
+- 后台视觉统一、采购／记账分视图、筛选记忆、排序、弹窗键盘操作。
+
+## 当前边界
+
+- 客户账户、在线付款、退款、自动到期释放、消息通知和自动交付没有启用；成交由授权成员人工核实记录。
+- 预留到期显示待处理，取消恢复为仅展示，需要人工确认重新上架。已收款记录不提供直接取消入口。
+- 客户联系方式仅存于内部意向记录，当前没有自动发信或第三方通知。
+- 后台新工作区列表默认加载最近 300 条（媒体 1000 条），显示已加载／总数；不是全历史报表。经营支出与成本快照另行分页读取完整数据。
+- 成本快照来自已记录的购入成本，不是已验证付款日期的会计凭证；既有重复支出需人工关联，没有按金额猜测自动合并。
+- 路线撤销／重做仅针对本次会话的坐标移动；删除节点和改变谱系不会被隐式恢复。
+- 配对比较最多四组，依赖现有独立位点假设；未实现连锁、联合携带分布及完整跨代自动搜索。
+- 前台筛选目前支持文字、系列、性别、销售状态和价格排序，尚未实现结构化基因条件组合及价格区间。
+- 分享元数据由生产 Netlify 详情函数输出；本地开发详情通过客户端渲染。
+- 没有加入真实个体照片或假在售数据。首页蛇形为原创品牌艺术，页面已明确标注。
+
+## 验证与构建
+
+```sh
+npm test
+npx playwright install chromium
+npm run test:ui
+npm run build
+```
+
+已有 Chromium 可通过环境变量 `PLAYWRIGHT_CHROMIUM_PATH` 指定。测试截图写入忽略的 `artifacts/`，测试生成的个体资料只存在测试 fixture 中，不会发布到应用。
+
+数据库测试使用 PGlite 验证新增 SQL 与关键权限／事务，不能替代对真实 Supabase 既有 RLS、Storage 配置和生产部署的验证。
+
+`dist/` 为白名单构建输出：只含页面、JS、CSS 和图形资源；不发布 `.env`、数据库迁移、测试或内部文档。Netlify 配置已切换为 `npm run build`。
+
+## 设计参考与来源
+
+检索参考了 [Rhythm of Nature / Awwwards](https://www.awwwards.com/sites/rhythm-of-nature) 的自然主题展示方向、[Terra Living 案例](https://www.wix.com/explore/websites/site/terra-living) 的深色编辑式呈现，以及 [UIkit Ecommerce Template](https://github.com/chekromul/uikit-ecommerce-template) 的目录组织思路。
+
+最终页面、Canvas 视觉和标志为本项目原生实现，没有复制上述模板代码、商业 Figma 文件或示例商品照片，也没有引入 Bootstrap／UIkit 依赖。

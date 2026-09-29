@@ -6,14 +6,14 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 
 test("login forms accept either username or email", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   assert.match(html, /id="gateEmail" type="text" autocomplete="username"/);
   assert.match(html, /id="loginEmail" type="text" autocomplete="username"/);
   assert.match(html, /邮箱或用户名/);
 });
 
 test("login page does not expose known usernames in placeholder text", () => {
-  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "admin.html"), "utf8");
   assert.match(html, /placeholder="邮箱或用户名"/);
   assert.doesNotMatch(html, /placeholder="[^"]*suohama/);
   assert.doesNotMatch(html, /placeholder="[^"]*suohayu/);

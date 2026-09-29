@@ -1,5 +1,7 @@
 # Suoha Hognose Breeding OS — Codex Project Context
 
+> **2026-09-29 implementation update:** The repository now separates the public `index.html` storefront from the private `admin.html` workspace. Read [README.md](README.md) and the V2 section in [ARCHITECTURE.md](ARCHITECTURE.md) first for current routes, modules, testing and deployment instructions. New migrations `019–022` are provided but have not been applied to the live database by this implementation. The original domain constraints below remain applicable; the previous single-entry UI description is historical.
+
 > **Purpose of this document**
 >
 > This file is the handoff/context document for Codex. Treat it as the current project baseline.
@@ -20,12 +22,13 @@ The system has moved through these stages:
 1. Original source data was an Excel workbook: `Suoha_hognose.xlsx`.
 2. A static desktop-first breeding dashboard was built as a single HTML file.
 3. The database was migrated to **Supabase PostgreSQL**.
-4. Genetic strings were normalized into atomic genes plus named composite morph definitions.
+4. Genetic strings were normalized into atomic genes, named composite morph definitions, and editable combo aliases.
 5. Breeding routes, route graph nodes/edges, annual plans, and investment plans were seeded into Supabase.
 6. **Supabase Auth + roles + RLS** were added.
 7. The latest frontend is intended to be a **private app**: users must log in before business data loads.
 8. Deployment architecture is **GitHub → Netlify → Supabase**.
 9. AI analysis uses a Netlify Function as a server-side gateway to DeepSeek. Prompt templates, analysis snapshots, recommendations, and follow-up conversations are stored in Supabase; the DeepSeek key is server-only and is never exposed in browser code.
+10. The current app also includes investment expense tracking, user display names, snake deletion, atomic gene maintenance, gene aliases, and combo slang maintenance in the data/audit workspace.
 
 ### Current Supabase project
 
@@ -122,16 +125,18 @@ unless the app is refactored into Vite or another build system.
 | `suoha_composite_morphs_v1/add_composite_morph_tables.sql` | Adds `morphs` and `morph_components` |
 | `suoha_auth_profiles_rls.sql` | Adds `profiles`, Auth synchronization, app roles, editor/admin RLS |
 | `suoha_private_app_rls_patch.sql` | Changes public-read design to **authenticated private app** design |
+| `supabase/migrations/018_morph_aliases.sql` | Adds editable combo aliases for `morphs` |
 
 ### Seed data
 
 | File / package | Data |
 |---|---|
-| `snakes.csv` | 32 current snakes |
+| `snakes.csv` | Original 32-snake legacy seed snapshot |
 | `suoha_supabase_seed_v1/genes.csv` | 17 atomic genes/traits |
 | `suoha_supabase_seed_v1/gene_aliases.csv` | 23 parser aliases |
 | `suoha_composite_morphs_v1/morphs.csv` | 5 named composite morphs |
 | `suoha_composite_morphs_v1/morph_components.csv` | 11 morph component requirements |
+| live `morph_aliases` rows | User-maintained slang/alternate names for composite morphs |
 | `suoha_composite_morphs_v1/snake_genes_v2.csv` | 108 structured snake-gene rows |
 | `suoha_planning_seed_v1/breeding_routes.csv` | 6 breeding projects |
 | `suoha_planning_seed_v1/route_nodes.csv` | 29 graph nodes |
@@ -144,18 +149,25 @@ The database has already been populated; treat the live DB as source of truth un
 
 ---
 
-## 3. Current snake collection
+## 3. Snake collection baseline
 
-### Collection summary
+### Legacy seed snapshot
 
-- Total individuals: **32**
-- Female: **23**
-- Male: **9**
-- Recorded purchase total: **¥107,100**
-- Current ID convention: `S01` … `S32`
-- Existing snakes should keep their IDs. Do not renumber them.
+The original seed snapshot had 32 snakes with temporary `S01` ... `S32` IDs. The live database has since
+been overwritten from the Excel workbook, and current snake IDs should come from the workbook's individual
+number field rather than the old `Sxx` seed convention.
 
-Series counts:
+Current owner/investor ID convention:
+
+```text
+suohama -> M-prefixed individual IDs
+suohayu -> Y-prefixed individual IDs
+```
+
+When adding a new snake, the UI should generate the next ID from the current user's existing prefix range
+instead of defaulting to `S01`. Existing live snakes should keep their imported IDs. Do not renumber them.
+
+Legacy seed series counts:
 
 | Series | Count |
 | --- | --- |
@@ -167,7 +179,7 @@ Series counts:
 | 糖霜/焦糖 | 2 |
 | 酸雨 | 2 |
 
-### Full current stock
+### Full legacy seed stock
 
 | ID | Series | Gene text | Sex | Birth | Mature | Price | Investor | Score | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -242,6 +254,7 @@ Named combinations live in:
 
 ```text
 morphs
+morph_aliases
 morph_components
 ```
 
@@ -274,6 +287,11 @@ Double Super / 双超 = Arctic super + Conda super
 
 This means a snake may satisfy several named morph definitions at the same time.
 The database should not duplicate those names as independent genes.
+
+`morph_aliases` stores extra names for an existing composite morph. For example, if `morphs`
+contains `sunburst = 白化 + 紫貂`, aliases such as `爆炸` can point to that same morph.
+During "从基因文本补全", the parser can match multiple composite names/aliases in one text,
+merge their components, and write/review the resulting atomic `snake_genes` rows.
 
 ### 4.3 Het and possible-het states
 
@@ -349,9 +367,9 @@ Examples:
 薰 / 薰衣草 -> lavender
 ```
 
-The alias table is intentionally simple (`alias -> one gene`).
-Composite names such as Mai Tai / Toxic / Stormcloud / Acid Rain are not one-to-one aliases and therefore
-belong in `morphs + morph_components`.
+The gene alias table is intentionally simple (`alias -> one gene`).
+Composite slang such as Stormcloud / Toxic / 雪白 / 爆炸 should be maintained through
+`morphs + morph_aliases + morph_components`.
 
 ### 4.6 Known ambiguous or provisional genetics
 
@@ -392,7 +410,7 @@ axanthic:visual, conda:visual, sable:visual
 
 ### Public application tables
 
-The application currently uses **18 public tables** when the Auth profile layer is included.
+The application currently uses these public business tables when the Auth profile layer is included.
 
 | Table | Role | Key relationships |
 |---|---|---|
@@ -401,6 +419,7 @@ The application currently uses **18 public tables** when the Auth profile layer 
 | `gene_aliases` | Parser vocabulary | `gene_id -> genes.id` |
 | `snake_genes` | Structured genotype per snake | composite PK `(snake_id,gene_id)` |
 | `morphs` | Named composite morphs | PK `id` |
+| `morph_aliases` | Slang/alternate names for composite morphs | FK `morph_id -> morphs.id` |
 | `morph_components` | Required components of named morphs | `(morph_id,gene_id)` |
 | `breeding_routes` | Multi-generation breeding projects | PK `id` |
 | `route_nodes` | Graph nodes: snake, planned offspring, target/gap | FK route and optional snake |
@@ -410,6 +429,7 @@ The application currently uses **18 public tables** when the Auth profile layer 
 | `clutches` | Actual eggs/hatching results | FKs to breeding event and parents |
 | `offspring_targets` | Planned/computed offspring outcomes | route/plan/parent references |
 | `investments` | Future acquisition/system investments | optional gene/snake references |
+| `investment_expenses` | User-entered investment expense ledger | user/profile/category records |
 | `snake_measurements` | Longitudinal weight/length/condition | `snake_id` |
 | `snake_photos` | Photo metadata for Supabase Storage | `snake_id` |
 | `financial_transactions` | Purchases/sales/feed/etc. | optional snake/clutch/investment refs |
@@ -499,9 +519,9 @@ visual/project placements.
 
 ---
 
-## 6. Current database data counts
+## 6. Seed data counts and live-maintained tables
 
-Confirmed seed targets:
+Confirmed seed targets and live-maintained tables:
 
 | Table | Rows |
 | --- | --- |
@@ -509,6 +529,7 @@ Confirmed seed targets:
 | genes | 17 |
 | gene_aliases | 23 |
 | morphs | 5 |
+| morph_aliases | live/user-maintained |
 | morph_components | 11 |
 | snake_genes | 108 |
 | breeding_routes | 6 |
@@ -516,6 +537,7 @@ Confirmed seed targets:
 | route_edges | 23 |
 | annual_breeding_plans | 40 |
 | investments | 4 |
+| investment_expenses | grows from user-entered expense records |
 
 The following operational tables were intentionally left empty during initial seeding:
 
@@ -529,6 +551,7 @@ financial_transactions
 ```
 
 Reason: they should contain real operational records or future genetics-engine output, not speculative seed data.
+`investment_expenses` is different: it is intentionally populated by users through the investment ledger UI.
 
 ---
 
@@ -695,6 +718,13 @@ Visual identity:
    - `route_edges`
    - `annual_breeding_plans`
    - `investments`
+   - `investment_expenses`
+   - `genes`
+   - `gene_aliases`
+   - `snake_genes`
+   - `morphs`
+   - `morph_aliases`
+   - `morph_components`
 8. Convert database fields into the legacy UI shape in JavaScript.
 9. Preserve a small static production-capacity config, but **the 32-snake dataset is no longer embedded in the latest private HTML**.
 
@@ -703,18 +733,23 @@ Visual identity:
 Current authorized CRUD is mainly implemented for:
 
 ```text
-snakes
+snakes + snake_genes
+genes
+gene_aliases
+morphs + morph_aliases + morph_components
+breeding_routes / route_nodes / route_edges
 annual_breeding_plans
 investments
+investment_expenses
 ```
 
-The rest of the database exists but does not yet have a full visual editor.
+Snake CRUD supports add/edit/deactivate/delete. Deactivation keeps the animal and its investment value in
+the collection, while deletion removes the animal from investment totals and warns if it is used in breeding
+routes.
 
 Future CRUD work should add interfaces for:
 
 ```text
-snake_genes / genetics editor
-breeding_routes / nodes / edges
 breeding_events
 clutches
 measurements
@@ -855,7 +890,7 @@ Old email links may still contain the old localhost redirect.
 5. Do not disable RLS merely to make CRUD “work”.
 6. Do not make `financial_transactions` publicly readable.
 7. In private-app mode, anonymous users should not read breeding data.
-8. Deleting a snake that is referenced by routes/plans/clutches/pedigree should normally be blocked by FKs or replaced with a lifecycle status such as `sold` / `retired`, not destructive deletion.
+8. Deleting a snake must never happen silently when it is referenced by breeding routes/plans/clutches/pedigree. The UI should warn first; deactivation remains the non-destructive option for animals still owned but not intended for breeding.
 
 ---
 
@@ -864,11 +899,14 @@ Old email links may still contain the old localhost redirect.
 ### Snake IDs
 
 ```text
-Existing: S01 ... S32
-Future: continue S33, S34, ...
+Legacy seed: S01 ... S32
+Live IDs: imported workbook individual numbers
+suohama: M-prefixed IDs
+suohayu: Y-prefixed IDs
 ```
 
-Do not generate new IDs that collide with existing IDs.
+Do not generate new IDs that collide with existing live IDs. When creating a snake from the UI, generate the
+next ID for the current user's prefix range.
 
 ### Existing vs planned offspring
 
@@ -881,7 +919,7 @@ does **not** mean that animal exists.
 Only after a real hatchling is recorded should it become:
 
 ```text
-snakes.id = Sxx
+snakes.id = <real imported/generated individual ID>
 origin = produced
 sire_id / dam_id
 clutch_id
@@ -889,8 +927,9 @@ clutch_id
 
 ### Genetics
 
-- Atomic genes in `snake_genes`.
-- Named combos in `morphs/morph_components`.
+- Atomic gene definitions in `genes`; individual gene states in `snake_genes`.
+- One-gene nicknames in `gene_aliases`.
+- Named combos and combo slang in `morphs/morph_aliases/morph_components`.
 - Do not store Acid Rain, Toxic, Mai Tai, etc. as duplicate atomic gene states.
 - Preserve `possible_het` probabilities.
 - Do not force polygenic/line traits into Mendelian calculations.
@@ -939,6 +978,7 @@ Build a proper inheritance engine using:
 genes
 snake_genes
 morphs
+morph_aliases
 morph_components
 ```
 
@@ -958,6 +998,7 @@ The pairing laboratory now calculates Mendelian outcomes in the browser from the
 - `dominant` and `incomplete_dominant`: visual / super, with visual assumed heterozygous unless dosage is recorded;
 - same `genes.locus` values are calculated as a single locus, rather than as independent genes;
 - named combos in `morphs + morph_components` are derived only when all required loci are calculable and independent;
+- `morph_aliases` affects text parsing/maintenance, not Mendelian probability math by itself;
 - `unknown`, `polygenic`, `line_trait`, and conflicting same-locus records are shown as skipped, never converted to a made-up percentage.
 
 The source table (`genes.inheritance_type`) and the individual state table (`snake_genes.state`) have separate meanings. Updating the former does not alter existing individual rows. Use migration `011_correct_skullface_and_frosted_metadata.sql` to backfill existing `skullface = unknown` rows to `visual`.
@@ -995,12 +1036,14 @@ If Codex refactors the repo, a useful structure is:
 │  │  ├─ 001_core_schema.sql
 │  │  ├─ 002_composite_morphs.sql
 │  │  ├─ 003_auth_profiles_rls.sql
-│  │  └─ 004_private_app_rls.sql
+│  │  ├─ 004_private_app_rls.sql
+│  │  └─ 018_morph_aliases.sql
 │  └─ seed/
 │     ├─ snakes.csv
 │     ├─ genes.csv
 │     ├─ gene_aliases.csv
 │     ├─ morphs.csv
+│     ├─ morph_aliases.csv
 │     ├─ morph_components.csv
 │     ├─ snake_genes.csv
 │     ├─ breeding_routes.csv
@@ -1034,10 +1077,11 @@ Do not perform this refactor solely for aesthetics; first preserve working Auth/
 ## 17. One-paragraph project summary for Codex
 
 Suoha Hognose is a private, desktop-first Western Hognose breeding operating system deployed through
-GitHub/Netlify with Supabase as the PostgreSQL/Auth backend. The live collection has 32 snakes (`S01–S32`).
+GitHub/Netlify with Supabase as the PostgreSQL/Auth backend. The live collection uses imported workbook
+individual numbers, with M/Y-prefixed IDs tied to the current investor/user convention.
 Genetics are modeled with atomic `genes + snake_genes`; named combinations such as Mai Tai, Toxic,
 Stormcloud, Acid Rain, and the user-defined “双超 = Super Arctic + Superconda” are derived through
-`morphs + morph_components`, not duplicated as genes. Multi-generation strategy is stored as
+`morphs + morph_aliases + morph_components`, not duplicated as genes. Multi-generation strategy is stored as
 `breeding_routes + route_nodes + route_edges`, annual intent is stored separately from actual breeding
 events/clutches, and future offspring remain virtual route nodes until they really hatch. Supabase Auth
 uses `auth.users` plus `public.profiles` roles (`viewer/editor/admin`) and RLS; the target state is a fully
@@ -1056,7 +1100,7 @@ When taking over this project:
 - Read this document before changing code.
 - Treat the existing Supabase database as live state.
 - Do not drop tables or reseed unless explicitly requested.
-- Preserve S01–S32 IDs.
+- Preserve existing live snake IDs and generate new IDs from the current user's M/Y prefix convention.
 - Preserve the atomic-gene/composite-morph separation.
 - Preserve plan/event/clutch separation.
 - Preserve RLS and never expose a service-role key.

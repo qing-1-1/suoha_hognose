@@ -1,5 +1,42 @@
 # Suoha Hognose frontend architecture
 
+## V2 implementation (2026-09-29)
+
+The public site now lives at `index.html`; the original authenticated workspace
+is preserved in `admin.html` at `/admin`. Public traffic never calls the internal
+`fetchWorkspace()` loader. See [README.md](README.md) for enablement and current limits.
+
+```text
+Public: index.html + storefront.css + storefront.js + field-art.js
+  -> public-catalog function -> public_catalog SQL projection (published fields only)
+  -> specimen-media function -> publication check -> private Storage bucket
+  -> purchase-inquiry function -> server-only credentials + HMAC rate key
+     -> submit_purchase_inquiry transaction
+  /specimens/:slug -> specimen-page function (share metadata) + public application
+
+Private: admin.html + app.css + workspace.css
+  -> data.js: authenticated internal snapshot + complete cost/expense reads
+  -> app.js / ai.js / genetics.js: existing planning, CRUD and analysis
+  -> workspace.js: publishing, sales, actual breeding records, individual archive
+  -> route-history.js: optimistic position transactions and session undo/redo
+  -> workspace-interactions.js: keyboard dialogs, saved views, sorting, task tabs
+```
+
+New additive migrations `019–022` are supplied, not automatically applied to the
+live project. Existing animals stay private until a member explicitly publishes.
+Sales status is separate from publication and animal lifecycle. Server transactions
+protect reservation uniqueness and maintain sales history. Cost snapshots preserve
+recorded acquisition costs after an animal leaves inventory; linked manual expenses
+replace the corresponding snapshot in totals to avoid double counting.
+
+Netlify publishes only the generated `dist/` allowlist, not the repository root.
+No service-role or AI secret is included in browser bundles. Public data access is
+explicitly projected through SQL and projected again at the function boundary.
+
+Browser tests use mocked business data; database tests execute migrations in
+PGlite against a minimal version of the existing schema. Production RLS and Storage
+still require deployment verification. Historic notes below describe the earlier split.
+
 The app remains a static Netlify site backed by Supabase. It intentionally does
 not introduce a second application backend or a frontend build framework.
 
