@@ -8,10 +8,11 @@ const root = path.resolve(__dirname, "..");
 
 test("candidate investment form exposes price, currency, breeding-ready month and reference notes", () => {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  for (const id of ["candidatePrice", "candidateCurrency", "candidateBreedingReadyMonth", "candidateReferenceNotes"]) {
+  for (const id of ["candidatePrice", "candidateCurrency", "candidateBreedingReadyMonth", "candidateBreedingReadyYear", "candidateBreedingReadyMonthSelect", "candidateReferenceNotes"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
-  assert.match(html, /id="candidateBreedingReadyMonth" type="month"/);
+  assert.match(html, /id="candidateBreedingReadyMonth" type="hidden"/);
+  assert.match(html, /class="candidateMonthPicker"/);
 });
 
 test("candidate investment snapshot carries the additional form values", () => {
