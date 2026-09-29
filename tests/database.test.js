@@ -8,7 +8,7 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  create function public.can_edit_app() returns boolean language sql security definer as $$select exists(select 1 from public.profiles where id=auth.uid() and active and role in ('editor','admin'))$$;
  create table snakes(id text primary key,series text,sex text,birth_date date,mature_date date,gene_text text,status text,price numeric,investor text,origin text,sire_id text,dam_id text,clutch_id bigint,strategic_score integer);
  create table genes(id text primary key,name_zh text);create table snake_genes(snake_id text,gene_id text,state text,probability numeric);
- create table annual_breeding_plans(id bigint primary key,female_snake_id text,male_snake_id text,review_status text);
+ create table annual_breeding_plans(id bigint primary key,female_snake_id text,male_snake_id text,review_status text,project_name text,plan_year integer,status text);
  create table breeding_events(id bigint generated always as identity primary key,plan_id bigint,female_snake_id text,male_snake_id text,paired_at date,status text,notes text);
  create table clutches(id bigint generated always as identity primary key,clutch_code text,breeding_event_id bigint,female_snake_id text,male_snake_id text,laid_date date,egg_count integer,fertile_egg_count integer,hatched_count integer,status text);
  create table investment_expenses(id uuid primary key default gen_random_uuid(),category text,amount numeric,owner_id uuid);
@@ -20,7 +20,7 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');insert into profiles values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin',true,'1442399241@qq.com','suohama');
  insert into snakes(id,series,sex,gene_text,status,price) values('M01','系列','F','母本','active',12345),('M02','系列','M','公本','active',54321);
  `);
- for(const name of ['019_public_catalog_and_sales.sql','020_breeding_operations.sql','021_acquisition_cost_history.sql','022_route_move_transactions.sql','023_inventory_libraries.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of ['019_public_catalog_and_sales.sql','020_breeding_operations.sql','021_acquisition_cost_history.sql','022_route_move_transactions.sql','023_inventory_libraries.sql','024_listing_removal.sql','025_breeding_calendar.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
  await db.exec(`insert into specimen_listings(id,snake_id,slug,title,published,sale_status,asking_price) values('11111111-1111-4111-8111-111111111111','M01','m01','公开母本',true,'available',3500),('22222222-2222-4222-8222-222222222222','M02','m02','私有公本',false,'display',null);`);
  await db.exec('set role anon');
  const publicData=(await db.query('select public_catalog() as data')).rows[0].data;
@@ -42,6 +42,7 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  await db.query("update specimen_listings set sale_status='available' where slug='m01'");assert.equal(await saleState(),'available');
  const action=(id,name,until=null,amount=null)=>db.query('select manage_specimen_sale($1,$2,$3,$4,$5)',[id,name,'测试记录',until,amount]);
  await action(inquiries[0].id,'reserve','2099-01-01',3500);
+ await assert.rejects(db.query("select delete_specimen_listing('11111111-1111-4111-8111-111111111111')"),/有效预留/);
  await assert.rejects(action(inquiries[1].id,'reserve','2099-01-01',3500),/not available/);
  await assert.rejects(action(inquiries[0].id,'complete'),/Invalid transition/);
  await action(inquiries[0].id,'paid');await action(inquiries[0].id,'deliver');await action(inquiries[0].id,'complete');
@@ -74,5 +75,27 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  await db.query(`select move_route_node('node-1',110,210,100,200)`);
  await assert.rejects(db.query(`select move_route_node('node-1',120,220,100,200)`),/another session/);
  await db.query(`select move_route_node('node-1',100,200,110,210)`);
+ await db.query("select delete_specimen_listing('11111111-1111-4111-8111-111111111111')");
+ assert.equal((await db.query('select public_catalog() as data')).rows[0].data.items.length,0);
+ assert.equal((await db.query("select count(*) from purchase_inquiries")).rows[0].count,2);
+ assert.equal((await db.query("select count(*) from snakes where id='M01'")).rows[0].count,1);
+ await assert.rejects(db.query("update specimen_listings set published=true where slug='m01'"),/deleted_listing_is_private/);
+ await db.query("update specimen_listings set deleted_at=null,published=true where slug='m01'");
+ assert.equal((await db.query('select public_catalog() as data')).rows[0].data.items.length,1);
+
+ await db.exec("reset role;insert into annual_breeding_plans(id,female_snake_id,male_snake_id,review_status,project_name,plan_year,status,expected_pairing_date,expected_laying_date,expected_hatching_date) values(200,'M01','M02','approved','测试繁育',2026,'planned','2026-01-01','2026-02-01','2026-03-01')");
+ await assert.rejects(db.query("update annual_breeding_plans set expected_hatching_date='2025-01-01' where id=200"),/breeding_expected_dates_order/);
+ await db.exec('set role authenticated');
+ const actualEvent=(await db.query("select record_breeding_event(null,200,'M01','M02','2026-01-01','successful','真实交配') as id")).rows[0].id;
+ const clutchParams=[null,actualEvent,'CAL-200','2026-02-01',3,3,2,'hatched','2026-03-01','2026-03-03','2026-03-02'];
+ const callClutch=values=>db.query('select record_clutch_dates($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) as id',values);
+ await assert.rejects(callClutch([...clutchParams.slice(0,8),'2026-01-01',null,'2026-03-02']),/日期/);
+ const actualClutch=(await callClutch(clutchParams)).rows[0].id;
+ await assert.rejects(db.query("select record_breeding_event($1,200,'M01','M02','2026-04-01','successful','修改日期')",[actualEvent]),/交配日期不能晚于/);
+ const calendar=(await db.query('select breeding_calendar() as data')).rows[0].data;
+ assert.equal(calendar.length,1);assert.equal(calendar[0].events[0].status,'successful');assert.equal(calendar[0].clutches[0].hatch_start,'2026-03-01');assert.equal(calendar[0].clutches[0].hatch_end,'2026-03-03');
+ await db.exec('reset role');assert.equal((await db.query('select count(*) from clutches where id=$1',[actualClutch])).rows[0].count,1);
+ await db.exec('set role anon');await assert.rejects(db.query('select breeding_calendar()'),/permission denied/);
+
  }finally{await db.close();}
 });

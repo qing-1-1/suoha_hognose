@@ -36,3 +36,9 @@
 .pageHead p{max-width:680px}.ws-metric strong{display:block}.formGrid{gap:16px}.formField textarea{min-height:96px}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #7b983d;outline-offset:3px}
 @media(max-width:833px){.nursery-grid{grid-template-columns:1fr}.ws-toolbar{flex-wrap:wrap}.ws-toolbar input{min-width:0;flex:1}.aiChatMessages{max-height:48dvh;padding:6px}.aiChatMessage{max-width:95%}.aiChatComposer{flex-wrap:wrap}.aiChatComposer textarea{min-width:100%}.aiChatComposer button{margin-left:auto}.topbar .topBtn{display:inline-flex}.cardHead .toolbar{width:100%}.cardHead .toolbar .search{width:100%}}
+.breeding-summary{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-left:3px solid #789743}
+.breeding-calendar-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr))}
+.breeding-calendar-card{padding:20px;border:1px solid #dce5d1;border-radius:8px;background:#fafcf5}
+.breeding-calendar-card h3{font-size:17px;margin:0 0 10px}.breeding-calendar-card .ws-actions{margin-top:14px}
+.calendar-milestones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}.calendar-milestones>div{padding:12px 8px;background:#edf3e2;border-radius:5px}.calendar-milestones span{display:block;font-size:11px;color:#647657}.calendar-milestones b{display:block;font-size:12px;margin-top:8px}
+.breeding-reminder-dialog{max-height:85dvh;overflow:auto}.breeding-reminder-dialog .ws-list-row{gap:12px;flex-wrap:wrap}

@@ -14,7 +14,7 @@ function kpi(a,b,c,d,cls=""){return `<div class="kpi"><div class="kpiTop"><span>
 function investmentKpi(totals){
   return `<div class="kpi investmentKpi"><div class="investmentKpiMain"><div class="investmentKpiTop"><span>总投入</span><i>¥</i></div><strong>${fmt(totals.total)}</strong></div><div class="investmentKpiSide"><div><span>种群投入</span><strong>${fmt(totals.population)}</strong></div><div><span>其他投入</span><strong>${fmt(totals.other)}</strong></div></div></div>`;
 }
-const PAGE_NAMES={nursery:"自繁库",individual:"个体档案",overview:"工作概览",publishing:"公开展示",sales:"意向与销售",records:"繁育与成长记录",routes:"繁殖路线",population:"种群库",production:"年度规划",investment:"投资与支出",lab:"配对实验室",admin:"数据与审核"};
+const PAGE_NAMES={nursery:"繁育个体",individual:"个体档案",overview:"工作概览",publishing:"公开展示",sales:"意向与销售",records:"繁育与成长记录",routes:"繁殖路线",population:"种群库",production:"年度规划",investment:"投资与支出",lab:"配对实验室",admin:"数据与审核"};
 function setPage(p,save=true){if(!PAGE_NAMES[p])p="overview";state.page=p;$$('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));$$('.navItem').forEach(x=>x.classList.toggle('active',x.dataset.page===p));$('#crumb').textContent=PAGE_NAMES[p];if(save&&location.hash!=='#'+p)history.pushState({page:p},'',location.pathname+location.search+'#'+p);window.scrollTo({top:0,left:0,behavior:'instant'});if(p==='admin'&&window.SuohaWorkspace)renderAdmin();window.SuohaWorkspace?.render();}
 if(PAGE_NAMES[location.hash.slice(1)])state.page=location.hash.slice(1);
 window.addEventListener('popstate',()=>setPage(location.hash.slice(1),false));
@@ -852,17 +852,23 @@ function planFormHtml(row={}){
   const selectedScenario=row.scenario_id||defaultScenarioId();
   const scenarioField=AI_LAYER_READY?`<div class="formField full"><label>规划场景</label><select name="scenario_id"><option value="">未归属（兼容旧数据）</option>${REMOTE_RAW.scenarios.map(s=>`<option value="${s.id}" ${String(selectedScenario)===String(s.id)?"selected":""}>${esc(s.name)} · ${esc(s.status)}</option>`).join("")}</select></div>`:"";
   return `<div class="formGrid">
-    <div class="formField"><label>Year</label><input name="plan_year" type="number" min="2020" max="2200" value="${row.plan_year||state.year}" required></div>
-    <div class="formField"><label>Priority</label><select name="priority">${["A","B","R","G","C"].map(x=>`<option ${row.priority===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField"><label>计划年份</label><input name="plan_year" type="number" min="2020" max="2200" value="${row.plan_year||state.year}" required></div>
+    <div class="formField"><label>优先级</label><select name="priority">${["A","B","R","G","C"].map(x=>`<option ${row.priority===x?"selected":""}>${x}</option>`).join("")}</select></div>
     ${scenarioField}
-    <div class="formField full"><label>Project name</label><input name="project_name" value="${esc(row.project_name||"")}" required></div>
-    <div class="formField"><label>Female snake</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F").map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
-    <div class="formField"><label>Male snake</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M").map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
-    <div class="formField"><label>Mode</label><input name="mode" value="${esc(row.mode||"")}"></div>
-    <div class="formField"><label>Status</label><select name="status">${["planned","ready","conditional","completed","cancelled","investment_gap"].map(x=>`<option ${row.status===x?"selected":""}>${x}</option>`).join("")}</select></div>
-    <div class="formField"><label>Planned clutches</label><input name="planned_clutches" type="number" min="0" value="${row.planned_clutches??1}"></div>
-    <div class="formField full"><label>Goal</label><textarea name="goal">${esc(row.goal||"")}</textarea></div>
-    <div class="formField full"><label>Notes</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
+    <div class="formField"><label>预计交配日期</label><input name="expected_pairing_date" type="date" value="${esc(row.expected_pairing_date||'')}"></div>
+    <div class="formField"><label>预计产蛋日期</label><input name="expected_laying_date" type="date" value="${esc(row.expected_laying_date||'')}"></div>
+    <div class="formField"><label>预计出壳日期</label><input name="expected_hatching_date" type="date" value="${esc(row.expected_hatching_date||'')}"></div>
+    <div class="formField"><label>提前几天提醒</label><input name="reminder_days" type="number" min="0" max="30" value="${row.reminder_days??3}" required></div>
+    <div class="formField"><label>首页提醒</label><select name="reminders_enabled"><option value="true" ${row.reminders_enabled!==false?'selected':''}>开启</option><option value="false" ${row.reminders_enabled===false?'selected':''}>关闭</option></select></div>
+    <p class="smallNote">预计日期由你设置，不代表已发生；实际交配、产蛋、出壳在繁育记录中填写。提醒在登录后的工作概览显示。</p>
+    <div class="formField full"><label>计划名称</label><input name="project_name" value="${esc(row.project_name||"")}" required></div>
+    <div class="formField"><label>母蛇</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F").map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
+    <div class="formField"><label>公蛇</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M").map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
+    <div class="formField"><label>配对方式</label><input name="mode" value="${esc(row.mode||"")}"></div>
+    <div class="formField"><label>计划状态</label><select name="status">${["planned","ready","conditional","completed","cancelled","investment_gap"].map(x=>`<option ${row.status===x?"selected":""}>${x}</option>`).join("")}</select></div>
+    <div class="formField"><label>计划窝数</label><input name="planned_clutches" type="number" min="0" value="${row.planned_clutches??1}"></div>
+    <div class="formField full"><label>育种目标</label><textarea name="goal">${esc(row.goal||"")}</textarea></div>
+    <div class="formField full"><label>计划备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
   </div>`;
 }
 function investmentFormHtml(row={}){
@@ -989,7 +995,8 @@ async function saveEdit(){
     ["price","strategic_score"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     if(!editContext.id&&!o.investor)o.investor=currentInvestorName()||null;
   }else if(t==="annual_breeding_plans"){
-    ["plan_year","planned_clutches"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
+    ["plan_year","planned_clutches","reminder_days"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
+    o.reminders_enabled=o.reminders_enabled==="true";
     if("scenario_id" in o)o.scenario_id=o.scenario_id?Number(o.scenario_id):null;
   }else if(t==="investments"){
     ["rank","strategic_score","planned_year","budget_min","budget_max"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
