@@ -15,22 +15,37 @@
     return results;
   }
 
+  // Stable ranged reads include older rows beyond Supabase's response cap.
+  async function fetchAll(client, table, orders = [['id', true]]) {
+    const rows = []; let count = null;
+    for (let offset = 0; ; ) {
+      let query = client.from(table).select('*', {count:'exact'});
+      for (const [field, ascending] of orders) query = query.order(field, {ascending});
+      const result = await query.range(offset, offset + 499);
+      if (result.error) return {...result, data:[]};
+      const page = result.data || [];
+      count = result.count ?? count;
+      rows.push(...page); offset += page.length;
+      if (!page.length || (count !== null ? rows.length >= count : page.length < 500)) return {data:rows, count:count ?? rows.length, error:null};
+    }
+  }
+
   async function fetchBusinessTables(client) {
     const expenseLedger = await fetchInvestmentExpenses(client);
     const morphAliases = await fetchMorphAliases(client);
     const acquisitionCosts = await fetchAcquisitionCosts(client);
     const results = throwFirstError(await Promise.all([
-      client.from("snakes").select("*").order("id"),
-      client.from("breeding_routes").select("*").order("priority", { ascending: false }),
-      client.from("route_nodes").select("*"),
-      client.from("route_edges").select("*"),
-      client.from("annual_breeding_plans").select("*").order("plan_year").order("priority"),
-      client.from("investments").select("*").order("rank"),
-      client.from("genes").select("*").order("id"),
-      client.from("gene_aliases").select("*"),
-      client.from("morphs").select("*"),
-      client.from("morph_components").select("*"),
-      client.from("snake_genes").select("*")
+      fetchAll(client, 'snakes'),
+      fetchAll(client, 'breeding_routes', [['priority',false],['id',true]]),
+      fetchAll(client, 'route_nodes'),
+      fetchAll(client, 'route_edges'),
+      fetchAll(client, 'annual_breeding_plans', [['plan_year',true],['priority',true],['id',true]]),
+      fetchAll(client, 'investments', [['rank',true],['id',true]]),
+      fetchAll(client, 'genes'),
+      fetchAll(client, 'gene_aliases', [['alias',true]]),
+      fetchAll(client, 'morphs'),
+      fetchAll(client, 'morph_components', [['morph_id',true],['gene_id',true]]),
+      fetchAll(client, 'snake_genes', [['snake_id',true],['gene_id',true]])
     ]));
 
     return {
@@ -102,5 +117,5 @@
     return { business, decisions };
   }
 
-  global.SuohaData = Object.freeze({ config, fetchWorkspace, fetchBusinessTables, fetchDecisionTables });
+  global.SuohaData = Object.freeze({ config, fetchAll, fetchWorkspace, fetchBusinessTables, fetchDecisionTables });
 })(window);

@@ -26,7 +26,7 @@
     let listing=null,rows=[],working=false,loaded=false,version=0;
     const alive=()=>host.isConnected&&currentUser?.id===owner&&canWrite();
     host.innerHTML=`<div class="animal-photo-heading"><div><h3>个体照片</h3><p class="ws-note" data-photo-state>正在读取图库…</p></div><button type="button" class="ws-action" data-photo-reload>刷新照片</button></div>
-      <p class="ws-note">照片单独保存，下面的“保存 / 取消”只作用于个体资料。已发布档案的照片改动会同步到公开页面。</p>
+      <p class="ws-note">照片单独保存，下面的“保存 / 取消”只作用于个体资料。新增照片默认仅内部可见；勾选“选入公开档案”并保存照片设置后，已发布档案才会展示。公开封面取已选公开照片中的第一张。</p>
       <div class="animal-photo-grid" data-photo-grid></div>
       <div class="animal-photo-upload"><label for="${uid}-files">添加真实个体照片<input id="${uid}-files" data-photo-files type="file" accept="image/jpeg,image/png,image/webp" multiple></label><p class="ws-note">每次最多 8 张，原图每张不超过 20MB；自动适配网页尺寸。</p>
       <div class="animal-photo-fields"><label for="${uid}-caption">新照片说明<input id="${uid}-caption" data-photo-caption maxlength="200" placeholder="例如：头部、背纹或拍摄时的状态"></label><label for="${uid}-date">新照片拍摄日期<input id="${uid}-date" data-photo-date type="date"></label></div>
@@ -40,12 +40,12 @@
       const media=record?await check(sb.from('specimen_media').select('*').eq('listing_id',record.id).order('sort_order',{ascending:true}).order('created_at',{ascending:true})):[];
       if(!alive()||own!==version)return;
       listing=record;rows=media||[];loaded=true;
-      state.textContent=`${rows.length} 张照片 · ${listing?.published&&!listing.deleted_at?'已发布，照片对外展示':'未发布，仅内部可见'}`;
+      state.textContent=`${rows.length} 张照片 · ${listing?.published&&!listing.deleted_at?'已发布 · '+rows.filter(r=>r.is_public!==false).length+' 张选入公开档案':'未发布，仅内部可见'}`;
       const signed=await Promise.all(rows.map(async row=>{try{const result=await sb.storage.from('specimen-media').createSignedUrl(row.storage_path,300);return {...row,url:result.data?.signedUrl};}catch{return row;}}));
       if(!alive()||own!==version)return;
-      grid.innerHTML=signed.length?signed.map((row,index)=>`<article class="animal-photo-card" data-media-id="${esc(row.id)}"><div class="animal-photo-preview">${row.url?`<img src="${esc(row.url)}" alt="${esc(row.caption||snakeId+' 个体照片')}" loading="lazy">`:'<span>照片暂时无法预览</span>'}${index===0?'<span class="animal-photo-cover">封面</span>':''}</div>
-        <label>照片说明<input data-media-caption value="${esc(row.caption)}" maxlength="200"></label><label>拍摄日期<input data-media-date type="date" value="${esc(row.photographed_at||'')}"></label>
-        <div class="ws-actions"><button type="button" class="ws-action" data-photo-action="save">保存说明</button><button type="button" class="ws-action" data-photo-action="cover">设为封面</button><button type="button" class="ws-action" data-photo-action="replace">替换照片</button><button type="button" class="ws-action danger" data-photo-action="remove">删除照片</button></div><input type="file" data-media-replacement accept="image/jpeg,image/png,image/webp" hidden></article>`).join(''):'<div class="ws-empty">暂无照片。上传后可在这里编辑说明、替换照片和设置封面。</div>';
+      grid.innerHTML=signed.length?signed.map((row,index)=>`<article class="animal-photo-card" data-media-id="${esc(row.id)}"><div class="animal-photo-preview">${row.url?`<img src="${esc(row.url)}" alt="${esc(row.caption||snakeId+' 个体照片')}" loading="lazy">`:'<span>照片暂时无法预览</span>'}${index===0?'<span class="animal-photo-cover">内部封面</span>':''}${row.is_public!==false&&rows.find(r=>r.is_public!==false)?.id===row.id?'<span class="animal-public-cover">公开封面</span>':''}</div>
+        <label class="photo-visibility"><input type="checkbox" data-media-public ${row.is_public!==false?'checked':''}>选入公开档案</label><label>照片说明<input data-media-caption value="${esc(row.caption)}" maxlength="200"></label><label>拍摄日期<input data-media-date type="date" value="${esc(row.photographed_at||'')}"></label>
+        <div class="ws-actions"><button type="button" class="ws-action" data-photo-action="save">保存照片设置</button><button type="button" class="ws-action" data-photo-action="cover">设为封面</button><button type="button" class="ws-action" data-photo-action="replace">替换照片</button><button type="button" class="ws-action danger" data-photo-action="remove">删除照片</button></div><input type="file" data-media-replacement accept="image/jpeg,image/png,image/webp" hidden></article>`).join(''):'<div class="ws-empty">暂无照片。上传后可在这里编辑说明、替换照片和设置封面。</div>';
       grid.querySelectorAll('img').forEach(img=>img.onerror=()=>{const fallback=document.createElement('span');fallback.textContent='照片暂时无法预览，请刷新重试';img.replaceWith(fallback);});
       lock();
     }
@@ -77,7 +77,7 @@
       }catch(error){
         if(alive()){
           let suffix='';try{await fetchRows();await onChange();}catch{loaded=false;suffix=' 图库刷新失败，请点击“刷新照片”。';}
-          say((error.message||'照片操作失败，请重试。')+suffix,true);
+          say((/is_public|schema cache/.test(error.message||'')?'照片权限功能需要先执行 026 数据库迁移，请完成后刷新图库。':error.message||'照片操作失败，请重试。')+suffix,true);
         }
       }finally{working=false;pending--;if(alive())lock();}
     }
@@ -95,11 +95,11 @@
           for(const file of files){
             say(`正在上传 ${saved+1} / ${files.length}…`);
             const blob=await encode(file),path=await uploadBlob(blob);
-            try{await check(sb.from('specimen_media').insert({listing_id:listing.id,storage_path:path,caption,photographed_at,sort_order:order+saved+1}));}
+            try{await check(sb.from('specimen_media').insert({listing_id:listing.id,storage_path:path,caption,photographed_at,is_public:false,sort_order:order+saved+1}));}
             catch(error){await clean(path);throw error;}
             saved++;
           }
-          return `已保存 ${saved} 张照片。${listing.published?'首页与公开档案刷新后可见。':'当前仅内部可见，上架需另外确认。'}`;
+          return `已保存 ${saved} 张照片。新增照片仅内部可见；选入公开档案并保存后才会对外展示。`;
         }catch(error){throw Error(`已保存 ${saved} / ${files.length} 张。${error.message} 请重新选择未成功的照片。`);}
         finally{fileInput.value='';}
       });
@@ -109,16 +109,16 @@
       const card=button.closest('[data-media-id]'),row=rows.find(r=>r.id===card.dataset.mediaId);if(!row)return;
       const action=button.dataset.photoAction;
       if(action==='replace'){card.querySelector('[data-media-replacement]').click();return;}
-      if(action==='remove'&&!confirm('删除这张个体照片？内部图库和已发布档案都会移除，其他照片与个体资料保留。'))return;
+      if(action==='remove'&&!confirm(`删除这张个体照片？${row.is_public!==false&&listing.published?'此照片正在公开展示，删除后首页和详情也会移除。':'此照片当前用于内部图库。'}其他照片与个体资料保留。`))return;
       const date=card.querySelector('[data-media-date]');if(action==='save'&&!date.reportValidity())return;
-      const patch=action==='cover'?{sort_order:Math.min(0,...rows.map(r=>r.sort_order))-1}:{caption:card.querySelector('[data-media-caption]').value.trim(),photographed_at:date.value||null};
+      const patch=action==='cover'?{sort_order:Math.min(0,...rows.map(r=>r.sort_order))-1}:{caption:card.querySelector('[data-media-caption]').value.trim(),photographed_at:date.value||null,is_public:card.querySelector('[data-media-public]').checked};
       run(async()=>{
         if(action==='remove'){
           await check(sb.from('specimen_media').delete().eq('id',row.id).eq('listing_id',listing.id));
           return await clean(row.storage_path)?'照片已删除。':'照片已从档案移除，但原文件清理失败；不会再公开显示。';
         }
         await check(sb.from('specimen_media').update(patch).eq('id',row.id).eq('listing_id',listing.id));
-        return action==='cover'?'封面已更新。':'照片说明已保存。';
+        return action==='cover'?'封面已更新。':'照片设置已保存。';
       });
     });
     grid.addEventListener('change',event=>{

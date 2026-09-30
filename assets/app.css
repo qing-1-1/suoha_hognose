@@ -208,7 +208,7 @@ body.auth-locked{overflow:hidden}
 body.auth-locked .sidebar,body.auth-locked .mobileNav,body.auth-locked .main,body.auth-locked .drawer{visibility:hidden}
 .passwordHint{font-size:7.5px;color:#667488;line-height:1.5;margin-top:6px}
 
-/* ===== DESIGN.md visual system: gallery-like, restrained, action-blue only ===== */
+/* ===== docs/design/DESIGN.md visual system: gallery-like, restrained, action-blue only ===== */
 :root{--bg:#f5f5f7;--panel:#fff;--panel2:#fafafc;--line:#e0e0e0;--line2:rgba(0,0,0,.14);--text:#1d1d1f;--muted:#7a7a7a;--soft:#333;--gold:#0066cc;--violet:#0066cc;--green:#0066cc;--pink:#0066cc;--blue:#0066cc;--orange:#0066cc;--red:#c11f1f;--sidebar:0px}
 html,body{background:#f5f5f7;color:#1d1d1f;font-family:"SF Pro Text",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
 body{background:#f5f5f7;font-size:17px;line-height:1.47;letter-spacing:-.224px}

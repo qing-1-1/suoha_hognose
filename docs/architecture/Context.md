@@ -1,6 +1,12 @@
 # Suoha Hognose Breeding OS — Codex Project Context
 
-> **2026-09-29 implementation update:** The repository now separates the public `index.html` storefront from the private `admin.html` workspace. Read [README.md](README.md) and the V2 section in [ARCHITECTURE.md](ARCHITECTURE.md) first for current routes, modules, testing and deployment instructions. New migrations `019–022` are provided but have not been applied to the live database by this implementation. The original domain constraints below remain applicable; the previous single-entry UI description is historical.
+> **Current reading order (2026-09-30):** This document preserves the domain model
+> and historical handoff context. For the current UI, migrations 026/027 and
+> deployment status, read [README](../../README.md),
+> [ARCHITECTURE](ARCHITECTURE.md) and the
+> [implementation record](../design/视觉升级与功能优化实施方案.md) first.
+
+> **2026-09-29 implementation update:** The repository now separates the public `index.html` storefront from the private `admin.html` workspace. Read [README.md](../../README.md) and the V2 section in [ARCHITECTURE.md](ARCHITECTURE.md) first for current routes, modules, testing and deployment instructions. New migrations `019–022` are provided but have not been applied to the live database by this implementation. The original domain constraints below remain applicable; the previous single-entry UI description is historical.
 
 > **Purpose of this document**
 >
@@ -1021,37 +1027,32 @@ The product should progressively evolve from “planning dashboard” into a rea
 
 ---
 
-## 16. Suggested repository documentation structure
+## 16. Repository documentation structure (2026-09-30)
 
-If Codex refactors the repo, a useful structure is:
+The project remains a static site. Current files are organized as follows:
 
 ```text
 /
-├─ index.html                  # current app if staying static
-├─ README.md
+├─ index.html                 # public site
+├─ admin.html                 # private workspace
+├─ README.md                  # run, verify and deploy
 ├─ docs/
-│  └─ CODEX_CONTEXT.md         # this document
-├─ supabase/
-│  ├─ migrations/
-│  │  ├─ 001_core_schema.sql
-│  │  ├─ 002_composite_morphs.sql
-│  │  ├─ 003_auth_profiles_rls.sql
-│  │  ├─ 004_private_app_rls.sql
-│  │  └─ 018_morph_aliases.sql
-│  └─ seed/
-│     ├─ snakes.csv
-│     ├─ genes.csv
-│     ├─ gene_aliases.csv
-│     ├─ morphs.csv
-│     ├─ morph_aliases.csv
-│     ├─ morph_components.csv
-│     ├─ snake_genes.csv
-│     ├─ breeding_routes.csv
-│     ├─ route_nodes.csv
-│     ├─ route_edges.csv
-│     ├─ annual_breeding_plans.csv
-│     └─ investments.csv
+│  ├─ README.md               # documentation index
+│  ├─ requirements/           # original Markdown and Word requirements
+│  ├─ design/                 # visual plan and design reference
+│  ├─ architecture/           # ARCHITECTURE.md and this Context.md
+│  ├─ database/               # schema and relationship guide
+│  ├─ media/                  # content guide, prompts, standalone exports
+│  │  └─ originals/           # local reference photos, ignored by Git
+│  └─ changelog/              # implementation history
+├─ assets/                    # shipped styles and imagery
+├─ js/                        # browser modules
+├─ netlify/functions/         # server-side gateways
+├─ supabase/migrations/       # migrations remain at their original paths
+└─ tests/                     # isolated database and browser checks
 ```
+
+The optional framework sketch below is historical planning, not an implemented migration.
 
 If switching to Vite:
 

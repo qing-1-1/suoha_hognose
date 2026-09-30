@@ -23,3 +23,7 @@
 .ws-dialog[open]:has(#listingPhotoEditor){display:flex;flex-direction:column;overflow:hidden;max-height:90dvh}.ws-dialog:has(#listingPhotoEditor) .ws-dialog-head{flex-shrink:0}#listingPhotoEditor{overflow:auto;min-height:0;padding-right:4px;overscroll-behavior:contain}
 @media(max-width:600px){.animal-photo-grid,.animal-photo-fields{grid-template-columns:1fr}.animal-photo-preview{height:200px}.animal-photo-editor input{font-size:16px}.animal-photo-editor .ws-action{min-height:44px}.animal-photo-heading{gap:10px}.animal-photo-heading>.ws-action{flex-shrink:0}}
 @media(max-width:600px){#editModal:has(.animal-photo-editor) .geneEditorHead>div:first-child{flex-basis:100%}#editModal:has(.animal-photo-editor) .geneEditorHead .spacer{display:none}#editModal:has(.animal-photo-editor) .geneEditorRow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#editModal:has(.animal-photo-editor) .geneEditorRow button{justify-self:end;width:44px;height:44px}}
+
+.animal-photo-card .photo-visibility{display:flex;align-items:center;gap:9px;min-height:44px;color:#405932}.animal-photo-card .photo-visibility input{width:18px;height:18px;min-height:18px;flex:none;accent-color:#496b35}
+
+.animal-public-cover{position:absolute;right:8px;bottom:8px;padding:4px 8px;border-radius:3px;background:#254630;color:#e3efca;font-size:10px}

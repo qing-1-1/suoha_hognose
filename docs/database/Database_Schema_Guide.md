@@ -1,5 +1,12 @@
 # Suoha Hognose Breeding OS — Database Schema & Relationship Guide
 
+> **Version scope (2026-09-30):** The inventory below documents the earlier core
+> schema, not the complete post-027 table count. Public catalog, sales, inventory
+> libraries, calendar, per-photo visibility and batch registration are added by
+> [migrations 019–027](../../supabase/migrations/). Use those migrations as the
+> authority for added fields, functions and policies; apply only migrations not
+> already installed. Current rollout steps are in [README](../../README.md).
+
 > **Document purpose**
 >
 > This is the canonical developer-facing explanation of the current Suoha Hognose database.

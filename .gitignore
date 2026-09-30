@@ -7,13 +7,5 @@ dist/
 test-results/
 playwright-report/
 /artifacts/
-/supabase/migrations/*
-!/supabase/migrations/010_mendelian_genetics_metadata.sql
-!/supabase/migrations/011_correct_skullface_and_frosted_metadata.sql
-!/supabase/migrations/012_resolve_s21_s22_s31_genotypes.sql
-!/supabase/migrations/013_candidate_investment_prompt.sql
-!/supabase/migrations/014_candidate_investment_plain_advice_prompt.sql
-!/supabase/migrations/015_candidate_investment_web_search_prompt.sql
-!/supabase/migrations/016_investment_expense_ledger.sql
-!/supabase/migrations/017_profile_display_names.sql
-!/supabase/migrations/*.sql
+# Original reference photos stay local; published derivatives live in assets/.
+/docs/media/originals/

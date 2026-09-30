@@ -22,14 +22,27 @@ function projectItem(row) {
   return safe;
 }
 async function catalog(query = {}) {
-  const data = await rpc('public_catalog', {
+  const advanced = Boolean(query.year || query.gene);
+  const params = {
     p_slug: query.slug || null, p_page: Math.max(1, Math.min(10000, Number.parseInt(query.page, 10) || 1)),
     p_search: String(query.q || '').slice(0,100), p_series: String(query.series || '').slice(0,100),
     p_sex: ['F','M','U'].includes(query.sex) ? query.sex : '',
     p_status: ['available','reserved','sold','display'].includes(query.status) ? query.status : '',
     p_sort: ['price_asc','price_desc'].includes(query.sort) ? query.sort : 'newest'
-  });
-  return { items: (data.items || []).map(projectItem), total: data.total || 0, page: data.page || 1, series: data.series || [] };
+  };
+  let data;
+  try {
+    data = await rpc('public_catalog_v2', {...params,
+      p_year: /^\d{4}$/.test(String(query.year || '')) ? Number(query.year) : null,
+      p_gene: String(query.gene || '').slice(0,100),
+      p_gene_state: ['visual','het','possible_het','super','line_trait','unknown'].includes(query.gene_state) ? query.gene_state : ''
+    });
+  } catch (error) {
+    // Only an absent v2 RPC may use the old contract; never silently drop a requested filter.
+    if (advanced || !/public_catalog_v2|PGRST202/.test(error.message)) throw error;
+    data = await rpc('public_catalog', params);
+  }
+  return { items: (data.items || []).map(projectItem), total: data.total || 0, page: data.page || 1, series: data.series || [], years: data.years || [], gene_options: data.gene_options || [] };
 }
 function json(statusCode, body) {
   return { statusCode, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }, body: JSON.stringify(body) };

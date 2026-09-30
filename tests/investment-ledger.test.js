@@ -99,7 +99,7 @@ test("admin exposes gene alias mapping controls", () => {
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="aliases"/);
   assert.match(html, /基因黑话/);
-  assert.match(dataSource, /from\("gene_aliases"\)\.select\("\*"\)/);
+  assert.match(dataSource, /fetchAll\(client, 'gene_aliases'/);
   assert.match(appSource, /function aliasFormHtml\(row=\{\}\)/);
   assert.match(appSource, /function openAliasForm\(alias=null\)/);
   assert.match(appSource, /function deleteAlias\(alias\)/);
@@ -117,7 +117,7 @@ test("admin exposes atomic gene dictionary controls", () => {
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="genes"/);
   assert.match(html, /原子基因/);
-  assert.match(dataSource, /from\("genes"\)\.select\("\*"\)\.order\("id"\)/);
+  assert.match(dataSource, /fetchAll\(client, 'genes'/);
   assert.match(appSource, /const GENE_INHERITANCE_TYPES=\["recessive","incomplete_dominant","dominant","polygenic","line_trait","unknown"\]/);
   assert.match(appSource, /function geneDefinitionFormHtml\(row=\{\}\)/);
   assert.match(appSource, /function openGeneDefinitionForm\(id=null\)/);
@@ -135,8 +135,8 @@ test("admin exposes named morph combo controls", () => {
   const dataSource = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
   assert.match(html, /data-admin-tab="morphs"/);
   assert.match(html, /组合黑话/);
-  assert.match(dataSource, /from\("morphs"\)\.select\("\*"\)/);
-  assert.match(dataSource, /from\("morph_components"\)\.select\("\*"\)/);
+  assert.match(dataSource, /fetchAll\(client, 'morphs'/);
+  assert.match(dataSource, /fetchAll\(client, 'morph_components'/);
   assert.match(dataSource, /from\("morph_aliases"\)/);
   assert.match(dataSource, /morphAliases/);
   assert.match(appSource, /m\.name_en/);

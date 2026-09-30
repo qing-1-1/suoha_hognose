@@ -29,13 +29,16 @@ test('individual editor manages a private photo library without losing unsaved a
   await host.getByRole('button',{name:'上传照片',exact:true}).click();
   await expect(host.locator('[data-photo-message]')).toContainText('已保存 2 张');
   await expect(host.locator('.animal-photo-card')).toHaveCount(2);
+  await expect(host.locator('.animal-photo-card').first().getByLabel('选入公开档案',{exact:true})).not.toBeChecked();
   expect(await page.evaluate(()=>photoFixture.specimen_listings[0].published)).toBe(false);
   expect(await page.evaluate(()=>photoFixture.uploads.every(x=>x.type==='image/webp'&&x.size>0))).toBe(true);
   const second=host.locator('.animal-photo-card').nth(1);
   await second.getByLabel('照片说明',{exact:true}).fill('背部特写');
   await second.getByLabel('拍摄日期',{exact:true}).fill('2026-09-30');
-  await second.getByRole('button',{name:'保存说明',exact:true}).click();
-  await expect(host.locator('[data-photo-message]')).toContainText('照片说明已保存');
+  await second.getByLabel('选入公开档案',{exact:true}).check();
+  await second.getByRole('button',{name:'保存照片设置',exact:true}).click();
+  await expect(host.locator('[data-photo-message]')).toContainText('照片设置已保存');
+  expect(await page.evaluate(()=>photoFixture.specimen_media.find(x=>x.caption==='背部特写').is_public)).toBe(true);
   await host.locator('.animal-photo-card').nth(1).getByRole('button',{name:'设为封面',exact:true}).click();
   await expect(host.locator('.animal-photo-card').first().getByLabel('照片说明',{exact:true})).toHaveValue('背部特写');
   const previous=await page.evaluate(()=>photoFixture.specimen_media.find(x=>x.caption==='背部特写').storage_path);

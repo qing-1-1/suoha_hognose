@@ -1,0 +1,37 @@
+/* First-screen window and one-shot hatch preview. Main brand artwork stays visible. */
+.studio-film{background-size:400% 300%}
+.studio-film-frames{display:grid;grid-template-columns:repeat(6,1fr);gap:0 3px}
+.studio-film-frames button{min-width:32px;min-height:36px}
+.hero-art{height:72%;top:0}
+.hero-studio{position:absolute;z-index:4;right:5%;bottom:99px;width:clamp(270px,24vw,340px);border:1px solid #879d6970;background:#203025;border-radius:3px;box-shadow:0 14px 40px #0a140c40;overflow:hidden}
+.hero-studio-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:0 10px 0 16px;min-height:44px;border-bottom:1px solid #91a97833}
+.hero-studio-head>span{font-size:9px;letter-spacing:1.2px;color:#d0ddb8}
+.hero-studio-head button{min-width:44px;min-height:44px;padding:0 6px;border:0;background:transparent;color:#d4e7ac;font-size:11px}
+.hero-studio-link{display:block}
+.hero-studio-copy{padding:13px 16px 15px}
+.hero-studio-copy strong{font-size:12px;font-weight:400;color:#ebefdf;display:block;line-height:1.6}
+.hero-studio-copy>span{display:flex;justify-content:space-between;gap:8px;font-size:10px;margin-top:5px;color:#b8cda0}
+.hero-studio-copy b{font-weight:400;font-size:15px;transition:translate .2s}
+.hero-studio-link:hover b{translate:3px -2px}
+.hero-studio a:focus-visible,.hero-studio button:focus-visible{outline:2px solid #d9edb3;outline-offset:-4px}
+.hero-studio .studio-load-status{margin:0;padding:8px 16px;font-size:10px}
+.hero-studio .studio-load-status[hidden]{display:none}
+.pixel-teaser{border:0;background:transparent;padding:0;border-radius:4px;cursor:pointer}
+.pixel-teaser:hover{background:#c9d9b750}
+.pixel-teaser:focus-visible{outline:2px solid #567842;outline-offset:3px}
+.hatch-control{display:inline-block;margin-top:8px;min-height:44px;padding:8px 0;border:0;border-bottom:1px solid #8fa47c;background:none;color:#354c2c;font-size:11px}
+.hatch-status{display:block;color:#6b522d;font-size:10px;margin-top:5px}
+@media(min-width:701px) and (max-width:1000px){.hero-studio{width:260px;right:4%;bottom:90px}.hero-art{height:70%;right:-18%;width:80%}.hero-copy{width:68%}.hero-actions{gap:20px}.hero h1{font-size:66px}}
+@media(max-width:700px){
+  .hero{height:auto;min-height:950px;max-height:none;padding-bottom:390px}
+  .hero-copy{padding-top:42px}
+  .hero-studio{position:relative;right:auto;bottom:auto;width:100%;max-width:440px;margin:25px 0 0;box-shadow:none}
+  .hero-studio-link{display:grid;grid-template-columns:44% minmax(0,1fr);align-items:center}
+  .hero-studio-copy{padding:10px 12px}.hero-studio-copy strong{font-size:11px}.hero-studio-copy>span{font-size:9px;line-height:1.6}
+  .hero-studio-head{padding-left:12px}.hero-studio-head>span{font-size:8px}
+  .hero-art{top:auto;bottom:65px;height:310px;width:100%;right:-6%;opacity:.95}
+  .coordinate-one{top:10%;left:2%}.coordinate-two{bottom:12%;right:12%}
+  .studio-film-frames{width:100%;gap:0}.studio-film-frames button{min-height:44px;min-width:44px}
+  .pixel-invitation h3{font-size:20px}.hatch-control{margin-top:5px}
+}
+@media(prefers-reduced-motion:reduce){.hero-studio-copy b{transition:none}}

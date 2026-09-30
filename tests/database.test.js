@@ -97,5 +97,38 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  await db.exec('reset role');assert.equal((await db.query('select count(*) from clutches where id=$1',[actualClutch])).rows[0].count,1);
  await db.exec('set role anon');await assert.rejects(db.query('select breeding_calendar()'),/permission denied/);
 
+ await db.exec(`reset role;
+ create table public.snake_measurements(id uuid primary key default gen_random_uuid(),snake_id text,measured_at date,weight_g numeric,length_cm numeric,feeding_status text,condition_note text,created_at timestamptz default now());
+ insert into specimen_media(listing_id,storage_path,caption) values('11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111/old.webp','原有照片');`);
+ await db.exec(fs.readFileSync('supabase/migrations/026_public_media_selection.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/027_growth_and_batch_registration.sql','utf8'));
+ assert.equal((await db.query("select is_public from specimen_media where caption='原有照片'")).rows[0].is_public,true);
+ await db.exec(`insert into specimen_media(listing_id,storage_path,caption) values('11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111/private.webp','内部照片');
+ update snakes set birth_date='2025-06-01' where id='M01';insert into genes values('g1','测试基因');insert into snake_genes values('M01','g1','possible_het',0.5);
+ set role anon;`);
+ let filtered=(await db.query("select public_catalog_v2(p_year=>2025,p_gene=>'g1',p_gene_state=>'possible_het') as data")).rows[0].data;
+ assert.equal(filtered.total,1);assert.equal(filtered.items[0].photos.length,1);assert.equal(filtered.items[0].photos[0].caption,'原有照片');
+ assert.equal((await db.query("select public_catalog_v2(p_gene=>'g1',p_gene_state=>'het') as data")).rows[0].data.total,0);
+ assert.equal((await db.query("select is_published_specimen_media('11111111-1111-4111-8111-111111111111/private.webp') as allowed")).rows[0].allowed,false);
+ await assert.rejects(db.query("select retain_inventory_animal('M03','test')"),/permission denied/);
+ await db.exec("reset role;update specimen_listings set birth_precision='unknown' where slug='m01';set role anon");
+ assert.equal((await db.query("select public_catalog_v2(p_year=>2025) as data")).rows[0].data.total,0);
+ assert.deepEqual((await db.query('select public_catalog_v2() as data')).rows[0].data.years,[]);
+ await db.exec('reset role;set role authenticated');
+ const request='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+ const batchRows=[{id:'BATCH01',sex:'U',birth:'2026-03-01',series:'系列',gene_text:'待确认'},{id:'BATCH02',sex:'F',birth:'2026-03-02',series:'系列',gene_text:'人工确认描述'}];
+ const batch=(rows=batchRows,key=request)=>db.query('select register_hatchlings_batch($1,$2,$3,$4) as data',[key,actualClutch,JSON.stringify(rows),'owner']);
+ await assert.rejects(batch([{...batchRows[0]},{...batchRows[1],id:'M01'}]),/第 2 行/);
+ assert.equal((await db.query("select count(*) from snakes where id='BATCH01'")).rows[0].count,0);
+ assert.deepEqual((await batch()).rows[0].data,['BATCH01','BATCH02']);
+ assert.deepEqual((await batch()).rows[0].data,['BATCH01','BATCH02']);
+ await assert.rejects(batch([{...batchRows[0],id:'OTHER'}]),/conflict/);
+ await assert.rejects(batch([{...batchRows[0],id:'EXCESS'}],'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),/超过/);
+ await db.query("select retain_inventory_animal('BATCH01','保留观察结果，基因仍待确认')");
+ assert.equal((await db.query("select count(*) from snakes where id='BATCH01'")).rows[0].count,1);
+ assert.equal((await db.query("select assessment from inventory_transfers where individual_id='BATCH01'")).rows[0].assessment,'保留观察结果，基因仍待确认');
+ await db.exec("reset role;update profiles set role='viewer';set role authenticated");
+ await assert.rejects(batch(),/Not authorized/);
+ await assert.rejects(db.query("select retain_inventory_animal('BATCH02','test')"),/Not authorized/);
  }finally{await db.close();}
 });

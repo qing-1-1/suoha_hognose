@@ -49,13 +49,19 @@
     if(!catalog){loadPreview();return;}
     const form=$('#catalogFilters'), params=new URLSearchParams(location.search), host=$('#catalogGrid');
     sessionStorage.setItem('suoha.catalogQuery',location.search);
-    for(const field of ['q','sex','status','sort'])form.elements[field].value=params.get(field)|| (field==='sort'?'newest':'');
+    for(const field of ['q','sex','status','sort','year','gene','gene_state'])if(form.elements[field])form.elements[field].value=params.get(field)|| (field==='sort'?'newest':'');
     host.innerHTML='<div class="catalog-loading">正在读取公开档案…</div>';$('#pagination').innerHTML='';
     try {
       const data=await fetchCatalog(Object.fromEntries(params),abort.signal);
       form.elements.series.innerHTML='<option value="">全部系列</option>'+data.series.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');form.elements.series.value=params.get('series')||'';
+      for(const [field,rows,title] of [['year',(data.years||[]).map(y=>[y,y+' 年']),'全部年份'],['gene',(data.gene_options||[]).map(g=>[g.id,g.name]),'全部基因']]) {
+        const value=params.get(field)||'';
+        if(value&&!rows.some(r=>String(r[0])===value))rows.push([value,value]);
+        form.elements[field].innerHTML=`<option value="">${title}</option>`+rows.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('');form.elements[field].value=value;
+      }
       $('#catalogCount').textContent=`${data.total} 份公开档案`;
       if(data.items.length)host.innerHTML=data.items.map(card).join('');else empty(host);
+      window.dispatchEvent(new Event('suoha:catalog'));
       const pages=Math.max(1,Math.ceil(data.total/24));
       if(pages>1)$('#pagination').innerHTML=`<button data-page="${data.page-1}" ${data.page<=1?'disabled':''}>← 上一页</button><span>${data.page} / ${pages}</span><button data-page="${data.page+1}" ${data.page>=pages?'disabled':''}>下一页 →</button>`;
       if(history.state?.restore){requestAnimationFrame(()=>scrollTo(0,Number(sessionStorage.getItem('suoha.catalogScroll')||0)));}

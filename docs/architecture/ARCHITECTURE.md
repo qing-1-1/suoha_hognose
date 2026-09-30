@@ -1,10 +1,26 @@
 # Suoha Hognose frontend architecture
 
+## Current additions (2026-09-30)
+
+The public homepage adds `home-content.js`, `home-editorial.js`, `studio-feeding.js`,
+`home-hatch.js` and `public-refinements.js` for editorial content and visible-only
+pixel animation playback. Public catalog v2 filters and per-photo visibility are
+provided by migration 026. Private views add `workspace-upgrades.js`; migration 027
+provides growth record types, retention assessments and atomic, retry-safe batch
+registration. Data loaders read stable ordered batches into a complete authorized
+snapshot; visible lists paginate that snapshot. This is not server-side on-demand
+pagination. See [current deployment instructions](../../README.md) and
+[the implementation record](../design/视觉升级与功能优化实施方案.md) for status.
+
+The dated sections below retain the architecture history. Paths shown in code
+blocks are relative to the repository root. Documentation is indexed in
+[docs/README.md](../README.md).
+
 ## V2 implementation (2026-09-29)
 
 The public site now lives at `index.html`; the original authenticated workspace
 is preserved in `admin.html` at `/admin`. Public traffic never calls the internal
-`fetchWorkspace()` loader. See [README.md](README.md) for enablement and current limits.
+`fetchWorkspace()` loader. See [README.md](../../README.md) for enablement and current limits.
 
 ```text
 Public: index.html + storefront.css + storefront.js + field-art.js
