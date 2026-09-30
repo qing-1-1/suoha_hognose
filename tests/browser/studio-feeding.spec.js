@@ -6,56 +6,44 @@ test.beforeEach(async ({page}) => {
   await page.route('**/.netlify/functions/public-catalog*', route => route.fulfill({json:{items:[],total:0,page:1,series:[]}}));
 });
 
-test('feeding scene animates real poses and pauses on request, offscreen and behind dialogs', async ({page}) => {
-  const errors=[];
-  page.on('pageerror', error => errors.push(error.message));
+test('feeding decoration loads on approach, stops behind dialogs and finishes without looping',async({page})=>{
+  const errors=[],requested=[];
+  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requested.push(r.url()));
   await page.goto('/');
+  expect(requested.some(url=>url.includes('keeper-feeding'))).toBe(false);
   const scene=page.locator('#studioScene');
-  await expect(scene).toHaveAttribute('data-playing','false');
   await scene.scrollIntoViewIfNeeded();
   await expect(scene).toHaveAttribute('data-loaded','true');
   await expect(scene).toHaveAttribute('data-playing','true');
-  await expect.poll(() => scene.getAttribute('data-frame')).not.toBe('0');
-  await page.getByRole('button',{name:'暂停喂食动画',exact:true}).click();
-  const stopped=await scene.getAttribute('data-frame');
-  await page.waitForTimeout(1700);
-  await expect(scene).toHaveAttribute('data-frame',stopped);
-  await page.getByRole('button',{name:'喂食动画第 5 帧',exact:true}).click();
-  await expect(scene.locator('.studio-film')).toHaveAttribute('aria-label',/用小镊子/);
-  await expect(scene.locator('.studio-film')).toHaveCSS('background-position','0% 50%');
-  await scene.getByRole('button',{name:'重播',exact:true}).click();
-  await expect(scene).toHaveAttribute('data-playing','true');
-  await page.getByRole('tab',{name:'02记录'}).click();
-  await page.getByRole('button',{name:'看看怎样读成长记录'}).click();
+  await page.locator('#fieldNotes [data-note="archive"]').click();
   await expect(scene).toHaveAttribute('data-playing','false');
+  const frame=await scene.getAttribute('data-frame');
+  await page.waitForTimeout(400);await expect(scene).toHaveAttribute('data-frame',frame);
   await page.keyboard.press('Escape');
   await scene.scrollIntoViewIfNeeded();
-  await expect(scene).toHaveAttribute('data-playing','true');
-  await page.evaluate(() => scrollTo({top:0,behavior:'instant'}));
+  await expect(scene).toHaveAttribute('data-frame','11',{timeout:6500});
   await expect(scene).toHaveAttribute('data-playing','false');
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+  await scene.scrollIntoViewIfNeeded();
+  await expect(scene).toHaveAttribute('data-frame','11');
+  await expect(scene).toHaveAttribute('data-playing','false');
+  expect(requested.some(url=>url.endsWith('/keeper-feeding-v2.webp'))).toBe(true);
   expect(errors).toEqual([]);
 });
 
-test('reduced motion is static, loading failure retries, and narrow screens fit', async ({page}) => {
-  await page.emulateMedia({reducedMotion:'reduce'});
-  let reject=true;
-  await page.route('**/keeper-feeding-v2.webp', route => reject ? route.abort() : route.continue());
+test('unavailable decoration falls back quietly while reading and navigation still work',async({page})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/keeper-feeding-v2.webp',r=>r.abort());
   await page.goto('/');
-  const scene=page.locator('#studioScene');
-  await scene.scrollIntoViewIfNeeded();
-  await page.getByRole('button',{name:'播放喂食动画',exact:true}).click();
+  const scene=page.locator('#studioScene');await scene.scrollIntoViewIfNeeded();
   await expect(scene).toHaveAttribute('data-loaded','error');
-  await expect(scene.locator('img')).toBeVisible();
   await expect(scene).toHaveAttribute('data-playing','false');
-  reject=false;
-  await page.getByRole('button',{name:'喂食动画第 10 帧',exact:true}).click();
-  await expect(scene).toHaveAttribute('data-loaded','true');
-  await expect(scene).toHaveAttribute('data-playing','false');
-  await expect(scene.locator('.studio-film')).toHaveAttribute('aria-label',/轮到你/);
-  await page.getByRole('button',{name:'播放喂食动画',exact:true}).click();
-  await expect(scene).toHaveAttribute('data-playing','true');
-  for(const width of [320,390,768,1440]) {
-    await page.setViewportSize({width,height:900});
-    expect(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  }
+  await expect.poll(()=>scene.locator('img').evaluate(el=>el.complete&&el.naturalWidth>0)).toBe(true);
+  await expect(scene.locator('.studio-film')).toBeHidden();
+  await page.locator('#fieldNotes [data-note="growth"]').click();
+  await expect(page.locator('#fieldNoteDialog')).toBeVisible();
+  await page.getByRole('link',{name:'前往真实个体档案'}).click();
+  await expect(page).toHaveURL(/collection$/);
+  await expect(page.locator('#homeView')).toBeHidden();
+  expect(errors).toEqual([]);
 });

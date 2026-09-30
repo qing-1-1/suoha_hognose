@@ -4,20 +4,6 @@ test.beforeEach(async({page})=>{
  await page.route('**/fonts.gstatic.com/**',r=>r.abort());
  await page.route('**/.netlify/functions/public-catalog*',r=>r.fulfill({json:{items:[],total:0,page:1,series:['测试系列'],years:[2025,2026],gene_options:[{id:'test',name:'测试基因'}]}}));
 });
-test('pixel shorts have real frames, manual controls, pause and reduced-motion poster',async({page})=>{
- await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/');
- await page.getByRole('button',{name:'观看像素动画'}).click();
- const dialog=page.getByRole('dialog',{name:'小小新生'});
- await expect(dialog).toBeVisible();await expect(dialog).toHaveAttribute('data-playing','false');
- await page.getByRole('button',{name:'第 3 帧',exact:true}).click();await expect(page.locator('#pixelCaption')).toContainText('一小圈身体');
- await page.getByRole('button',{name:'繁育者手记',exact:true}).click();await expect(page.locator('#pixelTheaterTitle')).toHaveText('繁育者手记');
- await page.getByRole('button',{name:'从头播放',exact:true}).click();await expect(page.locator('#pixelTheater')).toHaveAttribute('data-playing','true');
- await expect(page.locator('#pixelCaption')).toHaveText('把小变化，认真记下来。',{timeout:4000});
- await page.getByRole('button',{name:'暂停动画',exact:true}).click();await expect(page.locator('#pixelTheater')).toHaveAttribute('data-playing','false');
- await page.screenshot({path:`artifacts/pixel-theater-${test.info().project.name}.png`});
- await page.keyboard.press('Escape');await expect(page.locator('#pixelTheater')).toBeHidden();await expect(page.getByRole('button',{name:'观看像素动画'})).toBeFocused();
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-});
 test('catalog filters survive refresh and chips clear dependent state and old pagination',async({page})=>{
  await page.goto('/collection');
  if(page.viewportSize().width<=700)await page.getByRole('button',{name:/筛选与排序/}).click();

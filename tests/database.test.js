@@ -29,6 +29,13 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  await assert.rejects(db.query('select * from purchase_inquiries'),/permission denied/);
  await assert.rejects(db.query('select * from inventory_sale_states()'),/permission denied/);
  await db.exec('reset role');
+ // A published breeding-stock archive still cannot accept a purchase inquiry,
+ // including a direct request through the backend's service role.
+ await db.exec("update specimen_listings set published=true where slug='m02';set role service_role");
+ await assert.rejects(db.query("select submit_purchase_inquiry('99999999-9999-4999-8999-999999999999','22222222-2222-4222-8222-222222222222','客户','contact','留言','display-test')"),/not accepting inquiries/);
+ await db.exec('reset role');
+ assert.equal((await db.query("select count(*) from purchase_inquiries where listing_id='22222222-2222-4222-8222-222222222222'")).rows[0].count,0);
+ await db.exec("update specimen_listings set published=false where slug='m02'");
  await assert.rejects(db.query("update snakes set status='retired' where id='M01'"),/Resolve availability/);
  const makeInquiry=async(n)=>db.query(`select submit_purchase_inquiry($1,'11111111-1111-4111-8111-111111111111','客户','contact','留言','fingerprint') as data`,[`${n}3333333-3333-4333-8333-333333333333`]);
  const first=(await makeInquiry(1)).rows[0].data;assert.equal((await makeInquiry(1)).rows[0].data.reference,first.reference);

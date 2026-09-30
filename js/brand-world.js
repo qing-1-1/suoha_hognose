@@ -1,7 +1,6 @@
 /* Original, code-native room illustration. No business data or telemetry. */
 (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const desktop = matchMedia('(min-width: 901px) and (hover: hover)');
   const room = () => {
     const drawers = (x, y, cols, rows, width, height) => Array.from({length: rows}, (_, row) =>
       Array.from({length: cols}, (_, col) => {
@@ -61,26 +60,8 @@
     const observer = new IntersectionObserver(entries => {entries.forEach(e => visibility.set(e.target,e.isIntersecting));syncScenes();});
     scenes.forEach(el => observer.observe(el));
   }
-  const story = document.querySelector('.room-story');
-  let visibleStory = false, frame = 0;
-  function updateStory() {
-    frame = 0;
-    if (!story || !visibleStory || document.hidden || reduced.matches || !desktop.matches) return;
-    const box = story.getBoundingClientRect();
-    const progress = Math.max(0,Math.min(1,-box.top / (box.height-innerHeight || 1)));
-    story.style.setProperty('--room-scale',String(1 + progress * .055));
-    story.style.setProperty('--room-caption-opacity',String(Math.max(0,1-progress*4)));
-  }
-  function scheduleStory() {if(!frame && visibleStory && !document.hidden && desktop.matches && !reduced.matches) frame=requestAnimationFrame(updateStory);}
-  if (story && 'IntersectionObserver' in window) {
-    new IntersectionObserver(entries => {visibleStory=entries[0].isIntersecting;scheduleStory();}).observe(story);
-    addEventListener('scroll',scheduleStory,{passive:true});
-    addEventListener('resize',scheduleStory,{passive:true});
-  }
-  function resetMotion() {syncScenes();story?.style.removeProperty('--room-scale');story?.style.removeProperty('--room-caption-opacity');scheduleStory();}
-  reduced.addEventListener('change',resetMotion);
-  desktop.addEventListener('change',resetMotion);
-  document.addEventListener('visibilitychange',() => {syncScenes();scheduleStory();});
+  reduced.addEventListener('change',syncScenes);
+  document.addEventListener('visibilitychange',syncScenes);
   // A one-time entrance never hides content while waiting for JavaScript.
   if ('IntersectionObserver' in window) {
     const entrance = new IntersectionObserver(entries => entries.forEach(e => {

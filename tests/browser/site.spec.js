@@ -7,9 +7,9 @@ test('home, catalog, details and inquiry preserve uncertainty and do not require
   let submitted;
   await page.route('**/.netlify/functions/purchase-inquiry',async route=>{submitted=route.request().postDataJSON();await route.fulfill({status:201,json:{reference:'SH-TEST123'}});});
   await page.goto('/');await expect(page.getByRole('heading',{name:/野性有序/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/北极康达/})).toBeVisible();await expect(page.locator('#fieldCanvas')).toHaveAttribute('data-art-ready','true');
+  await expect(page.locator('#homeView .specimen-card')).toHaveCount(0);await expect(page.locator('#fieldCanvas')).toHaveAttribute('data-art-ready','true');
   await page.screenshot({path:`artifacts/home-${test.info().project.name}.png`,fullPage:true,animations:"disabled"});
-  await page.getByRole('link',{name:/探索个体档案/}).click();
+  await page.getByRole('link',{name:/进入商店/}).click();
   await expect(page).toHaveURL(/collection/);if(page.viewportSize().width<=700)await page.getByRole('button',{name:/筛选与排序/}).click();await page.getByRole('searchbox').fill('M01');await page.getByRole('button',{name:'筛选',exact:true}).click();
   await expect(page).toHaveURL(/q=M01/);await page.getByRole('link',{name:/北极康达/}).click();
   await expect(page).toHaveURL(/specimens\/test-m01/);await expect(page.getByText('薰衣草 · 可能携带 50%',{exact:true})).toBeVisible();await expect(page.locator('#detailView').getByText('2025-07',{exact:true})).toBeVisible();
@@ -117,4 +117,20 @@ test('reduced motion keeps the room illustration static and small login screens 
   await page.mouse.move(280,150);await page.getByLabel('邮箱或用户名',{exact:true}).fill('test');
   await page.getByRole('button',{name:'登录系统',exact:true}).scrollIntoViewIfNeeded();await expect(page.getByRole('button',{name:'登录系统',exact:true})).toBeInViewport();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+
+test('breeding stock is display-only in cards and detail even if it has a stored asking price',async({page})=>{
+  await page.route('**/.netlify/functions/public-catalog*',r=>r.fulfill({json:{items:[{...specimen,sale_status:'display'}],total:1,page:1,series:['北极']}}));
+  await page.goto('/collection?status=display');
+  const card=page.locator('.specimen-card');
+  await expect(card).toContainText('仅展示 · 不出售');
+  await expect(card).not.toContainText('3,500');
+  await card.click();
+  await expect(page.locator('.detail-price')).toHaveText('留种展示 · 不出售');
+  await expect(page.locator('.detail-purchase')).toContainText('留种个体仅作展示，不提供售卖或预留。');
+  await expect(page.locator('#openInquiry')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/咨询购买|提交候补咨询/})).toHaveCount(0);
+  await page.getByRole('link',{name:'探索其他在售个体'}).click();
+  await expect(page).toHaveURL(/collection\?status=available$/);
 });

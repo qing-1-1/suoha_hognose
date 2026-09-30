@@ -6,15 +6,6 @@ window.SuohaHomeContent = {
     room: { src: '/assets/photos/breeding-room-1600.webp', small: '/assets/photos/breeding-room-800.webp', smallWidth: 800, width: 1600, height: 1200, alt: 'SUOHA 爬房实拍，窗边的独立饲养盒与饲养架', credit: 'SUOHA 爬房实拍' },
     studio: { src: '/assets/photos/pixel-breeding-studio-1536.webp', small: '/assets/photos/pixel-breeding-studio-768.webp', width: 1536, height: 768, alt: '粗像素爬房：男生穿着橄榄色围裙，走在三组抽屉式爬柜前', credit: '原创 AI 像素小故事 · 非实拍' }
   },
-  doors: [
-    { image: 'earth', index: '01', kicker: 'FIND YOUR COMPANION', title: '遇见，下一位伙伴。', text: '从真实照片与档案开始，找到想进一步了解的个体。', link: '/collection?status=available', action: '浏览在售个体' },
-    { image: 'closeup', index: '02', kicker: 'MEET THE COLLECTION', title: '看见，繁育的方向。', text: '走近留种个体，了解我们正在记录的不同。', link: '/collection?status=display', action: '认识留种个体' }
-  ],
-  moments: [
-    { id: 'observe', label: '观察', time: '01 / TAKE A CLOSER LOOK', title: '停一会儿，看见小变化。', text: '一张照片，一次观察。把注意力留给眼前的个体，也把变化留给下一次回看。', link: '/collection', action: '走近个体档案', x: 77, y: 48 },
-    { id: 'record', label: '记录', time: '02 / KEEP A FIELD NOTE', title: '今天的日常，明天的线索。', text: '日期、体重、喂食与蜕皮，各自是一条小记录。放在一起，才能慢慢读懂成长。', note: 'growth', action: '看看怎样读成长记录', x: 64, y: 46 },
-    { id: 'breed', label: '繁育', time: '03 / WAIT FOR THE NEXT CHAPTER', title: '为下一段故事，留一页空白。', text: '从计划到实际发生，每一步都有自己的日期。期待新的生命，也认真保留等待的过程。', note: 'archive', action: '了解档案里的信息', x: 40, y: 65 }
-  ],
   notes: [
     { id: 'archive', category: '档案入门', en: 'READ THE ARCHIVE', title: '好看的背后，\n还有哪些信息？', description: '从编号、照片到基因标注，读懂一份公开档案。', icon: 'hognose', image: 'earth', intro: '第一眼可以被色彩吸引，进一步了解时，可以把注意力放回这条个体自己的记录。', sections: [
       { title: '先确认是同一条个体', text: '记下档案编号，再对照照片、性别和出生资料。咨询时带上编号，沟通会更清楚；不要用首页概念图判断某条个体的实际表现。' },
