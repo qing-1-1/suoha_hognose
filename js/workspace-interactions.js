@@ -2,7 +2,7 @@
 (() => {
   const focusOrigins=new Map(),originalOpen=openModal,originalClose=closeModal;
   openModal=function(id){const modal=document.getElementById(id);if(!modal)return;focusOrigins.set(id,document.activeElement);originalOpen(id);modal.setAttribute('aria-hidden','false');const panel=modal.querySelector('.modalPanel');panel?.setAttribute('role','dialog');panel?.setAttribute('aria-modal','true');const heading=panel?.querySelector('h3');if(heading){heading.id||=id+'Heading';panel.setAttribute('aria-labelledby',heading.id);}requestAnimationFrame(()=>modal.querySelector('input:not([type=hidden]),select,textarea,button')?.focus());};
-  closeModal=function(id){originalClose(id);document.getElementById(id)?.setAttribute('aria-hidden','true');focusOrigins.get(id)?.focus();};
+  closeModal=function(id){originalClose(id);const modal=document.getElementById(id);if(modal?.classList.contains('open'))return;modal?.setAttribute('aria-hidden','true');focusOrigins.get(id)?.focus();};
   document.addEventListener('keydown',event=>{
     if(document.querySelector('dialog[open]'))return;
     const modal=[...document.querySelectorAll('.modalBackdrop.open')].at(-1);if(!modal)return;

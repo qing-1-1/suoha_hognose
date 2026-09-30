@@ -25,7 +25,7 @@ test('private workspace remains gated and contains no public customer login',asy
   await page.route('**/cdn.jsdelivr.net/**',route=>route.fulfill({contentType:'text/javascript',body:'window.supabase={createClient:()=>({auth:{onAuthStateChange(){},getSession:async()=>({data:{session:null}})}})};'}));
   await page.goto('/admin');await expect(page.getByLabel('邮箱或用户名',{exact:true})).toBeVisible();
   await expect(page.locator('#gateEmail')).toBeVisible();await expect(page.locator('.main')).toBeHidden();
-  await expect(page.locator('[data-hognose-art]')).toHaveAttribute('data-art-ready','true');
+  await expect(page.locator('[data-room-art] svg')).toBeVisible();
   await page.getByLabel('密码',{exact:true}).fill('example-password');await page.getByRole('button',{name:'显示密码',exact:true}).click();await expect(page.locator('#gatePassword')).toHaveAttribute('type','text');await expect(page.locator('#gatePassword')).toHaveValue('example-password');await page.getByRole('button',{name:'隐藏密码',exact:true}).click();await expect(page.locator('#gatePassword')).toHaveAttribute('type','password');await page.locator('#gatePassword').clear();
   expect(await page.getByRole('button',{name:'登录系统',exact:true}).evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight})).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -107,13 +107,14 @@ test('failed public photos show a readable fallback and a working alternative',a
 });
 
 
-test('reduced motion keeps the hognose artwork static and small login screens scroll',async({page})=>{
+test('reduced motion keeps the room illustration static and small login screens scroll',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.route('**/cdn.jsdelivr.net/**',route=>route.fulfill({contentType:'text/javascript',body:'window.supabase={createClient:()=>({auth:{onAuthStateChange(){},getSession:async()=>({data:{session:null}})}})};'}));
   await page.setViewportSize({width:360,height:560});await page.goto('/admin');
-  const art=page.locator('[data-hognose-art]');await expect(art).toHaveAttribute('data-art-ready','true');
-  const before=await art.evaluate(el=>el.toDataURL());await page.mouse.move(280,150);await page.getByLabel('邮箱或用户名',{exact:true}).fill('test');
-  expect(await art.evaluate(el=>el.toDataURL())).toBe(before);
+  const art=page.locator('[data-room-art]');await expect(art.locator('svg')).toBeVisible();
+  await expect(art).toHaveAttribute('data-motion','paused');
+  expect(await art.locator('.room-light').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+  await page.mouse.move(280,150);await page.getByLabel('邮箱或用户名',{exact:true}).fill('test');
   await page.getByRole('button',{name:'登录系统',exact:true}).scrollIntoViewIfNeeded();await expect(page.getByRole('button',{name:'登录系统',exact:true})).toBeInViewport();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

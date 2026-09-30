@@ -90,3 +90,19 @@ npm run build
 检索参考了 [Rhythm of Nature / Awwwards](https://www.awwwards.com/sites/rhythm-of-nature) 的自然主题展示方向、[Terra Living 案例](https://www.wix.com/explore/websites/site/terra-living) 的深色编辑式呈现，以及 [UIkit Ecommerce Template](https://github.com/chekromul/uikit-ecommerce-template) 的目录组织思路。
 
 最终页面、Canvas 视觉和标志为本项目原生实现，没有复制上述模板代码、商业 Figma 文件或示例商品照片，也没有引入 Bootstrap／UIkit 依赖。
+
+
+## 2026-09-30 · 第一轮品牌视觉
+
+首页新增用户提供的爬房实拍、桌面滚动覆盖与移动端图文段落；统一手绘图鉴与指南图标；登录页使用原创爬房场景，局部动画支持视口启停与减少动态效果。品牌照片位于 `assets/photos/`，随静态网站部署，不改变 Supabase 个体照片存储方式。
+
+完整的已完成清单、后续公开网站/内部功能任务、素材需求及验收标准见 [视觉升级与功能优化实施方案.md](视觉升级与功能优化实施方案.md)。本轮无需新增 SQL 或环境变量，尚未部署。
+
+
+## 个体照片与公开图片修复
+
+“个体档案 → 编辑个体”现已提供上传、替换、删除、封面、说明与拍摄日期编辑；与“公开展示 → 照片”共用图库。照片独立保存，首次上传只创建未发布配置，不自动上架。
+
+公开图片现在先检查发布状态，再跳转到 Supabase 的 60 秒签名地址，避免原图 Base64 超过函数响应限制；兼容没有服务端密钥但已具备发布照片读取策略的环境。现有照片无需重传，Storage 仍是私有 bucket。本轮无 SQL 或新增环境变量，需要重新部署网站及 Functions。
+
+首页还加入用户 HEIC 原片制作的特写，已注明背景艺术处理。详细排查证据、权限有效期和验收结果见 [实施方案第 9 节](视觉升级与功能优化实施方案.md#9-追加交付公开图片修复个体照片编辑与蛇的特写)。

@@ -99,7 +99,7 @@
 
   const dialog=document.createElement('dialog');dialog.className='ws-dialog';dialog.id='workspaceDialog';document.body.appendChild(dialog);
   let dirty=false,busy=false;
-  function closeDialog(){if(busy)return;if(dirty&&!confirm('有未保存的修改，确认放弃吗？'))return;dialog.close();}
+  function closeDialog(){if(busy||window.SuohaPhotos?.isBusy())return;if(dirty&&!confirm('有未保存的修改，确认放弃吗？'))return;dialog.close();}
   dialog.addEventListener('cancel',event=>{event.preventDefault();closeDialog();});
   dialog.addEventListener('close',()=>{dirty=false;lastFocus?.focus();});
   function openDialog(title,subtitle,content){lastFocus=document.activeElement;dirty=false;dialog.innerHTML=`<div class="ws-dialog-head"><div><h2 id="wsDialogTitle">${escape(title)}</h2><p>${escape(subtitle)}</p></div><button class="ws-dialog-close" aria-label="关闭">×</button></div>${content}`;dialog.setAttribute('aria-labelledby','wsDialogTitle');dialog.querySelector('.ws-dialog-close').onclick=closeDialog;if(!dialog.open)dialog.showModal();}
@@ -142,13 +142,10 @@
   }
 
   async function photos(id){
+    if(!canWrite())return;
     const row=model.listings.find(l=>l.id===id);if(!row)return;
-    const media=model.media.filter(m=>m.listing_id===id).sort((a,b)=>a.sort_order-b.sort_order);
-    openDialog('个体照片 · '+row.snake_id,'仅上传此个体的真实照片。已发布档案的新照片保存后可公开访问；首张作为封面。',`<div class="ws-photos" id="wsPhotos"></div><form id="photoUpload" class="ws-form" style="margin-top:24px"><label class="full">选择照片（JPEG / PNG / WebP，每张不超过 8MB）<input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple required></label>${input('caption','说明','','text','maxlength="200"')}${input('date','拍摄日期','','date')}<p class="ws-form-message" role="status"></p><div class="ws-actions"><button class="ws-action primary" type="submit">上传并保存</button></div></form>`);
-    const urls=await Promise.all(media.map(async m=>{const {data}=await sb.storage.from('specimen-media').createSignedUrl(m.storage_path,300);return {...m,url:data?.signedUrl};}));
-    if(!dialog.open||!byId('wsPhotos'))return;
-    byId('wsPhotos').innerHTML=urls.length?urls.map(m=>`<div class="ws-photo">${m.url?`<img src="${escape(m.url)}" alt="${escape(m.caption)}">`:'<p>照片暂不可读</p>'}<p class="ws-note">${escape(m.caption||'个体照片')}</p><div class="ws-actions">${button('设为封面','cover',m.id)}${button('移除','remove-photo',m.id)}</div></div>`).join(''):empty('暂无照片。上传后可设置封面。');
-    byId('photoUpload').onsubmit=async event=>{event.preventDefault();const form=event.currentTarget,files=[...form.elements.photos.files],msg=form.querySelector('.ws-form-message'),btn=form.querySelector('button');if(files.length>8){msg.textContent='每次最多上传 8 张。';return;}busy=true;btn.disabled=true;try{for(let i=0;i<files.length;i++){const file=files[i];if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024)throw new Error('图片格式不支持或超过 8MB');msg.textContent=`正在处理 ${i+1} / ${files.length}…`;const bitmap=await createImageBitmap(file);const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.88));if(!blob)throw new Error('无法处理图片');const path=`${id}/${crypto.randomUUID()}.webp`;await checked(sb.storage.from('specimen-media').upload(path,blob,{contentType:'image/webp',cacheControl:'0',upsert:false}));try{await checked(sb.from('specimen_media').insert({listing_id:id,storage_path:path,caption:form.elements.caption.value,photographed_at:form.elements.date.value||null,sort_order:media.length+i}));}catch(error){await sb.storage.from('specimen-media').remove([path]);throw error;}}await load(true);busy=false;await photos(id);}catch(error){msg.textContent=error.message;await load(true);}finally{busy=false;btn.disabled=false;}};
+    openDialog('个体照片 · '+row.snake_id,'这里和“编辑个体”共用同一份图库，照片单独保存。','<section id="listingPhotoEditor"></section>');
+    window.SuohaPhotos?.mount(byId('listingPhotoEditor'),row.snake_id,()=>load(true));
   }
   function saleDetail(id){
     const row=model.inquiries.find(i=>i.id===id);if(!row)return;

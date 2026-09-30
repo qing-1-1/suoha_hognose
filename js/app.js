@@ -506,7 +506,7 @@ function toast(msg,isError=false){
   if(!isError)showSuccess(msg);
 }
 function openModal(id){$("#"+id)?.classList.add("open")}
-function closeModal(id){$("#"+id)?.classList.remove("open")}
+function closeModal(id){if(id==="editModal"&&window.SuohaPhotos?.isBusy())return toast("照片正在保存，请稍候。",true);$("#"+id)?.classList.remove("open")}
 function openWorkflowModal({title,sub="",fields=[],submit="确认",danger=false,onSubmit}){const form=$("#workflowModalForm"),host=$("#workflowModalFields"),button=$("#workflowModalSubmit");$("#workflowModalTitle").textContent=title;$("#workflowModalSub").textContent=sub;$("#workflowModalMessage").textContent="";host.innerHTML=fields.map(field=>`<div class="formField full"><label>${esc(field.label)}</label><input name="${esc(field.name)}" type="${esc(field.type||"text")}" value="${esc(field.value??"")}" ${field.required?"required":""} ${field.min!==undefined?`min="${esc(field.min)}"`:""} ${field.max!==undefined?`max="${esc(field.max)}"`:""} ${field.pattern?`pattern="${esc(field.pattern)}"`:""} ${field.placeholder?`placeholder="${esc(field.placeholder)}"`:""}></div>`).join("");button.textContent=submit;button.classList.toggle("dangerAction",danger);form.onsubmit=async event=>{event.preventDefault();button.disabled=true;try{await onSubmit(Object.fromEntries(new FormData(form).entries()));closeModal("workflowModal")}catch(error){$("#workflowModalMessage").textContent=error.message||String(error)}finally{button.disabled=false}};openModal("workflowModal");setTimeout(()=>host.querySelector("input")?.focus(),0)}
 function confirmWorkflow({title,sub,confirm="删除",danger=true}){return new Promise(resolve=>{let settled=false;const finish=value=>{if(settled)return;settled=true;resolve(value)};openWorkflowModal({title,sub,submit:confirm,danger,fields:[],onSubmit:async()=>finish(true)});const modal=$("#workflowModal"),cancel=()=>finish(false);modal.querySelectorAll("[data-close-modal]").forEach(button=>button.onclick=()=>{closeModal("workflowModal");cancel()});modal.onclick=event=>{if(event.target===modal){closeModal("workflowModal");cancel()}}})}
 $$("[data-close-modal]").forEach(x=>x.onclick=()=>closeModal(x.dataset.closeModal));
@@ -936,6 +936,7 @@ function openSnakeForm(id=null,library="stock"){
   $("#editModalTitle").textContent=id?`编辑 ${id}`:"新增个体";
   $("#editModalSub").textContent=id?"修改真实个体资料，基因记录与档案保持关联。":"新购个体进入种群库；自繁个体进入自繁库，选育后可转入种群。";
   $("#editFormFields").innerHTML=snakeFormHtml(row);renderGeneEditor();$("#editMessage").textContent="";openModal("editModal");
+  const photos=document.createElement("section");photos.id="individualPhotoEditor";$("#editFormFields").appendChild(photos);window.SuohaPhotos?.mount(photos,id,()=>window.SuohaWorkspace?.load(true));
 }
 function openPlanForm(id=null){
   if(!canWrite())return toast("当前账号没有写权限",true);

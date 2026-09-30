@@ -4,7 +4,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname,'..');
 // Local development reads .env without returning it to the browser.
 if (fs.existsSync(path.join(root,'.env'))) process.loadEnvFile(path.join(root,'.env'));
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.jpg':'image/jpeg','.png':'image/png','.txt':'text/plain; charset=utf-8'};
 http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');
   try {
