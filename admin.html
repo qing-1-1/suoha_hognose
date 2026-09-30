@@ -12,6 +12,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/js/data.js"></script>
 <link rel="stylesheet" href="/assets/workspace-refinements.css">
+<link rel="stylesheet" href="/assets/interface-polish.css">
+<script defer src="/js/field-art.js"></script>
 </head>
 <body class="auth-locked">
 
@@ -20,18 +22,25 @@
 <div class="successPulse" id="successPulse" role="status" aria-live="polite"><div class="successDisc"></div><p id="successMessage">已保存</p></div>
 
 <div class="authGate" id="authGate">
+  <section class="login-art" aria-label="Suoha 猪鼻蛇繁育档案">
+    <a class="login-wordmark" href="/" aria-label="返回公开首页"><img src="/assets/mark.svg" alt="">SUOHA <span>HOGNOSE ARCHIVE</span></a>
+    <div class="login-art-caption"><span>FIELD NOTES / 001</span><span>HETERODON NASICUS</span></div>
+    <canvas data-hognose-art role="img" aria-label="盘旋的猪鼻蛇勾线插画"></canvas>
+    <div class="login-art-copy"><p>OBSERVE · RECORD · CULTIVATE</p><h2>记录每一次成长，<br><em>延续每一种独特。</em></h2><span>种群档案 / 繁育日程 / 成长记录</span></div>
+    <div class="login-art-foot"><span>SUOHA / PRIVATE WORKSPACE</span><span>自然有序 · 生长有迹</span></div>
+  </section>
   <div class="authGateCard">
     <div class="authGateHero">
       <div class="authGateBrand">
         <div class="authGateLogo">S</div>
-        <div><h1>Suoha Hognose</h1><p>Private Breeding OS · Authorized users only</p></div>
+        <div><p class="login-kicker">THE BREEDER’S DESK</p><h1>欢迎回到工作台</h1><p>登录，继续照顾你的每一份独特。</p></div>
       </div>
     </div>
     <div class="authGateBody">
       <form id="gateLoginForm">
         <div class="formField"><label for="gateEmail">邮箱或用户名</label><input id="gateEmail" type="text" autocomplete="username" required placeholder="邮箱或用户名"></div>
-        <div class="formField"><label for="gatePassword">密码</label><input id="gatePassword" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
-        <div class="authGateMessage" id="gateMessage"></div>
+        <div class="formField"><label for="gatePassword">密码</label><div class="password-control"><input id="gatePassword" type="password" autocomplete="current-password" required placeholder="输入密码"><button type="button" id="gatePasswordToggle" aria-label="显示密码" aria-controls="gatePassword" aria-pressed="false">显示</button></div></div>
+        <div class="authGateMessage" id="gateMessage" role="status" aria-live="polite"></div>
         <div class="authGateActions">
           <button type="button" class="linkBtn" id="gateResetBtn">首次登录 / 忘记密码</button>
           <button class="primaryBtn" type="submit">登录系统</button>
@@ -288,5 +297,6 @@
 <script src="/js/workspace-interactions.js"></script>
 <script src="/js/inventory.js"></script>
 <script src="/js/breeding-calendar.js"></script>
+<script src="/js/interface-polish.js"></script>
 
 </body></html>

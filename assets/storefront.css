@@ -21,3 +21,11 @@ em.hero-line{animation-delay:.16s;text-shadow:0 0 35px #c8dfa516}
 @keyframes heroLineIn{from{opacity:0;transform:translateY(24px);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}
 @keyframes scrollHint{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
 @media(prefers-reduced-motion:reduce){.hero-line,.hero-bottom>a span{animation:none}.hero-copy{translate:none;transition:none}}
+
+.photo-load-error{display:grid;place-items:center;min-height:100px;width:100%;height:100%;padding:16px;text-align:center;background:#e9ede5;color:#536348;font-size:13px}
+
+/* Drawing and type share the same restrained entrance rhythm. */
+.hero-line{animation-duration:800ms}.hero-line em,em.hero-line{animation-delay:180ms}
+.detail-main-photo>img{animation:photo-arrive 220ms ease both}.detail-thumbnails button{transition:border-color 150ms,opacity 150ms}.detail-thumbnails button:hover{border-color:#66804f}.specimen-card{border-radius:3px}.specimen-photo{overflow:hidden}.specimen-card:focus-visible{outline-offset:6px}.faq summary span{transition:transform 180ms ease}.gene-tags span{line-height:1.5}
+@keyframes photo-arrive{from{opacity:.5}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.hero-line,.detail-main-photo>img{animation:none}.detail-thumbnails button,.faq summary span{transition:none}}

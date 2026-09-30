@@ -3,7 +3,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const escape = s => String(s || '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 exports.handler = async event => {
-  const slug = event.queryStringParameters?.slug || '';
+  // Netlify rewrites can preserve the original path without forwarding :splat.
+  let slug = event.queryStringParameters?.slug;
+  if (slug == null) {
+    const rawPath = (() => { try { return new URL(event.rawUrl).pathname; } catch { return ''; } })();
+    slug = [event.path, rawPath].map(pathname => /^\/specimens\/([a-z0-9][a-z0-9-]{0,79})\/?$/.exec(pathname || '')?.[1]).find(Boolean) || '';
+  }
   if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return {statusCode:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'},body:'档案不存在'};
   let template;
   try { template = fs.readFileSync(path.join(process.cwd(),'index.html'),'utf8'); }
@@ -11,7 +16,7 @@ exports.handler = async event => {
   try {
     const {items} = await catalog({slug});const item=items[0];
     if(!item)return {statusCode:404,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'},body:template};
-    const title=escape(`${item.title} · ${item.snake_id} · SUOHA`), description=escape(item.description.slice(0,180)||`${item.snake_id} 的公开个体档案`);
+    const title=escape(`${item.title} · ${item.snake_id} · SUOHA`), description=escape((item.description || '').slice(0,180)||`${item.snake_id} 的公开个体档案`);
     template=template.replace(/<title>.*?<\/title>/,()=>`<title>${title}</title>`).replace(/(<meta name="description" content=")[^"]*(">)/,(_,a,b)=>a+description+b).replace(/(<meta property="og:title" content=")[^"]*(">)/,(_,a,b)=>a+title+b).replace(/(<meta property="og:description" content=")[^"]*(">)/,(_,a,b)=>a+description+b);
     const url=process.env.URL;
     if(url&&item.photos[0])template=template.replace('</head>',`<meta property="og:image" content="${escape(url+item.photos[0].url)}"></head>`);

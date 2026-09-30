@@ -42,3 +42,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .breeding-calendar-card h3{font-size:17px;margin:0 0 10px}.breeding-calendar-card .ws-actions{margin-top:14px}
 .calendar-milestones{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}.calendar-milestones>div{padding:12px 8px;background:#edf3e2;border-radius:5px}.calendar-milestones span{display:block;font-size:11px;color:#647657}.calendar-milestones b{display:block;font-size:12px;margin-top:8px}
 .breeding-reminder-dialog{max-height:85dvh;overflow:auto}.breeding-reminder-dialog .ws-list-row{gap:12px;flex-wrap:wrap}
+
+/* Keep long record forms usable on short screens and mobile keyboards. */
+.ws-dialog[open]:has(.ws-form-fields){display:flex;flex-direction:column;overflow:hidden;max-height:90dvh}
+.ws-dialog:has(.ws-form-fields) .ws-dialog-head{flex-shrink:0;margin-bottom:16px}
+.ws-form:has(.ws-form-fields){display:flex;flex-direction:column;min-height:0;gap:0;overflow:hidden}
+.ws-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-height:0;overflow:auto;padding:2px 6px 16px 2px;overscroll-behavior:contain}
+.ws-form-fields>*{min-width:0}
+.ws-form:has(.ws-form-fields)>.ws-actions{flex-shrink:0;padding-top:14px;border-top:1px solid var(--line);margin-top:0}
+.ws-form:has(.ws-form-fields)>.ws-form-message{flex-shrink:0;max-height:100px;overflow:auto;margin:8px 0}
+.ws-form-message:empty{display:none}
+.ws-dialog .ws-action,.ws-dialog-close{min-height:42px}
+.ws-dialog .ws-dialog-close{flex-shrink:0;min-width:42px}
+.ws-animal-preview{display:flex;align-items:center;gap:14px;padding:14px;background:#edf2f7;border:1px solid #d7e0ea;border-radius:10px;color:#23374f}
+.ws-animal-preview p{font-size:12px;line-height:1.7;margin:5px 0;color:#506179;overflow-wrap:anywhere}
+.ws-animal-photo{width:76px;height:76px;flex-shrink:0;display:grid;place-items:center;text-align:center;font-size:11px;border-radius:8px;background:#dce5ef;color:#53667c;overflow:hidden}
+.ws-animal-photo img{width:100%;height:100%;object-fit:cover}
+.ws-date-help{margin:0;padding:12px;border-radius:8px;background:#edf2f7;color:#405773}
+@media(max-width:600px){.ws-form-fields{grid-template-columns:minmax(0,1fr)}.ws-dialog .ws-form input,.ws-dialog .ws-form select,.ws-dialog .ws-form textarea{font-size:16px}.ws-dialog:has(.ws-form-fields){padding:18px}.ws-dialog:has(.ws-form-fields) .ws-dialog-head p{font-size:11px}.ws-animal-preview{align-items:flex-start}.ws-form:has(.ws-form-fields)>.ws-actions .ws-action{flex:1;justify-content:center}}

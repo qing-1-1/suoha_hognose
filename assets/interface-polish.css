@@ -1,0 +1,73 @@
+/* Shared visual rhythm: quiet paper surfaces, readable actions, measured motion. */
+:root{--ui-fast:150ms;--ui-panel:220ms;--ui-ease:cubic-bezier(.2,.7,.2,1)}
+.authGate{display:grid;grid-template-columns:minmax(0,1.38fr) minmax(380px,1fr);align-items:center;justify-content:normal;gap:0;padding:0;background:#f4f3eb;overflow:auto}
+.authGate.hidden{display:none}
+.login-art{position:relative;align-self:stretch;min-height:100svh;background:#17231c;color:#e9ecdd;overflow:hidden;padding:42px clamp(28px,4vw,72px);isolation:isolate}
+.login-art:before{content:'';position:absolute;inset:18% 4% 18%;border:1px solid #b7cb9017;border-radius:50%;z-index:-1}
+.login-wordmark{display:flex;align-items:center;gap:10px;color:#e4edce;text-decoration:none;font-size:24px;font-weight:650;letter-spacing:3px;width:fit-content}
+.login-wordmark img{width:32px;height:32px}.login-wordmark span{font-size:8px;font-weight:400;letter-spacing:2px;max-width:90px;line-height:1.6}
+.login-art-caption{display:flex;justify-content:space-between;gap:16px;font-size:8px;letter-spacing:1.8px;color:#a6b797;margin-top:38px}
+.login-art canvas{display:block;position:absolute;width:100%;height:65%;left:0;top:9%;z-index:-1}
+.login-art-copy{position:absolute;bottom:12%;left:clamp(28px,4vw,72px);right:24px}
+.login-art-copy>p{font-size:9px;letter-spacing:2.5px;color:#a8ba91;margin:0 0 18px}
+.login-art-copy h2{font-size:clamp(27px,2.9vw,44px);letter-spacing:-1px;font-weight:500;line-height:1.55;margin:0 0 16px}
+.login-art-copy em{font-style:normal;color:#c6d9a3}.login-art-copy>span{font-size:11px;color:#9aaa8f;letter-spacing:1px}
+.login-art-foot{position:absolute;left:clamp(28px,4vw,72px);right:clamp(28px,4vw,72px);bottom:32px;display:flex;justify-content:space-between;gap:16px;border-top:1px solid #d0dfb41c;padding-top:20px;color:#8fa180;font-size:8px;letter-spacing:1px}
+.authGateCard{justify-self:center;align-self:center;width:min(420px,calc(100% - 64px));margin:48px 0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;overflow:visible;isolation:auto}
+.authGateCard:before{display:none}.authGateHero{background:none;border:0;padding:0 0 34px}.authGateBrand{align-items:flex-start}.authGateLogo{display:none}
+.authGateBrand h1{font-size:30px;font-weight:550;letter-spacing:-.6px;margin:10px 0 12px}.authGateBrand p{font-size:13px;line-height:1.7;color:#6c7865}.authGateBrand p.login-kicker{font-size:9px;letter-spacing:2px;color:#627449}
+.authGateBody{padding:0}.authGateBody .formField{margin:0 0 22px}.authGateBody .formField label{font-size:12px;color:#4f6047;display:block;margin-bottom:9px}
+.authGateBody .formField input{font-size:16px;padding:14px 15px;min-height:50px;border:1px solid #cdd6c3;border-radius:7px;background:#fff;color:#253a27;width:100%;box-shadow:none;transition:border-color var(--ui-fast),box-shadow var(--ui-fast)}
+.authGateBody input:focus{outline:0;border-color:#718b50;box-shadow:0 0 0 3px #78955319}
+.password-control{position:relative}.authGateBody .password-control input{padding-right:64px}.password-control button{position:absolute;right:4px;top:4px;bottom:4px;min-width:52px;border:0;border-radius:5px;background:transparent;color:#4e633f;font-size:12px}
+.password-control button:hover{background:#edf2e5}.authGateActions{display:flex;flex-direction:column;align-items:stretch;gap:16px;margin-top:16px}
+.authGateActions .primaryBtn{order:-1;width:100%;margin:0;min-height:50px;font-size:14px;border-radius:7px;justify-content:center;letter-spacing:1px}
+.authGateActions .linkBtn{align-self:center;min-height:40px;color:#526c40;font-size:12px}.authGateMessage{color:#a33e31;line-height:1.7;margin:0;min-height:0}.authGateMessage:not(:empty){padding:12px 14px;background:#f8eae2;border-radius:6px;margin-bottom:14px}.authGateMessage.ok{background:#e9f0df;color:#405c32}
+.authGateFoot{margin-top:30px;padding-top:20px;color:#73816b;font-size:11px;border-color:#dce3d3}.authGateFoot i.online{background:#6d8850;box-shadow:none}
+.authGateCard,.login-art-copy{animation:surface-arrive 600ms var(--ui-ease) both}
+/* Buttons share a predictable hierarchy and a comfortably sized target. */
+.ws-action,.pillBtn,.primaryBtn,.miniBtn,.topBtn,.ws-tabs button{min-height:38px;border-radius:6px;line-height:1.35;transition:background var(--ui-fast),border-color var(--ui-fast),box-shadow var(--ui-fast),color var(--ui-fast);justify-content:center}
+.ws-action.primary,.primaryBtn{background:#304a35;color:#fff;border-color:#304a35}
+.ws-action.primary:hover,.primaryBtn:hover{background:#243d29;color:#fff}
+.ws-action.danger,[data-ws-action="delete-listing"],.dangerAction{color:#a34232;border-color:#e8c9be;background:#fff8f4}
+.ws-action:disabled,.primaryBtn:disabled{cursor:wait;opacity:.55}
+.ws-action:active:not(:disabled),.primaryBtn:active:not(:disabled){translate:0 1px}
+.ws-tabs{gap:4px;border-bottom:1px solid #dce4d3;padding-bottom:8px}.ws-tabs button{border-color:transparent;background:transparent;color:#66765a}.ws-tabs button.active{background:#e6edda;color:#304a35;border-color:#d7e2c8}
+.ws-panel,.card,.nursery-card,.breeding-calendar-card{border-radius:10px;border-color:#dce4d4;box-shadow:0 2px 5px #1d351a03}
+.ws-heading{align-items:center}.ws-heading h1,.pageHead h1{font-size:clamp(25px,2.2vw,31px)}.ws-heading>div:first-child{min-width:0}.ws-heading .ws-actions{flex-shrink:0}
+.ws-heading p:not(.eyebrow),.pageHead p{color:#6b7a61;line-height:1.8}.ws-panel h2{color:#30422c}
+.ws-metric{border-radius:9px;transition:background var(--ui-fast),border-color var(--ui-fast)}button.ws-metric:hover{background:#f5f8ef;border-color:#b5c6a0}
+.ws-toolbar{padding-bottom:16px;border-bottom:1px solid #e5ebde}.ws-toolbar input{min-height:42px}.ws-table td,.dataTable td{padding-top:16px;padding-bottom:16px}.ws-table th,.dataTable th{background:#f6f8f1;color:#637157}
+.ws-table tbody tr,.dataTable tbody tr{transition:background var(--ui-fast)}
+.nursery-card{background:#fdfef9;display:flex;flex-direction:column}.nursery-card>.ws-actions{margin-top:auto;padding-top:16px;border-top:1px solid #e4ebdc}.nursery-card-top>span:first-child{font-size:13px;font-weight:600}.nursery-card dl{font-variant-numeric:tabular-nums}
+.inventory-badge.retained{background:#e6eee0;color:#45623b;border:1px solid #cdddbe}
+.ws-dialog[open],.modalBackdrop.open .modalPanel{animation:panel-arrive var(--ui-panel) var(--ui-ease) both}
+.drawer{transition:transform var(--ui-panel) var(--ui-ease),visibility var(--ui-panel)}
+.page.active{animation:workspace-fade var(--ui-panel) ease backwards}
+.page.active:has(.canvasEditing){animation:none}
+@keyframes workspace-fade{from{opacity:.6}to{opacity:1}}
+/* Calendar stages retain both the planned date and the recorded fact. */
+.calendar-milestones{gap:0;margin:24px 0;position:relative;isolation:isolate}
+.calendar-milestones:before{content:'';position:absolute;top:7px;left:8px;right:8px;height:1px;background:#cdd9bf;z-index:-1}
+.calendar-milestones>div{position:relative;background:none;padding:24px 8px 0 0;border-radius:0;min-width:0}
+.calendar-milestones>div:before{content:'';position:absolute;top:0;left:0;width:14px;height:14px;border:2px solid #b9c9a7;border-radius:50%;background:#fafcf5;box-shadow:0 0 0 4px #fafcf5}
+.calendar-milestones>div.recorded:before{background:#56783e;border-color:#56783e}.calendar-milestones>div.due:before{background:#c29341;border-color:#c29341}
+.calendar-milestones b{font-size:12px;font-weight:500;font-variant-numeric:tabular-nums}.calendar-milestones small{display:block;font-size:10px;color:#547142;line-height:1.6;margin-top:7px}.calendar-milestones .due small{color:#8b661f}
+.breeding-calendar-card>.ws-actions{border-top:1px solid #e1e8d8;padding-top:16px}.breeding-calendar-card .ws-list-row{align-items:flex-start}.breeding-calendar-card .ws-list-row small{line-height:1.8}
+.ws-profile-header{display:flex;gap:22px;align-items:center;margin-bottom:22px;padding:22px;background:#edf2e5;border:1px solid #d9e2cc;border-radius:10px}.ws-profile-portrait{width:116px;height:116px;flex-shrink:0;display:grid;place-items:center;background:#e2e9d8;border:1px solid #d0dcc0;border-radius:7px;overflow:hidden;color:#647952;font-size:12px}.ws-profile-portrait img{width:100%;height:100%;object-fit:cover}.ws-profile-header h2{font-size:22px;margin:0 0 10px;overflow-wrap:anywhere}.ws-profile-header p{font-size:12px;color:#637356;line-height:1.8;margin:6px 0}
+.aiChatModalPanel{max-height:90dvh;display:flex;flex-direction:column}.aiChatModalPanel .modalHead{flex-shrink:0}.aiChatBody{min-height:0;overflow:hidden;flex:1}.aiChatMessages{min-height:120px;max-height:52dvh;overscroll-behavior:contain}.aiChatComposer{flex-shrink:0;background:#fff;padding-top:14px;border-color:#dfe7d7}.aiChatComposer textarea{max-height:140px}.aiChatComposer button{min-height:44px}.aiChatStatus.loading:before,.aiGeneratingOrb{border-top-color:#56783e}
+.ws-photos{gap:16px}.ws-photo{min-width:0;background:#fff;padding:10px;border:1px solid #dce5d1;border-radius:8px}.ws-photo img{height:145px}.ws-photo .ws-actions{gap:6px}.ws-photo .ws-action{flex:1}
+@keyframes surface-arrive{from{opacity:.5;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes panel-arrive{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
+@media(max-width:1000px){.authGate{grid-template-columns:1.05fr 1fr}.authGateCard{width:calc(100% - 48px)}.login-art-caption>span:last-child{display:none}.login-art-copy h2{font-size:29px}}
+@media(max-width:700px){.authGate{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0}.authGate.hidden{display:none}.login-art{flex-shrink:0;min-height:0;height:230px;padding:23px 24px}.login-wordmark{font-size:19px}.login-wordmark img{width:27px;height:27px}.login-art canvas{height:270px;width:265px;top:-18px;left:auto;right:-28px;opacity:.85}.login-art-caption,.login-art-foot,.login-art-copy>p,.login-art-copy>span{display:none}.login-art-copy{position:absolute;left:24px;bottom:20px;right:auto;max-width:58%}.login-art-copy h2{font-size:21px;margin:0;line-height:1.55}.login-art:before{inset:-30px -50px 10px 40%}.authGateCard{flex-shrink:0;width:auto;max-width:440px;align-self:stretch;margin:0 auto;padding:28px 24px 24px;box-sizing:border-box;min-width:min(100%,440px)}.authGateHero{padding-bottom:22px}.authGateBrand h1{font-size:25px;margin:6px 0}.authGateBrand p{font-size:12px}.authGateBrand p.login-kicker{font-size:8px}.authGateBody .formField{margin-bottom:16px}.authGateActions{gap:8px}.authGateFoot{margin-top:16px;padding-top:14px}.ws-heading .ws-actions{flex-shrink:1}.ws-action,.miniBtn,.pillBtn{min-height:42px}.ws-profile-header{padding:16px;gap:15px}.ws-profile-portrait{width:82px;height:98px}.ws-profile-header h2{font-size:18px}.calendar-milestones b{font-size:11px}.calendar-milestones small{font-size:10px}.ws-table td .ws-actions{min-width:160px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.ws-action:active:not(:disabled),.primaryBtn:active:not(:disabled){translate:none}}
+
+/* Full-screen route editing must escape page animation stacking contexts. */
+html{scroll-padding-top:82px;scroll-padding-bottom:24px}
+#logoutBtn{background:#edf2e5;color:#405638;border:1px solid #cddac0;box-shadow:none}.authBadge{border-color:#d9e2cf;background:#fff}.authBadge:before{background:#6f8950}
+.routeTools{flex-wrap:wrap;gap:7px;align-items:center}.routeChip{min-height:36px;border-radius:6px;background:#344b39;color:#eef3e6;border:1px solid #6a805950;font-size:11px;padding:8px 11px}.routeChip:hover{background:#46604a}.routeChip:disabled{opacity:.45;cursor:default}.routeHistoryControls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.routeSaveState{color:#bed0ac;font-size:11px}.routeYear{margin-left:0}
+.canvasSidePanel{background:#1d2d22;color:#e9eedf;border-color:#546c424d;border-radius:10px}.canvasSideHead input{background:#263b2b;border-color:#69815355;color:#eff3e7}.canvasSnakeList button{background:#283b2c;border-color:#677f4e44;border-radius:6px;color:#e9eddf}.canvasSnakeList b{color:#c9dca6}.canvasSnakeList button:hover{background:#354d39;border-color:#9db77b}.canvasVirtualActions button{border-color:#728954;background:#304a35;color:#dcecc5}.canvasVirtualActions button:hover{background:#3d5941}.canvasSidePanel h4{color:#a5b795}
+@media(max-width:833px){html{scroll-padding-top:120px;scroll-padding-bottom:88px}.routeTools{left:12px;right:12px;top:12px}.routeChip{min-height:38px;font-size:10px;padding:8px}.routeShell.canvasEditing{inset:8px 8px 280px}.routeHistoryControls{gap:5px}.routeSaveState{font-size:10px}}
+
+.aiChatLatest{align-self:center;flex-shrink:0;min-height:34px;background:#edf3e3;color:#405d31}.aiChatLatest[hidden]{display:none}

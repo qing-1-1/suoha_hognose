@@ -602,6 +602,7 @@ $("#loginForm").onsubmit=async e=>{
 
 $("#gateLoginForm").onsubmit=async e=>{
   e.preventDefault();
+  const submit=e.currentTarget.querySelector("[type=submit]");if(submit.disabled)return;submit.disabled=true;submit.textContent="正在登录…";
   const identity=$("#gateEmail").value.trim(),password=$("#gatePassword").value;
   $("#gateMessage").classList.remove("ok");
   $("#gateMessage").textContent="正在验证账号…";
@@ -621,7 +622,7 @@ $("#gateLoginForm").onsubmit=async e=>{
   }catch(err){
     console.warn("Login:",err);
     $("#gateMessage").textContent="登录失败。请先确认该邮箱或用户名已授权，并且已经完成邀请/密码设置；如果不确定，点“首次登录 / 忘记密码”。";
-  }
+  }finally{submit.disabled=false;submit.textContent="登录系统";}
 };
 
 $("#gateResetBtn").onclick=async()=>{
@@ -1281,7 +1282,7 @@ async function initApp(){
   updateAuthUI();
 
   if(!supabaseConfigured()){
-    setGateConnection(false,"Supabase configuration missing");
+    setGateConnection(false,"工作区尚未配置");
     $("#gateMessage").textContent="Supabase URL / publishable key 未配置。";
     return;
   }
@@ -1291,7 +1292,7 @@ async function initApp(){
       // Explicit browser storage keeps a password login available across refreshes.
       auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage}
     });
-    setGateConnection(true,"Supabase connected");
+    setGateConnection(true,"工作区连接就绪");
 
     sb.auth.onAuthStateChange((event,session)=>{
       setTimeout(async()=>{
@@ -1338,7 +1339,7 @@ async function initApp(){
     }
   }catch(err){
     console.error("Supabase init:",err);
-    setGateConnection(false,"Supabase connection failed");
+    setGateConnection(false,"连接暂不可用，请稍后重试");
     $("#gateMessage").textContent="Supabase 初始化失败："+(err.message||err);
   }
 }

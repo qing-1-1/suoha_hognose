@@ -8,6 +8,10 @@
 
 繁育日程：新增执行 **`025_breeding_calendar.sql`** 后，可在年度计划中自定义预计交配／产蛋／出壳日及提前提醒天数。实际日期在配种事件与窝次中记录，登录后的工作概览按日弹窗提醒；关闭网站时不会推送通知。
 
+2026-09-30：根据 `需求.docx` 修复公开详情直达、私有照片读取、孵化数量缺失时的入库引导，并优化个体识别与长表单按钮。此次不新增 SQL；已部署到 `025` 的数据库无需重跑迁移。重新部署 Netlify，并确认上述服务端密钥已配置。
+
+视觉更新：公开首页与登录页共用原创猪鼻蛇勾线动画；登录页采用桌面双栏／手机插画布局，支持密码显隐和登录中状态。后台统一按钮层级、繁育时间线、个体身份摘要及轻量动效；AI 新回复保留历史阅读位置。无需新增 SQL 或环境变量，重新构建部署即可。
+
 ## 本地启动
 
 ```sh
@@ -33,7 +37,7 @@ npm run dev
    - `020_breeding_operations.sql`：真实配种、窝次和幼体入库事务。
    - `021_acquisition_cost_history.sql`：保存现有购入成本快照，关联手工支出去重。
    - `022_route_move_transactions.sql`：路线移动的并发校验与撤销／重做支持。
-3. Netlify 服务端环境变量：`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`。购买意向另需 `SUPABASE_SERVICE_ROLE_KEY` 和至少 32 字节随机值的 `INQUIRY_HASH_SECRET`。AI 继续使用原有 DeepSeek 配置，详见 `.env.example`。
+3. Netlify 服务端环境变量：`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`。公开照片读取和购买意向需要服务端 `SUPABASE_SERVICE_ROLE_KEY`；购买意向另需至少 32 字节随机值的 `INQUIRY_HASH_SECRET`。这些私密值只配置在 Netlify Functions 环境，不能写入浏览器代码。AI 继续使用原有 DeepSeek 配置，详见 `.env.example`。
 4. 核对 Supabase Auth 的 Site URL / Redirect URLs，允许实际域名的 `/admin` 密码恢复入口。
 5. 登录后台“公开展示”，新建草稿、编辑公开资料、上传真实照片，再主动勾选发布。
 
