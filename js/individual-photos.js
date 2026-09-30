@@ -4,16 +4,16 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let pending=0,serial=0;
   const check=async query=>{const {data,error}=await query;if(error)throw error;return data;};
-  async function encode(file){
+  async function encode(file,maxEdge=1800,quality=.88){
     if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('请选择 JPEG、PNG 或 WebP；HEIC 请先转换为 JPEG。');
     if(file.size>20*1024*1024)throw Error('原始照片不能超过 20MB，请缩小后重试。');
     let bitmap;
     try{bitmap=await createImageBitmap(file);}catch{throw Error('无法解码这张照片，请重新导出为 JPEG 或 PNG。');}
     try{
-      const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));
+      const scale=Math.min(1,maxEdge/Math.max(bitmap.width,bitmap.height));
       const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
       canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.88));
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',quality));
       if(!blob||blob.size>8*1024*1024)throw Error('照片处理失败或压缩后仍超过 8MB，请缩小后重试。');
       return blob;
     }finally{bitmap.close();}
@@ -25,7 +25,7 @@
     const owner=currentUser?.id,uid='animal-photos-'+(++serial);
     let listing=null,rows=[],working=false,loaded=false,version=0;
     const alive=()=>host.isConnected&&currentUser?.id===owner&&canWrite();
-    host.innerHTML=`<div class="animal-photo-heading"><div><h3>个体照片</h3><p class="ws-note" data-photo-state>正在读取图库…</p></div><button type="button" class="ws-action" data-photo-reload>刷新照片</button></div>
+    host.innerHTML=`<div class="animal-photo-heading"><div><h3>个体照片</h3><p class="ws-note" data-photo-state>正在读取图库…</p></div><button type="button" class="ws-action" data-photo-reload>刷新照片</button><button type="button" class="ws-action" data-photo-thumbnails>补齐缩略图</button></div>
       <p class="ws-note">照片单独保存，下面的“保存 / 取消”只作用于个体资料。新增照片默认仅内部可见；勾选“选入公开档案”并保存照片设置后，已发布档案才会展示。公开封面取已选公开照片中的第一张。</p>
       <div class="animal-photo-grid" data-photo-grid></div>
       <div class="animal-photo-upload"><label for="${uid}-files">添加真实个体照片<input id="${uid}-files" data-photo-files type="file" accept="image/jpeg,image/png,image/webp" multiple></label><p class="ws-note">每次最多 8 张，原图每张不超过 20MB；自动适配网页尺寸。</p>
@@ -41,12 +41,15 @@
       if(!alive()||own!==version)return;
       listing=record;rows=media||[];loaded=true;
       state.textContent=`${rows.length} 张照片 · ${listing?.published&&!listing.deleted_at?'已发布 · '+rows.filter(r=>r.is_public!==false).length+' 张选入公开档案':'未发布，仅内部可见'}`;
-      const signed=await Promise.all(rows.map(async row=>{try{const result=await sb.storage.from('specimen-media').createSignedUrl(row.storage_path,300);return {...row,url:result.data?.signedUrl};}catch{return row;}}));
+      const paths=[...new Set(rows.flatMap(row=>[row.storage_path,row.thumbnail_path]).filter(Boolean))];
+      const urls=new Map();
+      if(paths.length){const result=await sb.storage.from('specimen-media').createSignedUrls(paths,300);for(const entry of result.data||[])if(!entry.error&&entry.signedUrl)urls.set(entry.path,entry.signedUrl);}
+      const signed=rows.map(row=>({...row,url:urls.get(row.thumbnail_path)||urls.get(row.storage_path),original:urls.get(row.storage_path)}));
       if(!alive()||own!==version)return;
       grid.innerHTML=signed.length?signed.map((row,index)=>`<article class="animal-photo-card" data-media-id="${esc(row.id)}"><div class="animal-photo-preview">${row.url?`<img src="${esc(row.url)}" alt="${esc(row.caption||snakeId+' 个体照片')}" loading="lazy">`:'<span>照片暂时无法预览</span>'}${index===0?'<span class="animal-photo-cover">内部封面</span>':''}${row.is_public!==false&&rows.find(r=>r.is_public!==false)?.id===row.id?'<span class="animal-public-cover">公开封面</span>':''}</div>
         <label class="photo-visibility"><input type="checkbox" data-media-public ${row.is_public!==false?'checked':''}>选入公开档案</label><label>照片说明<input data-media-caption value="${esc(row.caption)}" maxlength="200"></label><label>拍摄日期<input data-media-date type="date" value="${esc(row.photographed_at||'')}"></label>
         <div class="ws-actions"><button type="button" class="ws-action" data-photo-action="save">保存照片设置</button><button type="button" class="ws-action" data-photo-action="cover">设为封面</button><button type="button" class="ws-action" data-photo-action="replace">替换照片</button><button type="button" class="ws-action danger" data-photo-action="remove">删除照片</button></div><input type="file" data-media-replacement accept="image/jpeg,image/png,image/webp" hidden></article>`).join(''):'<div class="ws-empty">暂无照片。上传后可在这里编辑说明、替换照片和设置封面。</div>';
-      grid.querySelectorAll('img').forEach(img=>img.onerror=()=>{const fallback=document.createElement('span');fallback.textContent='照片暂时无法预览，请刷新重试';img.replaceWith(fallback);});
+      grid.querySelectorAll('img').forEach(img=>img.onerror=()=>{const original=signed.find(row=>row.id===img.closest('[data-media-id]').dataset.mediaId)?.original;if(original&&img.getAttribute('src')!==original){img.src=original;return;}const fallback=document.createElement('span');fallback.textContent='照片暂时无法预览，请刷新重试';img.replaceWith(fallback);});
       lock();
     }
     async function ensureListing(){
@@ -66,7 +69,12 @@
       await check(sb.storage.from('specimen-media').upload(path,blob,{contentType:'image/webp',cacheControl:'0',upsert:false}));
       return path;
     }
-    async function clean(path){try{await check(sb.storage.from('specimen-media').remove([path]));return true;}catch{return false;}}
+    async function clean(...paths){try{await check(sb.storage.from('specimen-media').remove(paths.filter(Boolean)));return true;}catch{return false;}}
+    async function uploadPhoto(file){
+      const path=await uploadBlob(await encode(file));
+      try{return {storage_path:path,thumbnail_path:await uploadBlob(await encode(file,640,.76))};}
+      catch(error){await clean(path);throw error;}
+    }
     async function run(action){
       if(working||!alive())return;
       working=true;pending++;lock();say('正在保存照片…');
@@ -77,11 +85,23 @@
       }catch(error){
         if(alive()){
           let suffix='';try{await fetchRows();await onChange();}catch{loaded=false;suffix=' 图库刷新失败，请点击“刷新照片”。';}
-          say((/is_public|schema cache/.test(error.message||'')?'照片权限功能需要先执行 026 数据库迁移，请完成后刷新图库。':error.message||'照片操作失败，请重试。')+suffix,true);
+          say((/thumbnail_path/.test(error.message||'')?'缩略图功能需要先执行 028 数据库迁移，请完成后刷新图库。':/is_public|schema cache/.test(error.message||'')?'照片权限功能需要先执行 026 数据库迁移，请完成后刷新图库。':error.message||'照片操作失败，请重试。')+suffix,true);
         }
       }finally{working=false;pending--;if(alive())lock();}
     }
     host.querySelector('[data-photo-reload]').onclick=()=>run(async()=>{await fetchRows();return '图库已刷新。';});
+    host.querySelector('[data-photo-thumbnails]').onclick=()=>run(async()=>{
+      const missing=rows.filter(row=>!row.thumbnail_path);let saved=0;
+      for(const row of missing){
+        say(`正在生成缩略图 ${saved+1} / ${missing.length}…`);
+        const original=await check(sb.storage.from('specimen-media').download(row.storage_path));
+        const path=await uploadBlob(await encode(original,640,.76));
+        try{await check(sb.from('specimen_media').update({thumbnail_path:path}).eq('id',row.id).eq('listing_id',listing.id));}
+        catch(error){await clean(path);throw error;}
+        saved++;
+      }
+      return saved?`已补齐 ${saved} 张缩略图。`:'所有照片均已有缩略图。';
+    });
     host.querySelector('[data-photo-upload]').onclick=()=>{
       if(!loaded)return;
       const fileInput=host.querySelector('[data-photo-files]'),files=[...fileInput.files];
@@ -94,9 +114,9 @@
         try{
           for(const file of files){
             say(`正在上传 ${saved+1} / ${files.length}…`);
-            const blob=await encode(file),path=await uploadBlob(blob);
-            try{await check(sb.from('specimen_media').insert({listing_id:listing.id,storage_path:path,caption,photographed_at,is_public:false,sort_order:order+saved+1}));}
-            catch(error){await clean(path);throw error;}
+            const photo=await uploadPhoto(file);
+            try{await check(sb.from('specimen_media').insert({listing_id:listing.id,...photo,caption,photographed_at,is_public:false,sort_order:order+saved+1}));}
+            catch(error){await clean(photo.storage_path,photo.thumbnail_path);throw error;}
             saved++;
           }
           return `已保存 ${saved} 张照片。新增照片仅内部可见；选入公开档案并保存后才会对外展示。`;
@@ -115,7 +135,7 @@
       run(async()=>{
         if(action==='remove'){
           await check(sb.from('specimen_media').delete().eq('id',row.id).eq('listing_id',listing.id));
-          return await clean(row.storage_path)?'照片已删除。':'照片已从档案移除，但原文件清理失败；不会再公开显示。';
+          return await clean(row.storage_path,row.thumbnail_path)?'照片已删除。':'照片已从档案移除，但原文件清理失败；不会再公开显示。';
         }
         await check(sb.from('specimen_media').update(patch).eq('id',row.id).eq('listing_id',listing.id));
         return action==='cover'?'封面已更新。':'照片设置已保存。';
@@ -126,10 +146,10 @@
       const file=event.target.files[0],card=event.target.closest('[data-media-id]'),row=rows.find(r=>r.id===card.dataset.mediaId);
       if(!file||!row)return;
       run(async()=>{
-        const oldPath=row.storage_path,blob=await encode(file),path=await uploadBlob(blob);
-        try{await check(sb.from('specimen_media').update({storage_path:path}).eq('id',row.id).eq('listing_id',listing.id));}
-        catch(error){await clean(path);throw error;}
-        return await clean(oldPath)?'照片已替换，说明和封面顺序保留。':'照片已替换，旧文件清理失败；旧照片已停止公开。';
+        const photo=await uploadPhoto(file);
+        try{await check(sb.from('specimen_media').update(photo).eq('id',row.id).eq('listing_id',listing.id));}
+        catch(error){await clean(photo.storage_path,photo.thumbnail_path);throw error;}
+        return await clean(row.storage_path,row.thumbnail_path)?'照片已替换，说明和封面顺序保留。':'照片已替换，旧文件清理失败；旧照片已停止公开。';
       });
     });
     fetchRows().catch(error=>{if(alive()){loaded=false;state.textContent='图库读取失败';say(error.message||'请刷新图库后重试。',true);lock();}});

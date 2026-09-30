@@ -42,17 +42,17 @@ test('home stays compact, keeps the main actions clear and presents real photos 
   await expect(page).toHaveURL(/collection$/);
 });
 
-test('hatching decoration finishes once and stays quiet when revisited',async({page})=>{
+test('hatching decoration loops and resumes when revisited',async({page})=>{
   await page.goto('/');
   const scene=page.locator('#hatchScene');
   await scene.scrollIntoViewIfNeeded();
   await expect(scene).toHaveAttribute('data-loaded','true');
   await expect(scene).toHaveAttribute('data-frame','3',{timeout:5000});
-  await expect(scene).toHaveAttribute('data-playing','false');
+  await expect(scene).toHaveAttribute('data-frame','0',{timeout:2000});
+  await expect(scene).toHaveAttribute('data-playing','true');
   await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
   await scene.scrollIntoViewIfNeeded();
-  await expect(scene).toHaveAttribute('data-playing','false');
-  await expect(scene).toHaveAttribute('data-frame','3');
+  await expect(scene).toHaveAttribute('data-playing','true');
 });
 
 test('paper story overlaps the real room photo and scrolls over it without a second introduction block',async({page})=>{
@@ -86,6 +86,10 @@ test('reduced motion uses still artwork without fetching the feeding sprite',asy
   }
   await expect(page.locator('#hatchScene')).toHaveAttribute('data-frame','3');
   expect(requested.some(url=>/keeper-feeding-(mini|v2)/.test(url))).toBe(false);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await expect(page.locator('#studioScene')).toHaveAttribute('data-playing','true');
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect(page.locator('#studioScene')).toHaveAttribute('data-playing','false');
 });
 
 test('brand home does not fetch inventory, shop doors select the right catalog, and avatar pixels are transparent',async({page})=>{

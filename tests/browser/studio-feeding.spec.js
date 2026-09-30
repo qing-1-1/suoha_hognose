@@ -6,7 +6,7 @@ test.beforeEach(async ({page}) => {
   await page.route('**/.netlify/functions/public-catalog*', route => route.fulfill({json:{items:[],total:0,page:1,series:[]}}));
 });
 
-test('feeding decoration loads on approach, stops behind dialogs and finishes without looping',async({page})=>{
+test('feeding decoration loops, pauses behind dialogs and resumes when revisited',async({page})=>{
   const errors=[],requested=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requested.push(r.url()));
   await page.goto('/');
@@ -21,12 +21,16 @@ test('feeding decoration loads on approach, stops behind dialogs and finishes wi
   await page.waitForTimeout(400);await expect(scene).toHaveAttribute('data-frame',frame);
   await page.keyboard.press('Escape');
   await scene.scrollIntoViewIfNeeded();
-  await expect(scene).toHaveAttribute('data-frame','11',{timeout:6500});
-  await expect(scene).toHaveAttribute('data-playing','false');
+  await expect.poll(()=>scene.getAttribute('data-frame'),{timeout:6500,intervals:[50]}).toBe('11');
+  await expect.poll(()=>scene.getAttribute('data-frame'),{timeout:2000,intervals:[50]}).toBe('0');
+  await expect(scene).toHaveAttribute('data-playing','true');
   await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
-  await scene.scrollIntoViewIfNeeded();
-  await expect(scene).toHaveAttribute('data-frame','11');
   await expect(scene).toHaveAttribute('data-playing','false');
+  const paused=await scene.getAttribute('data-frame');
+  await page.waitForTimeout(400);await expect(scene).toHaveAttribute('data-frame',paused);
+  await scene.scrollIntoViewIfNeeded();
+  await expect(scene).toHaveAttribute('data-playing','true');
+  await expect(scene).not.toHaveAttribute('data-frame',paused);
   expect(requested.some(url=>url.endsWith('/keeper-feeding-v2.webp'))).toBe(true);
   expect(errors).toEqual([]);
 });

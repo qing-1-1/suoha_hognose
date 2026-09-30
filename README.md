@@ -2,6 +2,10 @@
 
 公开个体档案与私有繁育工作台。原生 HTML/CSS/JavaScript + Netlify Functions + Supabase，不需要前端框架。
 
+**动画与图片提速（2026-09-30）：** 首页喂食与出壳动画在可见时循环，离屏、后台或弹窗打开时暂停，遵循系统减少动态效果设置。目录批量签名公开图片，详情直达复用服务端数据；列表和相册小图使用最长边 640px 的 WebP，详情保留 1800px 展示图。先执行 `028_specimen_thumbnails.sql`，再部署代码；新上传／替换照片自动生成两种尺寸，旧照片在后台个体图库点击“补齐缩略图”逐个图库补齐。未补齐的照片继续使用原图。迁移与旧照片补生成均未自动运行于生产。
+
+签名链接有效期保持 60 秒，过期或缩略图失败时自动回到权限校验接口／原图。批量签名使用公开读取权限，不放宽未发布照片权限，不引入长期公开缓存。批量接口依据 [Supabase 官方文档](https://supabase.com/docs/reference/javascript/file-buckets-createsignedurls)。
+
 需求、设计、架构与素材记录已归档到 **[docs 文档索引](docs/README.md)**。原始需求在 `docs/requirements/`，当前实施方案在 `docs/design/`，图片与动画说明在 `docs/media/`。
 
 **最新增量（2026-09-30）：** 继续实施视觉方案，加入像素短片、目录年份/基因筛选、逐张选择公开照片、库卡片/分组、成长时间轴与批量幼体登记。已执行至 025 的数据库需依次执行 **026_public_media_selection.sql、027_growth_and_batch_registration.sql**，再部署代码；不新增环境变量。迁移未自动应用到生产。细节见 [实施方案第 11 节](docs/design/视觉升级与功能优化实施方案.md)。
@@ -12,7 +16,7 @@
 
 繁育日程：新增执行 **`025_breeding_calendar.sql`** 后，可在年度计划中自定义预计交配／产蛋／出壳日及提前提醒天数。实际日期在配种事件与窝次中记录，登录后的工作概览按日弹窗提醒；关闭网站时不会推送通知。
 
-前期问题修复：根据 [需求.docx](docs/requirements/需求.docx) 修复公开详情直达、私有照片读取、孵化数量缺失时的入库引导，以及长表单布局。这部分修复本身没有新增迁移；**本次完整发布仍需要 026、027**。
+前期问题修复：根据 [需求.docx](docs/requirements/需求.docx) 修复公开详情直达、私有照片读取、孵化数量缺失时的入库引导，以及长表单布局。这部分修复本身没有新增迁移；**本次完整发布需要 026、027、028**。
 
 视觉更新：公开首页与登录页共用原创猪鼻蛇勾线动画；首页增加可暂停的爬房小窗口、12 帧巡柜喂食、直接破壳互动、分类手记及创始伙伴极简头像。登录页采用桌面双栏／手机插画布局，后台统一按钮层级与轻量动效。素材和文案替换见 [首页内容指南](docs/media/首页内容与素材替换指南.md)。
 
@@ -46,6 +50,7 @@ npm run dev
    - `025_breeding_calendar.sql`：预计日期、实际繁育记录与首页提醒。
    - `026_public_media_selection.sql`：逐张公开照片及年份／基因筛选。
    - `027_growth_and_batch_registration.sql`：成长记录类别、留存评估及批量登记事务。
+   - `028_specimen_thumbnails.sql`：缩略图路径、公开读取权限和目录图片信息。
 3. Netlify 服务端环境变量：`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`。购买意向需要服务端 `SUPABASE_SERVICE_ROLE_KEY`，另需至少 32 字节随机值的 `INQUIRY_HASH_SECRET`；公开照片接口兼容仅通过公开读取策略签名的配置。这些私密值只配置在 Netlify Functions 环境，不能写入浏览器代码。AI 继续使用原有 DeepSeek 配置，详见 [.env.example](.env.example)。
 4. 核对 Supabase Auth 的 Site URL / Redirect URLs，允许实际域名的 `/admin` 密码恢复入口。
 5. 登录后台“公开展示”，新建草稿、编辑公开资料、上传真实照片，再主动勾选发布。

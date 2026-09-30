@@ -1,4 +1,4 @@
-/* Decorative pixel scenes: one short visit, no player UI or repeated loops. */
+/* Decorative pixel scenes loop while visible, pausing offscreen and behind dialogs. */
 (() => {
   'use strict';
   const home = document.querySelector('#homeView');
@@ -8,7 +8,7 @@
     const feeding = scene.dataset.decoration === 'feeding';
     const poster = scene.querySelector('img');
     const durations = feeding ? [220,300,380,320,800,200,200,260,320,850,220,220] : [650,650,650,650];
-    let frame = 0, visible = false, ready = false, loading = false, done = false, timer;
+    let frame = 0, visible = false, ready = false, loading = false, failed = false, timer;
     const film = feeding ? document.createElement('div') : poster;
     if (feeding) {
       film.className = 'studio-film'; film.hidden = true;
@@ -21,17 +21,16 @@
     }
     function sync() {
       clearTimeout(timer);
-      if (reduced.matches) { done = true; if (!feeding) frame = 3; paint(); }
-      const playing = ready && !done && visible && !reduced.matches && !document.hidden && !home.hidden && !document.querySelector('dialog[open]');
+      if (reduced.matches) { if (!feeding) frame = 3; paint(); }
+      const playing = ready && !failed && visible && !reduced.matches && !document.hidden && !home.hidden && !document.querySelector('dialog[open]');
       scene.dataset.playing = String(playing);
       if (playing) timer = setTimeout(() => {
-        if (frame === durations.length - 1) done = true;
-        else frame++;
+        frame = (frame + 1) % durations.length;
         paint(); sync();
       }, durations[frame]);
     }
     async function load() {
-      if (loading || ready || done) return;
+      if (loading || ready || failed) return;
       loading = true;
       try {
         if (feeding) {
@@ -40,7 +39,7 @@
         } else await poster.decode();
         ready = true; scene.dataset.loaded = 'true'; paint();
       } catch {
-        done = true; scene.dataset.loaded = 'error';
+        failed = true; scene.dataset.loaded = 'error';
         if (!feeding && !poster.naturalWidth) scene.hidden = true;
       } finally { loading = false; sync(); }
     }
@@ -51,8 +50,9 @@
       sync();
     }, {threshold:.3}).observe(scene);
     document.addEventListener('visibilitychange', sync);
-    reduced.addEventListener('change', sync);
-    new MutationObserver(sync).observe(home, {attributes:true, attributeFilter:['hidden']});
+    function resume() { if (visible && !reduced.matches && !home.hidden) load(); sync(); }
+    reduced.addEventListener('change', resume);
+    new MutationObserver(resume).observe(home, {attributes:true, attributeFilter:['hidden']});
     const dialogs = new MutationObserver(sync);
     document.querySelectorAll('dialog').forEach(dialog => dialogs.observe(dialog, {attributes:true, attributeFilter:['open']}));
     poster.addEventListener('error', () => { if (!ready) scene.hidden = true; });
