@@ -10,7 +10,7 @@ function setup(t,fetch){
   }
 }
 test('direct and rewritten detail routes resolve the same public specimen',async t=>{
-  setup(t,async(url,options)=>{assert.equal(JSON.parse(options.body).p_slug,'specimen-y005');return {ok:true,json:async()=>({items:[{title:'Y005',snake_id:'Y005',description:null,photos:[]} ]})};});
+  setup(t,async(url,options)=>{if(url.endsWith('/auction_catalog'))return {ok:true,json:async()=>({})};assert.equal(JSON.parse(options.body).p_slug,'specimen-y005');return {ok:true,json:async()=>({items:[{title:'Y005',snake_id:'Y005',description:null,photos:[]} ]})};});
   for(const event of [{queryStringParameters:{slug:'specimen-y005'}},{path:'/specimens/specimen-y005'},{path:'/.netlify/functions/specimen-page',rawUrl:'https://example.com/specimens/specimen-y005?utm_source=share'}]){
     const result=await page.handler(event);assert.equal(result.statusCode,200);assert.match(result.body,/<title>Y005/);
   }

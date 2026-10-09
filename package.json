@@ -12,5 +12,11 @@
     "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.58.2",
     "acorn": "^8.18.0"
+  },
+  "dependencies": {
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0"
   }
 }

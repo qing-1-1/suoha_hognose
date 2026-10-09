@@ -12,4 +12,5 @@ fs.mkdirSync(out, { recursive: true });
 for (const name of ['index.html', 'admin.html', 'assets', 'js', 'robots.txt']) {
   fs.cpSync(path.join(root, name), path.join(out, name), { recursive: true });
 }
-console.log('Built public site and private workspace in dist/');
+for(const [name,source] of Object.entries(require('./ocr-assets'))){const target=path.join(out,name);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(source,target);}
+console.log('Built site, workspace and local Chinese/English OCR in dist/');

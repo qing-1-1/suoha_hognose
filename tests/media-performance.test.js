@@ -15,17 +15,18 @@ test('catalog signs only covers in one batch; detail signs all photos with publi
   const calls=[];
   setup(t,async(url,options)=>{
     calls.push(url);
+    if(url.endsWith('/auction_catalog'))return {ok:true,json:async()=>({})};
     if(url.includes('/rpc/'))return {ok:true,json:async()=>({items:[row],total:1})};
     assert.equal(options.headers.apikey,'public');assert.equal(options.headers.authorization,undefined);
     const body=JSON.parse(options.body);assert.equal(body.expiresIn,60);
-    assert.deepEqual(body.paths,calls.length===2?paths.slice(0,2):paths);
+    assert.deepEqual(body.paths,calls.length===3?paths.slice(0,2):paths);
     return {ok:true,json:async()=>body.paths.map(path=>({path,signedURL:`/object/sign/specimen-media/${path}?token=valid`}))};
   });
-  const list=await catalog();assert.equal(calls.length,2);
+  const list=await catalog();assert.equal(calls.length,3);
   assert.match(list.items[0].photos[0].thumbnail_url,/https:\/\/example.supabase.co\/storage\/v1\/object\/sign\/specimen-media\/aaaa\/cccc.webp/);
   assert.match(list.items[0].photos[0].fallback_url,/^\/\.netlify\/functions\/specimen-media/);
   assert.match(list.items[0].photos[1].url,/^\/\.netlify/);
-  const detail=await catalog({slug:'test'});assert.equal(calls.length,4);
+  const detail=await catalog({slug:'test'});assert.equal(calls.length,6);
   assert.match(detail.items[0].photos[1].url,/^https:/);
 });
 test('failed or untrusted signatures retain the checked media endpoint',async t=>{

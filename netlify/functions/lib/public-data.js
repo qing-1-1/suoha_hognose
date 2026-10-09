@@ -75,6 +75,12 @@ async function catalog(query = {}) {
     data = await rpc('public_catalog', params);
   }
   const items=(data.items || []).map(projectItem);
+  if(items.length){
+    let auctions={};
+    try { auctions=await rpc('auction_catalog',{p_ids:items.map(item=>item.id)}); }
+    catch(error){if(!/auction_catalog|PGRST202/.test(error.message))throw error;}
+    for(const item of items){const a=auctions?.[item.id];if(a)item.auction=Object.fromEntries(['id','status','starts_at','ends_at','current_price','start_price','bid_count'].map(k=>[k,a[k]]));}
+  }
   await signPhotos(data.items || [],items,Boolean(params.p_slug));
   return { items, total: data.total || 0, page: data.page || 1, series: data.series || [], years: data.years || [], gene_options: data.gene_options || [] };
 }

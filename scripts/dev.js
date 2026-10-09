@@ -10,13 +10,15 @@ http.createServer(async(req,res)=>{
   try {
     if(url.pathname.startsWith('/.netlify/functions/')){
       const name=url.pathname.split('/').pop();
-      if(!['public-catalog','purchase-inquiry','specimen-media','specimen-page','ai-analyze','ai-analyze-background'].includes(name)){res.writeHead(404).end();return;}
-      let body='';for await(const chunk of req){body+=chunk;if(body.length>1000000){res.writeHead(413).end();return;}}
+      if(!['public-catalog','purchase-inquiry','specimen-media','specimen-page','ai-analyze','ai-analyze-background','auction-api','manual-payment'].includes(name)){res.writeHead(404).end();return;}
+      let body='';for await(const chunk of req){body+=chunk;if(body.length>4500000){res.writeHead(413).end();return;}}
       const event={httpMethod:req.method,headers:{...req.headers,'x-nf-client-connection-ip':req.socket.remoteAddress},queryStringParameters:Object.fromEntries(url.searchParams),body};
       const result=await require(path.join(root,'netlify/functions',name+'.js')).handler(event);
       res.writeHead(result?.statusCode||202,result?.headers||{});res.end(result?.isBase64Encoded?Buffer.from(result.body,'base64'):result?.body||'');return;
     }
     let file=url.pathname==='/'||url.pathname==='/collection'||url.pathname.startsWith('/specimens/')?'index.html':url.pathname.startsWith('/admin')?'admin.html':decodeURIComponent(url.pathname).slice(1);
+    const ocr=require('./ocr-assets')[file];
+    if(ocr){res.writeHead(200,{'content-type':file.endsWith('.js')?'text/javascript':file.endsWith('.wasm')?'application/wasm':'application/octet-stream'});fs.createReadStream(ocr).pipe(res);return;}
     if(!['index.html','admin.html','robots.txt'].includes(file)&&!file.startsWith('assets/')&&!file.startsWith('js/')){res.writeHead(404).end();return;}
     const absolute=path.resolve(root,file);
     if(!absolute.startsWith(root+path.sep)||!fs.existsSync(absolute)||!fs.statSync(absolute).isFile()){res.writeHead(404).end();return;}

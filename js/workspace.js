@@ -44,6 +44,8 @@
   function warning(keys=['listings']){const broken=keys.filter(k=>model.errors[k]);return broken.length?`<div class="ws-alert">此功能暂不可用：${broken.map(k=>escape(tableMap[k])).join('、')}。请检查账号权限与数据库迁移；新功能需要部署 019 / 020。${button('重新读取','reload')}</div>`:'';}
   function render(){
     if(!currentUser||!currentProfile?.active)return;
+    window.SuohaAuctionAdmin?.render();
+    window.SuohaPaymentAdmin?.render();
     renderOverview();
     if(state.page==='individual')renderIndividual();
     if(canWrite()){renderPublishing();renderSales();renderRecords();}
