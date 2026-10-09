@@ -4,6 +4,20 @@
 
 **拍卖与收款（2026-10-08）：** 后台新增「拍卖管理」「收款码与审核」。普通购买或拍卖成交后展示店铺收款码，买家上传截图，中文 OCR 辅助提取付款信息，人工核实实际到账后更新销售状态。代码和本地测试已提供，尚未部署或执行线上迁移。
 
+### 管理员 SMTP 邮件通知
+
+在 031 之后依次执行 `032_admin_email_notifications.sql` → `033_auction_won_notifications.sql`，再启用并部署邮件功能。如果已经执行 032，只需执行 033。新付款凭证提交成功，或拍卖结束、确认获胜买家并生成成交订单时，在同一事务中为所有 `profiles.role='admin' AND active=true` 且有 Auth 邮箱的管理员创建独立通知。普通出价、流拍和取消拍卖不通知；同一场拍卖对每位管理员只创建一条成交通知。033 会取消旧版尚未发送的逐次出价通知。收件地址来自 `auth.users.email`；发信邮箱不是固定收件人。历史成交不会补发，失败提交或同一请求重试不会重复创建通知。
+
+在 Netlify 的服务端环境变量中设置 `ADMIN_EMAIL_ENABLED=true`、`SMTP_USER=m_aj@qq.com`、`SMTP_PASS=邮箱 SMTP 授权码`、`SITE_URL=网站正式 HTTPS 地址`，并保留已有的 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`。不要把授权码放入代码、网页、SQL 或 Git。`.env` 仅供本机使用，不会自动同步 Netlify。
+
+`admin-notifications` 每分钟领取最多 5 封邮件，通过 QQ SMTP（465 / TLS）逐个收件人发送，避免暴露其他管理员邮箱。发送前重新检查管理员是否启用，使用当时的 Auth 邮箱。付款邮件仅提示“凭证已提交，待人工核实”；竞拍邮件提示“拍卖已成交，等待买家付款”，包含获胜买家、成交金额及订单编号。邮件不附带付款截图、支付单号或账户凭据。队列拥堵或重试会延后送达，邮件故障不会使买家提交失败。
+
+失败最多尝试 8 次，指数退避至每小时一次，状态保存在私有 `admin_email_outbox`；错误只保存代码。领取有 5 分钟租约，过期可恢复。SMTP 与数据库不能组成原子事务：邮件已被 SMTP 接受、但状态回写失败时，恢复后可能重复发送（使用固定 Message-ID 辅助去重）。`sent` 表示 SMTP 接受，不保证进入收件箱。管理员被停用会取消尚未发送的任务；已经领取并正在发送的邮件可能完成发送。
+
+运维可通过受信任的 SQL 控制台检查 `status/attempts/last_error`。修复配置后重试失败项：`update public.admin_email_outbox set status='pending', attempts=0, available_at=now(), last_error=null where status='failed';` 该表及领取/回写接口均不向匿名用户或前台登录用户开放。Netlify 定时器只在生产发布运行，本地和预览不会自动发信。验收测试使用模拟 SMTP，不会向真实管理员群发测试邮件。
+
+参考：[Nodemailer SMTP](https://nodemailer.com/smtp)、[Netlify 定时函数](https://docs.netlify.com/build/functions/scheduled-functions/)。
+
 ### 启用收款码与 OCR
 
 如果 029、030、031 都尚未执行：保留已执行的 001–028，依次完整执行 **029 → 030 → 031**，每个文件成功后再执行下一个，最后部署当前代码。不要使用先前已删除的 `030_alipay_payments.sql`；当前 030 为 `030_manual_payments.sql`。这三个文件均包含事务和 PostgREST 接口缓存刷新，成功执行后不要重复执行。

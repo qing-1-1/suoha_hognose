@@ -11,6 +11,9 @@
 [functions."auction-settle"]
   schedule = "* * * * *"
 
+[functions."admin-notifications"]
+  schedule = "* * * * *"
+
 [[redirects]]
   from = "/admin"
   to = "/admin.html"

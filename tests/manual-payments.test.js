@@ -15,7 +15,8 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  grant usage on schema public,auth,storage to anon,authenticated,service_role;
  insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');insert into profiles values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin',true);
  insert into snakes values('S1','test','F','2025-01-01','test','active'),('S2','test','M','2025-01-01','test','active');`);
- for(const name of ['019_public_catalog_and_sales.sql','024_listing_removal.sql','029_auctions.sql','030_manual_payments.sql','031_wechat_transfer.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
+ await db.exec("alter table auth.users add column email text; update auth.users set email='admin@example.com'");
+ for(const name of ['019_public_catalog_and_sales.sql','024_listing_removal.sql','029_auctions.sql','030_manual_payments.sql','031_wechat_transfer.sql','032_admin_email_notifications.sql','033_auction_won_notifications.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
  const listing='11111111-1111-4111-8111-111111111111',second='22222222-2222-4222-8222-222222222222',request='33333333-3333-4333-8333-333333333333',receipt='44444444-4444-4444-8444-444444444444';
  await db.query("insert into specimen_listings(id,snake_id,slug,title,published,sale_status,asking_price) values($1,'S1','s1','Test',true,'available',1000),($2,'S2','s2','Test2',true,'available',2000)",[listing,second]);
  await db.query("select auction_identity('register','buyer1','salt:hash','contact-1','token1'),auction_identity('register','buyer2','salt:hash','contact-2','token2')");
@@ -36,6 +37,7 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  const fields={amount:'999',transaction:'TEST-TRANSACTION-123',payee:'测试收款人'};
  const submit=(id=receipt,digest='a'.repeat(64))=>db.query("select submit_payment_receipt('token1',$1,$2,'wechat_transfer',$3,'测试截图 OCR',$4,80,$4)",[id,order,digest,fields]);
  await submit();await submit();assert.equal((await db.query('select count(*) n from payment_receipts')).rows[0].n,1);
+ assert.equal((await db.query("select count(*) n from admin_email_outbox where event_type='payment_receipt'")).rows[0].n,1);
  assert.equal((await db.query('select status from purchase_inquiries where id=$1',[order])).rows[0].status,'reserved');
  await assert.rejects(submit(receipt,'b'.repeat(64)),/编号冲突/);
  await db.exec('set role anon');await assert.rejects(db.query('select * from payment_receipts'),/permission denied/);await assert.rejects(db.query('select * from payment_channels'),/permission denied/);
@@ -60,8 +62,12 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  assert.equal((await db.query('select hard_ends_at from auctions where id=$1',[auction])).rows[0].hard_ends_at,null);
  await db.query("update auctions set ends_at=clock_timestamp()+interval '1 minute' where id=$1",[auction]);
  await db.query("select place_auction_bid('token1',$1,2050,gen_random_uuid())",[auction]);
+ assert.equal((await db.query("select count(*) n from admin_email_outbox where event_type in ('auction_bid','auction_won')")).rows[0].n,0);
  assert.equal((await db.query("select ends_at>clock_timestamp()+interval '29 minutes' extended from auctions where id=$1",[auction])).rows[0].extended,true);
  await db.query("update auctions set ends_at=clock_timestamp()-interval '1 second' where id=$1",[auction]);await db.query('select settle_auction($1)',[auction]);
+ await db.query('select settle_auction($1)',[auction]);
+ const notifications=(await db.query("select payload from admin_email_outbox where event_type='auction_won'")).rows;
+ assert.equal(notifications.length,1);assert.equal(notifications[0].payload.amount,2050);assert.equal(notifications[0].payload.buyer,'buyer1');assert.ok(notifications[0].payload.reference);
  const mine=(await db.query("select read_payment_orders('token1') data")).rows[0].data.orders;assert.equal(mine.length,2);assert.equal(mine.find(o=>o.amount===2050).status,'reserved');
  await db.exec("set request.jwt.claim.sub='';set role authenticated");await assert.rejects(db.query("select review_payment_receipt($1,'confirmed','',1000,true)",[receipt]),/Not authorized/);
  }finally{await db.close();}
