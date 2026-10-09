@@ -6,7 +6,9 @@
  const labels={open:'拍卖中',won:'拍卖成交',unsold:'本场流拍',cancelled:'拍卖已取消'};
  let mounted=null,version=0,offset=0,loading=false,submitting=false,accountName='',pendingBid=null,afterAuth=null;
  const dialog=document.createElement('dialog');dialog.className='auction-dialog';dialog.id='buyerDialog';document.body.append(dialog);
- const account=document.createElement('button');account.className='buyer-account';account.textContent='我的订单 / 竞拍';account.type='button';account.onclick=()=>showAccount();document.body.append(account);
+ const account=document.createElement('button');account.className='buyer-account';account.textContent='登录 / 注册';account.type='button';account.onclick=()=>accountName?showAccount():authForm();(document.querySelector('.site-nav')||document.body).append(account);
+ function accountLabel(){account.textContent=accountName?accountName+' · 我的订单':'登录 / 注册';}
+ api().then(r=>{accountName=r.username||'';accountLabel();}).catch(()=>{});
  async function api(body,listing){const response=await fetch('/.netlify/functions/auction-api'+(listing?'?listing_id='+encodeURIComponent(listing):''),{method:body?'POST':'GET',credentials:'same-origin',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const result=await response.json();if(!response.ok)throw new Error(result.error||'竞拍服务暂不可用');return result;}
  function shell(title,content){dialog.innerHTML=`<button type="button" data-buyer-close aria-label="关闭">关闭 ×</button><h2>${title}</h2>${content}`;if(!dialog.open)dialog.showModal();}
  dialog.addEventListener('click',e=>{if(e.target.closest('[data-buyer-close]')){afterAuth=null;dialog.close();}});
@@ -14,15 +16,15 @@
  function authForm(register=false){
   shell(register?'注册买家账号':'登录买家账号',`<p>买家账号用于购买、出价和查看付款记录。请保存好账号密码；联系方式不会公开。</p><form class="auction-form"><label>账号<input name="username" required pattern="[A-Za-z0-9_]{4,30}" minlength="4" maxlength="30" autocomplete="username" placeholder="4–30 位字母、数字或下划线"></label><label>密码<input name="password" type="password" required minlength="10" maxlength="128" autocomplete="${register?'new-password':'current-password'}" placeholder="至少 10 位"></label>${register?'<label>微信号或手机号<input name="contact" required minlength="3" maxlength="200" autocomplete="off"></label><label class="auction-consent"><input name="consent" type="checkbox" required>我同意有效出价不可撤回，成交后按约联系付款，并允许店铺使用联系方式处理交易。</label>':''}<p role="status" class="auction-message"></p><button type="submit" class="button button-dark">${register?'注册并登录':'登录'}</button><button type="button" data-switch-auth>${register?'已有账号，去登录':'创建买家账号'}</button></form>`);
   dialog.querySelector('[data-switch-auth]').onclick=()=>authForm(!register);
-  dialog.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type=submit]');b.disabled=true;try{const v=Object.fromEntries(new FormData(f));const result=await api({...v,consent:f.elements.consent?.checked===true,action:register?'register':'login'});accountName=result.username||v.username;const follow=afterAuth;afterAuth=null;if(follow){dialog.close();await follow();}else await showAccount();await refresh();}catch(err){f.querySelector('[role=status]').textContent=err.message;}finally{b.disabled=false;}};
+  dialog.querySelector('form').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,b=f.querySelector('[type=submit]');b.disabled=true;try{const v=Object.fromEntries(new FormData(f));const result=await api({...v,consent:f.elements.consent?.checked===true,action:register?'register':'login'});accountName=result.username||v.username;accountLabel();const follow=afterAuth;afterAuth=null;if(follow){dialog.close();await follow();}else await showAccount();await refresh();}catch(err){f.querySelector('[role=status]').textContent=err.message;}finally{b.disabled=false;}};
  }
  async function showAccount(){
   shell('我的订单 / 竞拍','<p role="status">正在读取…</p>');
-  try{const result=await api();accountName=result.username||'';if(!accountName)return authForm();
+  try{const result=await api();accountName=result.username||'';accountLabel();if(!accountName)return authForm();
    shell('我的订单 / 竞拍',`<p>已登录：${esc(accountName)} <button type="button" data-buyer-logout>退出登录</button></p><p>展示最近 100 场参与记录。未中标不扣款；成交后可付款并填写支付单号或上传截图，等待店铺人工核实。</p><div class="auction-history">${result.items.map(a=>`<article><a href="/specimens/${encodeURIComponent(a.slug)}">${esc(a.title)}</a><p>${esc(labels[a.status])}${a.status==='open'&&a.leading?' · 你已领先':''}${a.status==='open'&&!a.leading?' · 已被超价':''} · ${money(a.current_price??a.start_price)}</p>${a.order?`<p>成交编号 ${esc(a.order.reference)}<br>状态：${esc(({reserved:'待联系付款',paid:'已收款',delivered:'已交付',completed:'已完成',cancelled:'已取消'})[a.order.status]||a.order.status)}<br>付款期限 ${date(a.order.reserved_until)}</p>`:''}${a.cancel_reason?`<p>取消原因：${esc(a.cancel_reason)}</p>`:''}</article>`).join('')||'<p>尚未参与拍卖，进入拍卖个体详情即可出价。</p>'}</div>`);
    window.SuohaPayments?.orders(dialog);
    dialog.querySelectorAll('.auction-history article').forEach((article,index)=>window.SuohaPayments?.mount(article,result.items[index].order));
-   dialog.querySelector('[data-buyer-logout]').onclick=async()=>{try{await api({action:'logout'});accountName='';pendingBid=null;authForm();await refresh();}catch(err){shell('退出失败',`<p role="alert">${esc(err.message)}</p>`);}};
+   dialog.querySelector('[data-buyer-logout]').onclick=async()=>{try{await api({action:'logout'});accountName='';accountLabel();pendingBid=null;authForm();await refresh();}catch(err){shell('退出失败',`<p role="alert">${esc(err.message)}</p>`);}};
    dialog.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>dialog.close()));
   }catch(err){shell('我的订单 / 竞拍',`<p role="alert">${esc(err.message)}</p><button data-account-retry>重试</button>`);dialog.querySelector('[data-account-retry]').onclick=showAccount;}
  }
@@ -42,7 +44,7 @@
   const own=version,target=mounted;if(!target?.host.isConnected||target.host.closest('[hidden]')||loading||submitting)return;
   loading=true;
   try{const result=await api(null,target.item.id);if(own!==version||!target.host.isConnected)return;
-   accountName=result.username||'';offset=new Date(result.server_time).getTime()-Date.now();
+   accountName=result.username||'';accountLabel();offset=new Date(result.server_time).getTime()-Date.now();
    const a=result.items.find(a=>a.id===target.item.auction.id)||result.items[0];if(!a){target.host.innerHTML='<p>本场拍卖暂不可用，请刷新页面。</p>';return;}
    paint(target.host,a);
   }catch(err){if(own===version&&target.host.isConnected){let message=target.host.querySelector('.auction-message');if(!message){message=document.createElement('p');message.className='auction-message';message.setAttribute('role','alert');target.host.append(message);}message.textContent=err.message+'，正在等待重新连接。';target.host.querySelector('[type=submit]')?.setAttribute('disabled','');}}

@@ -15,7 +15,7 @@ test('buyer login, bid retry, leading status and private account view',async({pa
  });
  await page.goto('/specimens/auction-test');
  await expect(page.locator('#auctionPanel')).toContainText('竞拍中');await expect(page.locator('#openInquiry')).toHaveCount(0);
- await page.getByRole('button',{name:'我的订单 / 竞拍',exact:true}).click();
+ await page.locator('.site-nav .buyer-account').click();
  await page.getByLabel('账号',{exact:true}).fill('buyer1');await page.getByLabel('密码',{exact:true}).fill('long-password');await page.getByRole('button',{name:'登录',exact:true}).click();
  await expect(page.locator('#buyerDialog')).toContainText('已登录：buyer1');await page.locator('#buyerDialog [data-buyer-close]').click();
  await page.locator('#auctionPanel [name=amount]').fill('1050');await page.locator('#auctionPanel [name=consent]').check();await page.getByRole('button',{name:'确认出价',exact:true}).click();

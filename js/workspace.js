@@ -4,8 +4,8 @@
   const escape = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const byId = id => document.getElementById(id);
   const labels={available:'在售',display:'留种展示',reserved:'已预留',sold:'已售',new:'待联系',contacted:'已联系',paid:'已收款',delivered:'已交付',completed:'已成交',cancelled:'已取消',paired:'已配种',observed_copulation:'观察到交配',successful:'交配成功',unsuccessful:'交配未成功',incubating:'孵化中',hatched:'已孵化',failed:'失败',archived:'归档'};
-  const model={listings:[],media:[],inquiries:[],activity:[],events:[],clutches:[],measurements:[],transfers:[],counts:{},errors:{},loaded:false};
-  const tableMap={listings:'specimen_listings',media:'specimen_media',inquiries:'purchase_inquiries',activity:'sales_activity',events:'breeding_events',clutches:'clutches',measurements:'snake_measurements',transfers:'inventory_transfers'};
+  const model={receipts:[],auctions:[],listings:[],media:[],inquiries:[],activity:[],events:[],clutches:[],measurements:[],transfers:[],counts:{},errors:{},loaded:false};
+  const tableMap={receipts:'payment_receipts',auctions:'auctions',listings:'specimen_listings',media:'specimen_media',inquiries:'purchase_inquiries',activity:'sales_activity',events:'breeding_events',clutches:'clutches',measurements:'snake_measurements',transfers:'inventory_transfers'};
   let loading=null,generation=0,recordTab='events',salesFilter='open',publishingQuery='',lastFocus=null;
   const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
   const date=value=>value?new Date(value).toLocaleDateString('zh-CN'):'—';
