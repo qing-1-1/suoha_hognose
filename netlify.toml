@@ -14,6 +14,10 @@
 [functions."admin-notifications"]
   schedule = "* * * * *"
 
+[functions."manual-payment"]
+  external_node_modules = ["sharp", "tesseract.js", "tesseract.js-core", "@tesseract.js-data/eng"]
+  included_files = ["netlify/functions/lib/payment-amount-worker.cjs", "node_modules/@tesseract.js-data/eng/4.0.0/eng.traineddata.gz"]
+
 [[redirects]]
   from = "/admin"
   to = "/admin.html"

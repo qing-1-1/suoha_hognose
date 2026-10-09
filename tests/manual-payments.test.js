@@ -16,7 +16,7 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');insert into profiles values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin',true);
  insert into snakes values('S1','test','F','2025-01-01','test','active'),('S2','test','M','2025-01-01','test','active');`);
  await db.exec("alter table auth.users add column email text; update auth.users set email='admin@example.com'");
- for(const name of ['019_public_catalog_and_sales.sql','024_listing_removal.sql','029_auctions.sql','030_manual_payments.sql','031_wechat_transfer.sql','032_admin_email_notifications.sql','033_auction_won_notifications.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of ['019_public_catalog_and_sales.sql','024_listing_removal.sql','029_auctions.sql','030_manual_payments.sql','031_wechat_transfer.sql','032_admin_email_notifications.sql','033_auction_won_notifications.sql','034_payment_manual_and_server_amount.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+name,'utf8'));
  const listing='11111111-1111-4111-8111-111111111111',second='22222222-2222-4222-8222-222222222222',request='33333333-3333-4333-8333-333333333333',receipt='44444444-4444-4444-8444-444444444444';
  await db.query("insert into specimen_listings(id,snake_id,slug,title,published,sale_status,asking_price) values($1,'S1','s1','Test',true,'available',1000),($2,'S2','s2','Test2',true,'available',2000)",[listing,second]);
  await db.query("select auction_identity('register','buyer1','salt:hash','contact-1','token1'),auction_identity('register','buyer2','salt:hash','contact-2','token2')");
@@ -35,8 +35,10 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  assert.equal(context.channels.find(c=>c.id==='wechat_transfer').wechat_id,'shop_test');
  assert.equal(context.channels.find(c=>c.id==='wechat_transfer').qr_path,null);
  const fields={amount:'999',transaction:'TEST-TRANSACTION-123',payee:'测试收款人'};
- const submit=(id=receipt,digest='a'.repeat(64))=>db.query("select submit_payment_receipt('token1',$1,$2,'wechat_transfer',$3,'测试截图 OCR',$4,80,$4)",[id,order,digest,fields]);
- await submit();await submit();assert.equal((await db.query('select count(*) n from payment_receipts')).rows[0].n,1);
+ const submit=(id=receipt,digest='a'.repeat(64))=>db.query("select submit_payment_receipt_v2('token1',$1,$2,'wechat_transfer',$3,$4,$5,$6,'server OCR',80)",[id,order,digest,fields,digest?1000:null,digest?'recognized':'no_image']);
+ await submit();await submit();
+ const evidence=(await db.query('select * from payment_receipts where id=$1',[receipt])).rows[0];assert.equal(Number(evidence.recognized_amount),1000);assert.equal(evidence.submitted_fields.amount,undefined);
+ assert.equal((await db.query("select has_function_privilege('service_role','submit_payment_receipt(text,uuid,uuid,text,text,text,jsonb,numeric,jsonb)','EXECUTE') allowed")).rows[0].allowed,false);assert.equal((await db.query('select count(*) n from payment_receipts')).rows[0].n,1);
  assert.equal((await db.query("select count(*) n from admin_email_outbox where event_type='payment_receipt'")).rows[0].n,1);
  assert.equal((await db.query('select status from purchase_inquiries where id=$1',[order])).rows[0].status,'reserved');
  await assert.rejects(submit(receipt,'b'.repeat(64)),/编号冲突/);
@@ -49,7 +51,8 @@ test('manual payment: ownership, reservation races, receipt retries and staff-on
  await assert.rejects(db.query("select review_payment_receipt($1,'rejected','',null,false)",[receipt]),/退回原因/);
  await db.query("select review_payment_receipt($1,'rejected','截图不清晰',null,false)",[receipt]);
  await db.exec('reset role');
- const retry='66666666-6666-4666-8666-666666666666';await submit(retry);
+ const retry='66666666-6666-4666-8666-666666666666';await submit(retry,null);await submit(retry,null);
+ const manual=(await db.query('select * from payment_receipts where id=$1',[retry])).rows[0];assert.equal(manual.screenshot_path,null);assert.equal(manual.recognized_amount,null);assert.equal(manual.amount_ocr_status,'no_image');assert.equal(manual.submitted_fields.amount,undefined);
  await db.exec('set role authenticated');
  await db.query("select review_payment_receipt($1,'confirmed','已核实实际到账 1000 元，修正截图误识别',1000,true)",[retry]);
  await db.query("select review_payment_receipt($1,'confirmed','重复提交',1000,true)",[retry]);

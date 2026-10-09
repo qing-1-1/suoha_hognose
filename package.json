@@ -6,7 +6,8 @@
     "build": "node scripts/build.js",
     "dev": "node scripts/dev.js",
     "test": "node --test tests/*.test.js",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "check:email": "node scripts/check-admin-email.cjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

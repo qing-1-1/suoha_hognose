@@ -1,5 +1,6 @@
 const {createHash,createHmac,randomUUID}=require('node:crypto');
 const sharp=require('sharp');
+const {recognizeAmount}=require('./lib/payment-amount');
 const {rpc,json}=require('./lib/public-data');
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const uuid=v=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v||'');
@@ -12,7 +13,7 @@ async function imageBuffer(value){
  return await input.rotate().resize({width:2200,height:2200,fit:'inside',withoutEnlargement:true}).flatten({background:'#fff'}).jpeg({quality:92}).toBuffer();
  }catch{throw Error('图片无法读取或尺寸过大，请换一张清晰截图');}
 }
-function fields(value){const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};return Object.fromEntries(['amount','transaction','time','payee','channel'].map(k=>[k,String(source[k]??'').trim().slice(0,k==='transaction'?100:200)]));}
+function fields(value){const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};return Object.fromEntries(['transaction','time','payee'].map(k=>[k,String(source[k]??'').trim().slice(0,k==='transaction'?100:200)]));}
 exports.handler=async event=>{
  const secret=process.env.SUPABASE_SERVICE_ROLE_KEY,url=process.env.SUPABASE_URL?.replace(/\/$/,''),key=process.env.SUPABASE_PUBLISHABLE_KEY;
  if(!secret||!url||!key)return json(503,{error:'收款服务尚未配置'});
@@ -25,6 +26,7 @@ exports.handler=async event=>{
    const id=event.queryStringParameters?.order;if(id&&!uuid(id))return json(400,{error:'无效订单编号'});
    const result=await call('read_payment_orders',{p_token:token(event),p_order:id||null});
    result.channels=await Promise.all((result.channels||[]).map(async c=>({id:c.id,label:c.label,payee:c.payee,instructions:c.instructions,wechat_id:c.wechat_id||null,url:c.qr_path?await sign(c.qr_path):null})));
+   for(const order of result.orders||[])for(const receipt of order.receipts||[])receipt.fields=fields(receipt.fields);
    delete result.buyer_id;return json(200,result);
   }
   if(event.httpMethod!=='POST')return json(405,{error:'Method not allowed'});
@@ -55,13 +57,17 @@ exports.handler=async event=>{
   // Authenticate ownership BEFORE decoding or storing any image.
   const context=await call('read_payment_orders',{p_token:token(event),p_order:b.order_id});
   const order=context.orders[0];
-  if(order.status!=='reserved'&&!order.receipts.some(r=>r.id===b.request_id))return json(409,{error:'订单当前不可提交付款截图'});
-  if(order.receipts.some(r=>['pending','confirmed'].includes(r.status)&&r.id!==b.request_id))return json(409,{error:'已有付款截图待核实，请勿重复付款'});
+  if(order.status!=='reserved'&&!order.receipts.some(r=>r.id===b.request_id))return json(409,{error:'订单当前不可提交付款信息'});
+  if(order.receipts.some(r=>['pending','confirmed'].includes(r.status)&&r.id!==b.request_id))return json(409,{error:'已有付款记录待核实，请勿重复付款'});
   const submitted=fields(b.fields);
-  if(!submitted.transaction)return json(400,{error:'请点击账单中本次支付记录并截图，上传包含订单号/转账单号的支付记录截图。'});
-  const bytes=await imageBuffer(b.image),digest=hash(bytes),path=`receipts/${context.buyer_id}/${b.request_id}-${digest}.jpg`;
-  await upload(path,bytes);
-  const id=await call('submit_payment_receipt',{p_token:token(event),p_id:b.request_id,p_order:b.order_id,p_channel:b.channel,p_hash:digest,p_ocr:String(b.ocr_text||'').slice(0,20000),p_ocr_fields:fields(b.ocr_fields),p_confidence:Number.isFinite(b.confidence)?Math.max(0,Math.min(100,b.confidence)):null,p_fields:submitted});
+  if(!submitted.transaction)return json(400,{error:'请填写支付单号，或上传包含订单号/转账单号的账单截图。'});
+  const bytes=b.image==null?null:await imageBuffer(b.image),digest=bytes?hash(bytes):null;
+  const existing=order.receipts.find(r=>r.id===b.request_id);
+  // Server OCR reads decoded image bytes only; all buyer-supplied amounts/OCR are ignored.
+  const recognized=existing?{amount:null,status:bytes?'not_detected':'no_image',text:'',confidence:null}:await recognizeAmount(bytes);
+  if(bytes)await upload(`receipts/${context.buyer_id}/${b.request_id}-${digest}.jpg`,bytes);
+  const id=await call('submit_payment_receipt_v2',{p_token:token(event),p_id:b.request_id,p_order:b.order_id,p_channel:b.channel,p_hash:digest,
+   p_fields:submitted,p_amount:recognized.amount,p_amount_status:recognized.status,p_ocr:recognized.text,p_confidence:recognized.confidence});
   return json(200,{id,status:'submitted'});
  }catch(e){return json(400,{error:/[\u4e00-\u9fff]/.test(e.message)?e.message:'收款服务暂不可用，请稍后重试'});}
 };

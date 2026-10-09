@@ -16,12 +16,12 @@ function message(job,env=process.env){
  if(site){const url=new URL(site);if(url.protocol!=='https:')throw Error('INVALID_SITE_URL');link=new URL('/admin',url).href+(payment?'#payments':'#auctions');}
  return {from:{name:'Suoha 店铺通知',address:env.SMTP_USER},to:{address:job.recipient},
   messageId:`<admin-${job.id}@${env.SMTP_USER.split('@')[1]}>`,
-  subject:payment?'【Suoha】付款凭证已提交，待人工核实':'【Suoha】拍卖已成交，等待买家付款',
-  text:[payment?'买家已提交付款凭证。此邮件不代表已到账，请在真实收款账户核实后审核。':'拍卖已结束并确认获胜买家，成交订单已生成，等待买家付款。此邮件不代表已到账。',
+  subject:payment?'【Suoha】付款信息已提交，待人工核实':'【Suoha】拍卖已成交，等待买家付款',
+  text:[payment?'买家已提交付款信息。此邮件不代表已到账，请在真实收款账户核实后审核。':'拍卖已结束并确认获胜买家，成交订单已生成，等待买家付款。此邮件不代表已到账。',
    `个体：${line(p.title)}`,`买家：${line(p.buyer)}`,
    `订单：${line(p.reference)}`,...(payment?[]:[`拍卖编号：${line(p.auction_id)}`]),
    `${payment?'订单应付':'成交金额'}：¥${line(p.amount)}`,
-   ...(payment?[`申报付款金额：¥${line(p.submitted_amount)}`,`付款渠道：${line(p.channel)}`]:[]),
+   ...(payment?[p.amount_ocr_status==='recognized'?`截图识别金额：¥${line(p.recognized_amount)}`:'截图金额未识别，请按支付单号核实真实到账。',`付款渠道：${line(p.channel)}`]:[]),
    `${payment?'提交时间':'成交时间'}：${line(p.created_at)}`,`后台处理：${link}`].join('\n'),
   disableFileAccess:true,disableUrlAccess:true};
 }

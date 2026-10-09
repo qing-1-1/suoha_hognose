@@ -163,7 +163,7 @@
   });
   function render(){if(!currentUser||!currentProfile?.active)return;stock();nursery();publishing();records();growth();}
   const mobileNav=document.querySelector('.mobileNav');
-  if(mobileNav){for(const [label,pages] of [['概览',['overview']],['个体',['population','nursery']],['繁育',['production','records','lab','routes']],['经营',['publishing','sales','investment']],['更多',['admin']]]){const group=document.createElement('div');group.className='mobile-nav-group';group.setAttribute('role','group');group.setAttribute('aria-label',label);const caption=document.createElement('span');caption.textContent=label;group.append(caption);for(const page of pages){const button=mobileNav.querySelector(`[data-page="${page}"]`);if(button)group.append(button);}if(group.children.length>1)mobileNav.append(group);}}
+  if(mobileNav){for(const [label,pages] of [['概览',['overview']],['个体',['population','nursery']],['繁育',['production','records','lab','routes']],['经营',['publishing','auctions','sales','payments','investment']],['更多',['admin']]]){const group=document.createElement('div');group.className='mobile-nav-group';group.setAttribute('role','group');group.setAttribute('aria-label',label);const caption=document.createElement('span');caption.textContent=label;group.append(caption);for(const page of pages){const button=mobileNav.querySelector(`[data-page="${page}"]`);if(button)group.append(button);}if(group.children.length>1)mobileNav.append(group);}}
   window.SuohaUpgrades={publishing,records,nursery};
   const previousRows=renderRows;renderRows=function(){previousRows();stock();};
   const previousRender=window.SuohaWorkspace.render;window.SuohaWorkspace.render=function(){previousRender();render();};
