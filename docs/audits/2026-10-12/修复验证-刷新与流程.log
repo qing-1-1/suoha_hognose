@@ -1,0 +1,29 @@
+npm notice run suoha-hognose@2.0.0 npx
+npm notice run playwright test tests/browser/audit-workflows.spec.js tests/browser/site.spec.js --workers=2
+
+Running 16 tests using 2 workers
+
+(node:267596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:82124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [desktop] › tests\browser\audit-workflows.spec.js:2:1 › audit fixes keep population, plans, review states and task filters consistent (2.5s)
+  ✓   2 [desktop] › tests\browser\site.spec.js:4:1 › home, catalog, details and inquiry preserve uncertainty and do not require login (4.6s)
+(node:364500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [desktop] › tests\browser\site.spec.js:20:1 › unavailable catalog shows honest retry state, with no fabricated animals (838ms)
+  ✓   5 [desktop] › tests\browser\site.spec.js:24:1 › private workspace remains gated and contains no public customer login (1.4s)
+  ✓   4 [mobile] › tests\browser\audit-workflows.spec.js:2:1 › audit fixes keep population, plans, review states and task filters consistent (2.5s)
+  ✓   7 [mobile] › tests\browser\site.spec.js:4:1 › home, catalog, details and inquiry preserve uncertainty and do not require login (3.8s)
+  ✓   8 [mobile] › tests\browser\site.spec.js:20:1 › unavailable catalog shows honest retry state, with no fabricated animals (1.1s)
+  ✓   9 [mobile] › tests\browser\site.spec.js:24:1 › private workspace remains gated and contains no public customer login (1.2s)
+  ✓   6 [desktop] › tests\browser\site.spec.js:35:1 › authenticated workspace loads and publishing and husbandry forms work (11.9s)
+  ✓  11 [desktop] › tests\browser\site.spec.js:98:1 › failed public photos show a readable fallback and a working alternative (1.3s)
+  ✓  12 [desktop] › tests\browser\site.spec.js:110:1 › reduced motion keeps the room illustration static and small login screens scroll (1.1s)
+  ✓  13 [desktop] › tests\browser\site.spec.js:123:1 › breeding stock is display-only in cards and detail even if it has a stored asking price (1.9s)
+  ✓  10 [mobile] › tests\browser\site.spec.js:35:1 › authenticated workspace loads and publishing and husbandry forms work (12.4s)
+  ✓  14 [mobile] › tests\browser\site.spec.js:98:1 › failed public photos show a readable fallback and a working alternative (1.1s)
+  ✓  15 [mobile] › tests\browser\site.spec.js:110:1 › reduced motion keeps the room illustration static and small login screens scroll (942ms)
+  ✓  16 [mobile] › tests\browser\site.spec.js:123:1 › breeding stock is display-only in cards and detail even if it has a stored asking price (1.8s)
+
+  16 passed (36.0s)

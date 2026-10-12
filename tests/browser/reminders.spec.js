@@ -9,7 +9,7 @@ test('staff reminder count, dismissal persistence, restore and module navigation
  await page.goto('/admin');await expect(page.locator('#authGate')).toBeHidden();await expect(page.locator('#reminderToggle [data-count]')).toHaveText('2');
  await page.locator('#reminderToggle').click();await expect(page.locator('#reminderPanel')).toContainText('付款待审核');await page.getByRole('button',{name:'关闭提醒：付款待审核',exact:true}).click();await expect(page.locator('#reminderToggle [data-count]')).toHaveText('1');
  await page.reload();await expect(page.locator('#reminderToggle [data-count]')).toHaveText('1');await page.locator('#reminderToggle').click();await expect(page.locator('#reminderPanel')).not.toContainText('付款待审核');
- await page.getByRole('button',{name:'恢复已关闭',exact:true}).click();await expect(page.locator('#reminderToggle [data-count]')).toHaveText('2');
+ await page.getByRole('button',{name:'重新显示已隐藏提醒（1）',exact:true}).click();await expect(page.locator('#reminderToggle [data-count]')).toHaveText('2');
  await page.screenshot({path:'artifacts/reminder-center-'+test.info().project.name+'.png'});
  await page.locator('[data-reminder-page=payments]').click();await expect(page).toHaveURL(/#payments$/);await expect(page.locator('#reminderPanel')).toBeHidden();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

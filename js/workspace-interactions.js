@@ -8,10 +8,12 @@
     const modal=[...document.querySelectorAll('.modalBackdrop.open')].at(-1);if(!modal)return;
     if(event.key==='Escape'){if(event.isComposing)return;if(modal.id==='editModal')return;event.preventDefault();const cancel=modal.querySelector('[data-close-modal]');if(cancel)cancel.click();else closeModal(modal.id);return;}
     if(event.key!=='Tab')return;
-    const focusable=[...modal.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
+    const focusable=[...modal.querySelectorAll('button,input,select,textarea,summary,a[href],[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
     if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);
     if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
   });
+  const lifecycle=document.createElement('select');lifecycle.id='popLifecycle';lifecycle.className='filter';lifecycle.setAttribute('aria-label','生命周期');lifecycle.innerHTML='<option value="active">在养</option><option value="">全部状态</option><option value="sold">已售</option><option value="retired">退役</option><option value="deceased">死亡</option><option value="planned">计划</option>';document.getElementById('popSearch').parentElement.append(lifecycle);lifecycle.onchange=()=>{state.lifecycle=lifecycle.value;renderRows();};
+  const library=document.createElement('select');library.className='filter';library.id='popLibrary';library.setAttribute('aria-label','档案范围');library.innerHTML='<option value="stock">种群库</option><option value="all">全部档案（含自繁）</option>';lifecycle.after(library);library.onchange=()=>{state.library=library.value;renderRows();};
   const filters=['popSearch','popSeries','popSex','globalYear'];
   function key(){return 'suoha.view.'+(currentUser?.id||'anonymous');}
   function saveView(){if(!currentUser)return;sessionStorage.setItem(key(),JSON.stringify({q:state.q,series:state.series,sex:state.sex,year:state.year,sort:document.getElementById('popSort')?.value||'id'}));}

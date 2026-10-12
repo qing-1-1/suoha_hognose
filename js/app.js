@@ -3,7 +3,7 @@
 const EMPTY_DATA=()=>({snakes:[],routes:{},investments:[],ledgerExpenses:[]});
 let DATA=EMPTY_DATA();
 let snakeById={};
-const state={page:"overview",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:""};
+const state={page:"overview",year:new Date().getFullYear(),route:"flagship",showFuture:true,showF2:true,high:false,selected:null,q:"",series:"",sex:"",lifecycle:"active",library:"stock"};
 let routeEditorOpen=false,editingRouteNodeId=null,routeConnectMode=false,routeConnectSource=null,canvasEditing=false;
 let canvasView={x:0,y:0,scale:1};
 let ANNUAL_PLANS={};
@@ -11,7 +11,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>"¥"+Number(n||0).toLocaleString("zh-CN"), mature=s=>Number(String(s.mature).slice(0,4)), ready=s=>s?.inventory_library!=="nursery"&&s?.status==="active"&&Number.isFinite(mature(s))&&mature(s)>0&&mature(s)<=state.year;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function kpi(a,b,c,d,cls=""){return `<div class="kpi"><div class="kpiTop"><span>${a}</span><span class="kpiIcon">${d}</span></div><div class="kpiNum ${cls}">${b}</div><div class="kpiFoot">${c}</div></div>`}
-function investmentKpi(totals){
+function investmentKpi(totals){if(Object.values(REMOTE_RAW.health||{}).some(Boolean))return kpi("总投入","暂不可用","部分投入记录读取失败，请刷新","¥");
   return `<div class="kpi investmentKpi"><div class="investmentKpiMain"><div class="investmentKpiTop"><span>总投入</span><i>¥</i></div><strong>${fmt(totals.total)}</strong></div><div class="investmentKpiSide"><div><span>种群投入</span><strong>${fmt(totals.population)}</strong></div><div><span>其他投入</span><strong>${fmt(totals.other)}</strong></div></div></div>`;
 }
 const PAGE_NAMES={nursery:"繁育个体",individual:"个体档案",overview:"工作概览",publishing:"公开展示",sales:"意向与销售",records:"繁育与成长记录",routes:"繁殖路线",population:"种群库",production:"年度规划",investment:"投资与支出",lab:"配对实验室",admin:"数据与审核"};
@@ -104,7 +104,7 @@ function deleteRouteNode(id){if(!canWrite())return toast("当前账号没有路�
 function deleteRouteEdge(id){if(!canWrite())return toast("当前账号没有路线编辑权限",true);openWorkflowModal({title:"删除这条连线？",sub:"删除后不会影响两个节点本身。",submit:"删除连线",danger:true,fields:[],onSubmit:async()=>{const edge=REMOTE_RAW.edges.find(row=>String(row.id)===String(id));if(!edge)throw new Error("连线不存在或已被删除。");REMOTE_RAW.edges=REMOTE_RAW.edges.filter(row=>String(row.id)!==String(id));redrawRouteCanvas();try{const {error}=await sb.from("route_edges").delete().eq("id",id);if(error)throw error;toast("路线连线已删除")}catch(error){REMOTE_RAW.edges.push(edge);redrawRouteCanvas();throw error}}})}
 
 document.addEventListener("focusin",event=>{const select=event.target;if(!select.matches?.('#routeEditor select[name="snake_id"]')||select.parentElement.querySelector(".routeSnakeSearch"))return;const search=document.createElement("input");search.type="search";search.className="routeSnakeSearch";search.placeholder="搜索编号、系列或基因型";select.parentElement.insertBefore(search,select);search.oninput=()=>{const query=search.value.trim().toLowerCase();[...select.options].forEach(option=>option.hidden=!!query&&!option.text.toLowerCase().includes(query));const first=[...select.options].find(option=>!option.hidden);if(first)select.value=first.value};setTimeout(()=>search.focus(),0)});
-function stockAnimals(){return DATA.snakes.filter(s=>s.inventory_library!=="nursery")}
+function stockAnimals(){return DATA.snakes.filter(s=>s.inventory_library!=="nursery"&&s.status==="active")}
 function counts(){const o={};stockAnimals().forEach(s=>snakeSeries(s).forEach(name=>o[name]=(o[name]||0)+1));return o}
 function renderPopulation(){
  const rs=stockAnimals().filter(ready),rf=rs.filter(s=>s.sex==="F").length,rm=rs.filter(s=>s.sex==="M").length,investTotals=ledgerInvestmentTotals();
@@ -117,7 +117,7 @@ function renderPopulation(){
  const sel=$("#popSeries"),keep=state.series;sel.innerHTML='<option value="">全部系列</option>'+Object.keys(sc).sort().map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join("");sel.value=keep;renderRows()
 }
 
-function renderRows(){const q=state.q.toLowerCase(),rows=stockAnimals().filter(s=>(!q||[s.id,s.series,s.gene,s.role].join(" ").toLowerCase().includes(q))&&(!state.series||snakeSeries(s).includes(state.series))&&(!state.sex||s.sex===state.sex));$("#popRows").innerHTML=rows.map(s=>`<tr data-s="${s.id}"><td>${s.id}</td><td>${esc(s.series)}</td><td>${esc(s.gene)}</td><td><span class="badge ${s.sex==="F"?"sexF":"sexM"}">${s.sex==="F"?"♀ 母":s.sex==="M"?"♂ 公":"未知"}</span></td><td>${s.mature}</td><td><span class="badge ${ready(s)?"ready":"future"}">${ready(s)?"预计年内成熟":Number.isFinite(mature(s))?"预计 "+mature(s)+" 年":"时间待确认"}</span></td><td>${fmt(s.price)}</td><td>${esc(s.role)}</td><td><span class="badge scoreBadge">${s.score}</span></td></tr>`).join("");$$("#popRows [data-s]").forEach(x=>x.onclick=()=>openDrawer(snakeById[x.dataset.s]))}
+function renderRows(){const q=state.q.toLowerCase(),rows=DATA.snakes.filter(s=>(state.library==="all"||s.inventory_library!=="nursery")&&(!state.lifecycle||s.status===state.lifecycle)&&(!q||[s.id,s.series,s.gene,s.role].join(" ").toLowerCase().includes(q))&&(!state.series||snakeSeries(s).includes(state.series))&&(!state.sex||s.sex===state.sex));$("#popRows").innerHTML=rows.map(s=>`<tr data-s="${s.id}"><td>${s.id}</td><td>${esc(s.series)}</td><td>${esc(s.gene)}</td><td><span class="badge ${s.sex==="F"?"sexF":"sexM"}">${s.sex==="F"?"♀ 母":s.sex==="M"?"♂ 公":"未知"}</span></td><td>${s.mature}</td><td><span class="badge ${ready(s)?"ready":"future"}">${ready(s)?"预计年内成熟":Number.isFinite(mature(s))?"预计 "+mature(s)+" 年":"时间待确认"}</span></td><td>${fmt(s.price)}</td><td>${esc(s.role)}</td><td><span class="badge scoreBadge">${s.score}</span></td></tr>`).join("");$$("#popRows [data-s]").forEach(x=>x.onclick=()=>openDrawer(snakeById[x.dataset.s]))}
 $("#popSearch").oninput=e=>{state.q=e.target.value;renderRows()};$("#popSeries").onchange=e=>{state.series=e.target.value;renderRows()};$("#popSex").onchange=e=>{state.sex=e.target.value;renderRows()};
 
 
@@ -182,12 +182,12 @@ function productionFor(year){
   const matureSnakes=active.filter(s=>mature(s)<=year);
   const plans=ANNUAL_PLANS[String(year)]||[];
   const counted=plans.filter(x=>x.count);
-  return {f:matureSnakes.filter(s=>s.sex==="F").length,m:matureSnakes.filter(s=>s.sex==="M").length,planned:rowsPlannedClutches(year),plans,counted};
+  return {f:matureSnakes.filter(s=>s.sex==="F").length,m:matureSnakes.filter(s=>s.sex==="M").length,planned:rowsPlannedClutches(year),planCount:acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(year)).length,coverage:new Set(acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(year)&&matureSnakes.some(s=>s.sex==="F"&&s.id===p.female_snake_id)).map(p=>p.female_snake_id)).size,plans,counted};
 }
-function renderProduction(){const p=productionFor(state.year), projects=[...new Set(p.counted.map(x=>x.project).filter(Boolean))];$("#prodHero").innerHTML=`<div class="planLabel">Selected planning year · live Supabase data</div><div class="planYear">${state.year}</div><div class="planFocus">已配置 ${p.planned} 个核心计划</div><div class="planText">容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。</div><div class="capacity"><div class="cap"><label>Mature active female</label><strong>${p.f} ♀</strong></div><div class="cap"><label>Mature active male</label><strong>${p.m} ♂</strong></div><div class="cap"><label>Core plans</label><strong>${p.planned}</strong></div><div class="cap"><label>Plan / female</label><strong>${p.f?Math.round(p.planned/p.f*100):0}%</strong></div></div><div class="heroPlanPreview" id="heroPlanPreview"></div>`;renderAnnualPlan();
- const pipe=[];Object.values(DATA.routes).forEach(r=>r.nodes.filter(n=>n.kind==="offspring").forEach(n=>pipe.push({year:n.year,name:n.label,route:r.name})));pipe.sort((a,b)=>a.year-b.year);$("#pipeline").innerHTML=pipe.slice(0,7).map(x=>`<div class="pipe"><div class="pipeYear">${x.year}</div><div><b>${esc(x.name)}</b><span>${esc(x.route)}</span></div><div class="pipeState">${x.year<=state.year?"ACTIVE":"PLANNED"}</div></div>`).join("")||'<div class="miniCard"><p>暂无路线节点。</p></div>';drawProd();
+function renderProduction(){const p=productionFor(state.year), projects=[...new Set(p.counted.map(x=>x.project).filter(Boolean))];$("#prodHero").innerHTML=`<div class="planLabel">Selected planning year · live Supabase data</div><div class="planYear">${state.year}</div><div class="planFocus">已配置 ${p.planCount} 项计划 · ${p.planned} 个计划窝次</div><div class="planText">容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。</div><div class="capacity"><div class="cap"><label>在养成熟母蛇</label><strong>${p.f} ♀</strong></div><div class="cap"><label>在养成熟公蛇</label><strong>${p.m} ♂</strong></div><div class="cap"><label>计划条数</label><strong>${p.planCount}</strong></div><div class="cap"><label>成熟母蛇覆盖率</label><strong>${p.f?Math.round(p.coverage/p.f*100):0}%</strong></div></div><div class="heroPlanPreview" id="heroPlanPreview"></div>`;renderAnnualPlan();
+ const pipe=[];Object.values(DATA.routes).forEach(r=>r.nodes.filter(n=>n.kind==="offspring").forEach(n=>pipe.push({year:n.year,name:n.label,route:r.name})));pipe.sort((a,b)=>a.year-b.year);$("#pipeline").innerHTML=pipe.slice(0,7).map(x=>`<div class="pipe"><div class="pipeYear">${x.year}</div><div><b>${esc(x.name)}</b><span>${esc(x.route)}</span></div><div class="pipeState">${x.year<=state.year?"计划已到期 · 待核实":"计划目标"}</div></div>`).join("")||'<div class="miniCard"><p>暂无路线节点。</p></div>';drawProd();
  const grouped={};p.plans.forEach(x=>{const k=x.project||"未命名项目";grouped[k]=(grouped[k]||0)+1});const total=Math.max(1,p.plans.length);$("#quota").innerHTML=`<div class="bars">${Object.entries(grouped).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/total*100}%"></i></div><span>${v} 项</span></div>`).join("")||'<div class="miniCard"><p>本年度暂无计划。</p></div>'}</div>`;
- const byPriority=x=>p.plans.filter(i=>i.priority===x).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无";$("#checklist").innerHTML=`<div class="miniCard"><h4>A · 高优先</h4><p>${byPriority("A")}</p></div><div class="miniCard"><h4>B · 次优先</h4><p>${byPriority("B")}</p></div><div class="miniCard"><h4>R / C / G · 备用与条件</h4><p>${p.plans.filter(i=>!["A","B"].includes(i.priority)).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无"}</p></div>`;$("#annualFacts").innerHTML=`<div class="factPanel"><b>截至 ${new Date().toLocaleString("zh-CN")} 的固定检查</b><br>活跃且成熟：${p.f} 条母蛇、${p.m} 条公蛇。当前年份已有 ${p.planned} 条核心计划；这些数字仅来自 snakes、annual_breeding_plans 与状态字段。</div>`}
+ const byPriority=x=>p.plans.filter(i=>i.priority===x).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无";$("#checklist").innerHTML=`<div class="miniCard"><h4>A · 高优先</h4><p>${byPriority("A")}</p></div><div class="miniCard"><h4>B · 次优先</h4><p>${byPriority("B")}</p></div><div class="miniCard"><h4>R / C / G · 备用与条件</h4><p>${p.plans.filter(i=>!["A","B"].includes(i.priority)).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无"}</p></div>`;$("#annualFacts").innerHTML=`<div class="factPanel"><b>截至 ${new Date().toLocaleString("zh-CN")} 的固定检查</b><br>活跃且成熟：${p.f} 条母蛇、${p.m} 条公蛇。当前年份已有 ${p.planCount} 项计划、${p.planned} 个计划窝次；计划不等于实际产出。</div>`}
 
 
 function renderInvestment(){const series=Object.keys(counts()),gaps=series.filter(k=>DATA.snakes.some(s=>snakeSeries(s).includes(k)&&s.sex==="F"&&s.status==="active")&&!DATA.snakes.some(s=>snakeSeries(s).includes(k)&&s.sex==="M"&&s.status==="active"));const top=[...DATA.investments].sort((a,b)=>b.score-a.score)[0];$("#investKpis").innerHTML=kpi("最高优先投资",top?esc(top.name):"暂无","来自 investments 表","◇","gold")+kpi("零公系列",gaps.length,gaps.join(" / ")||"无","♂")+kpi("投资记录",DATA.investments.length,"来自 investments 表","⌁","violet")+kpi("投资原则","解锁 > 数量","以实际种群结构计算","★","gold");
@@ -299,15 +299,15 @@ function renderInvestmentLedger(){
   });
   const userRows=[...byUser.values()].sort((a,b)=>b.total-a.total);
   const totalMeta=ledgerMetaParts(totalAutoCount,totalCategoryCounts).join(" · ")||`${statRows.length} 项投入`;
-  $("#ledgerSummary").innerHTML=userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${esc(totalMeta)}</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(ledgerUserMeta(user))}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
+  $("#ledgerSummary").innerHTML=Object.values(REMOTE_RAW.health||{}).some(Boolean)?'<div class="ws-alert">部分投入数据读取失败，暂不显示合计。请刷新后重试，避免将不完整金额当作总投入。</div>':userRows.length?`<div class="ledgerTotal"><label>总投入</label><strong>${ledgerMoney(total)}</strong><span>${esc(totalMeta)}</span></div>${userRows.map(user=>{const percent=ledgerPercent(user.total,total);return `<div class="ledgerShare"><div><b>${esc(user.name)}</b><span>${esc(ledgerUserMeta(user))}</span></div><strong>${ledgerMoney(user.total)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`}).join("")}`:'<div class="analysisEmpty">还没有支出记录。录入第一笔开销后，这里会显示每个用户的投入比例。</div>';
 
-  $("#ledgerCategorySummary").innerHTML=Object.entries(LEDGER_CATEGORIES).map(([key,meta])=>{
+  $("#ledgerCategorySummary").innerHTML=Object.values(REMOTE_RAW.health||{}).some(Boolean)?'<div class="ws-alert">分类金额暂不可用，请刷新后重试。</div>':Object.entries(LEDGER_CATEGORIES).map(([key,meta])=>{
     const amount=statRows.filter(row=>row.category===key).reduce((sum,row)=>sum+ledgerExpenseAmount(row),0);
     const percent=ledgerPercent(amount,total);
     return `<div class="ledgerCategoryRow"><div><b>${meta.label}</b><span>${meta.hint}</span></div><strong>${ledgerMoney(amount)}</strong><em>${percent.toFixed(percent>=10||percent===0?0:1)}%</em><i><span style="width:${Math.max(percent,total?1:0)}%"></span></i></div>`;
   }).join("");
 
-  $("#ledgerRows").innerHTML=rows.length?rows.slice(0,18).map(row=>{const meta=LEDGER_CATEGORIES[row.category]||LEDGER_CATEGORIES.population;return `<div class="ledgerRow"><div class="ledgerRowMain"><span>${esc(meta.label)}</span><b>${esc(row.note)}</b><small>${esc(ledgerOwnerName(row))} · ${esc(ledgerDateLabel(row.spent_at))}</small></div><strong>${ledgerMoney(row.amount)}</strong>${canManageLedgerExpense(row)?`<button class="iconBtn danger" data-ledger-delete="${esc(row.id)}">删除</button>`:""}</div>`}).join(""):'<div class="analysisEmpty">最近支出会显示在这里。</div>';
+  $("#ledgerRows").innerHTML=rows.length?rows.map(row=>{const meta=LEDGER_CATEGORIES[row.category]||LEDGER_CATEGORIES.population;return `<div class="ledgerRow"><div class="ledgerRowMain"><span>${esc(meta.label)}</span><b>${esc(row.note)}</b><small>${esc(ledgerOwnerName(row))} · ${esc(ledgerDateLabel(row.spent_at))}</small></div><strong>${ledgerMoney(row.amount)}</strong>${canManageLedgerExpense(row)?`<button class="iconBtn danger" data-ledger-delete="${esc(row.id)}">删除</button>`:""}</div>`}).join(""):'<div class="analysisEmpty">最近支出会显示在这里。</div>';
   $$("[data-ledger-delete]").forEach(button=>button.onclick=()=>deleteLedgerExpense(button.dataset.ledgerDelete));
 }
 function syncLedgerFormDefaults(setToday=true){
@@ -316,10 +316,11 @@ function syncLedgerFormDefaults(setToday=true){
   const acquisition=$("#ledgerAcquisition");if(acquisition){acquisition.disabled=category?.value!=="population";if(acquisition.disabled)acquisition.value="";}
   if(note)note.placeholder=meta.placeholder;
   if(hint)hint.textContent=`${meta.label}：${meta.hint}`;
-  if(setToday&&date&&!date.value)date.value=new Date().toISOString().slice(0,10);
+  if(setToday&&date&&!date.value)date.value=localDate();
 }
+let ledgerSaving=false,ledgerRequest=null,ledgerPayload="";
 async function saveLedgerExpense(event){
-  event.preventDefault();
+  event.preventDefault();if(ledgerSaving)return;
   const message=$("#ledgerFormMessage");
   if(message)message.textContent="正在保存…";
   if(!sb||!currentUser){if(message)message.textContent="请先登录。";return}
@@ -327,21 +328,23 @@ async function saveLedgerExpense(event){
   const category=LEDGER_CATEGORIES[data.category]?data.category:null;
   const amount=Math.round(Number(data.amount)*100)/100;
   const note=String(data.note||"").trim();
-  const spentAt=String(data.spent_at||"").trim()||new Date().toISOString().slice(0,10);
+  const spentAt=String(data.spent_at||"").trim()||localDate();
   if(!category){if(message)message.textContent="请选择支出分类。";return}
   if(!Number.isFinite(amount)||amount<=0){if(message)message.textContent="请输入大于 0 的金额。";return}
   if(!note){if(message)message.textContent="请填写备注。";return}
+  const fingerprint=JSON.stringify(data);if(fingerprint!==ledgerPayload||!ledgerRequest){ledgerRequest=crypto.randomUUID();ledgerPayload=fingerprint;}
+  ledgerSaving=true;const submit=form.querySelector("[type=submit]");if(submit)submit.disabled=true;
   try{
-    const {error}=await sb.from("investment_expenses").insert({
+    const {error}=await sb.rpc("record_investment_expense",{p_request:ledgerRequest,p_data:{
       category,amount,note,spent_at:spentAt,
       ...(data.acquisition_id?{acquisition_id:data.acquisition_id}:{}),
       owner_email:currentUser.email||null,
       owner_name:currentProfile?.display_name||displayNameForEmail(currentUser.email)||currentUser.email||""
-    });
+    }});
     if(error)throw error;
-    form.reset();syncLedgerFormDefaults(true);if(message)message.textContent="";
+    ledgerRequest=null;ledgerPayload="";form.reset();syncLedgerFormDefaults(true);if(message)message.textContent="";
     await refreshRemote(false);toast("支出已保存");
-  }catch(err){if(message)message.textContent=err.message||String(err)}
+  }catch(err){if(message)message.textContent=err.message||String(err)}finally{ledgerSaving=false;if(submit)submit.disabled=false;}
 }
 async function deleteLedgerExpense(id){
   const row=(REMOTE_RAW.investmentExpenses||[]).find(item=>String(item.id)===String(id));
@@ -355,7 +358,7 @@ async function deleteLedgerExpense(id){
 function geneLabel(g){return g?.name_zh||g?.chinese_name||g?.name_cn||g?.display_name||g?.name||g?.id||"未知基因"}
 function snakeGeneRows(snakeId){return REMOTE_RAW.snakeGenes.filter(x=>x.snake_id===snakeId)}
 function tokenSet(s){return snakeGeneRows(s.id).map(x=>geneLabel(REMOTE_RAW.genes.find(g=>g.id===x.gene_id))).filter(Boolean)}
-function match(f,m){const ft=tokenSet(f),mt=tokenSet(m),common=ft.filter(x=>mt.includes(x)),both=ready(f)&&ready(m),score=Math.max(0,Math.min(100,(both?60:30)+(sharesSeries(f,m)?15:0)+(common.length?25:0)));const rs=[];rs.push(["#0066cc",sharesSeries(f,m)?"同系列":"跨系列",sharesSeries(f,m)?"以实际路线和年度计划复核。":"请确认这是一项已记录的战略桥接。"]);if(common.length)rs.push(["#0066cc","共享原子基因",common.join(" / ")]);else rs.push(["#0066cc","无共享原子基因","基于 snake_genes 实时数据。"]);rs.push(["#0066cc",both?`${state.year} 预计年内成熟`:"尚未同时成熟",both?"双方为预计年内成熟的活跃个体；实际配种需核对体况与记录。":`最早可执行：${Math.max(mature(f),mature(m))}`]);return{score,rs,both,common}}
+function match(f,m){const ft=tokenSet(f),mt=tokenSet(m),common=ft.filter(x=>mt.includes(x)),both=ready(f)&&ready(m),score=Math.max(0,Math.min(100,(both?60:30)+(common.length?25:0)));const rs=[];rs.push(["#0066cc",sharesSeries(f,m)?"同系列":"跨系列",sharesSeries(f,m)?"系列仅用于管理分类，不增加遗传优势评分；未知谱系不能排除近亲。":"请确认这是一项已记录的战略桥接。"]);if(common.length)rs.push(["#0066cc","共享原子基因",common.join(" / ")]);else rs.push(["#0066cc","无共享原子基因","基于 snake_genes 实时数据。"]);rs.push(["#0066cc",both?`${state.year} 预计年内成熟`:"尚未同时成熟",both?"双方为预计年内成熟的活跃个体；实际配种需核对体况与记录。":`最早可执行：${Math.max(mature(f),mature(m))}`]);return{score,rs,both,common}}
 
 function nowIso(){return new Date().toISOString()}
 function jsonArray(value){return Array.isArray(value)?value:[]}
@@ -405,11 +408,12 @@ function renderMendelianCross(f,m){
   const assumptions=result.assumptions.map(note=>`<div class="mendelianNote">${esc(note)}</div>`).join("");
   host.innerHTML=(loci?`<div class="mendelianGrid">${loci}</div><div id="mendelianCombined"></div>`:'<div class="analysisEmpty">这对亲本没有可计算的单基因位点。请在 genes 中定义遗传方式，并在 snake_genes 中录入基因状态。</div>')+morphs+`<div class="mendelianFoot">${skipped}${assumptions}</div>`;renderCombinedGenotypes(result);
 }
-function renderLab(){const fs=DATA.snakes.filter(s=>s.sex==="F"),ms=DATA.snakes.filter(s=>s.sex==="M"),F=$("#labF"),M=$("#labM");const keepF=F.value,keepM=M.value;F.innerHTML=fs.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");M.innerHTML=ms.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");F.value=fs.some(s=>s.id===keepF)?keepF:(fs.some(s=>s.id==="S26")?"S26":fs[0]?.id||"");M.value=ms.some(s=>s.id===keepM)?keepM:(ms.some(s=>s.id==="S27")?"S27":ms[0]?.id||"");if(!F.value||!M.value){$("#labResult").innerHTML='<div class="analysisEmpty">需要至少一条母蛇与一条公蛇才能进行固定规则检查。</div>';const mendelian=$("#mendelianResult");if(mendelian)mendelian.innerHTML='<div class="analysisEmpty">选择一对真实亲本后显示计算结果。</div>';return}const f=snakeById[F.value],m=snakeById[M.value],r=match(f,m);$("#labYear").textContent=`${state.year} VIEW`;$("#pairVisual").innerHTML=`<div class="pairSnake"><b>♀ ${esc(f.gene)}</b><span>${f.id} · ${esc(f.series)}<br>${ready(f)?"READY":"mature "+mature(f)}</span></div><div class="cross">×</div><div class="pairSnake"><b>♂ ${esc(m.gene)}</b><span>${m.id} · ${esc(m.series)}<br>${ready(m)?"READY":"mature "+mature(m)}</span></div>`;$("#labResult").innerHTML=`<div class="matchGauge"><div class="gauge" style="background:conic-gradient(#0066cc 0 ${r.score}%,#f0f0f0 ${r.score}% 100%)"><div class="gaugeIn"><strong>${r.score}</strong><span>RULE CHECK</span></div></div><div class="reasons">${r.rs.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${esc(a)}</b><span>${esc(b)}</span></div></div>`).join("")}</div></div>`;
+function renderLab(){const fs=stockAnimals().filter(s=>s.sex==="F"),ms=stockAnimals().filter(s=>s.sex==="M"),F=$("#labF"),M=$("#labM");const keepF=F.value,keepM=M.value;F.innerHTML=fs.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");M.innerHTML=ms.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.gene)}</option>`).join("");F.value=fs.some(s=>s.id===keepF)?keepF:(fs.some(s=>s.id==="S26")?"S26":fs[0]?.id||"");M.value=ms.some(s=>s.id===keepM)?keepM:(ms.some(s=>s.id==="S27")?"S27":ms[0]?.id||"");if(!F.value||!M.value){$("#labResult").innerHTML='<div class="analysisEmpty">需要至少一条母蛇与一条公蛇才能进行固定规则检查。</div>';const mendelian=$("#mendelianResult");if(mendelian)mendelian.innerHTML='<div class="analysisEmpty">选择一对真实亲本后显示计算结果。</div>';return}const f=snakeById[F.value],m=snakeById[M.value],r=match(f,m);$("#labYear").textContent=`${state.year} VIEW`;$("#pairVisual").innerHTML=`<div class="pairSnake"><b>♀ ${esc(f.gene)}</b><span>${f.id} · ${esc(f.series)}<br>${ready(f)?"READY":"mature "+mature(f)}</span></div><div class="cross">×</div><div class="pairSnake"><b>♂ ${esc(m.gene)}</b><span>${m.id} · ${esc(m.series)}<br>${ready(m)?"READY":"mature "+mature(m)}</span></div>`;$("#labResult").innerHTML=`<div class="matchGauge"><div class="gauge" style="background:conic-gradient(#0066cc 0 ${r.score}%,#f0f0f0 ${r.score}% 100%)"><div class="gaugeIn"><strong>${r.score}</strong><span>资料与条件评分</span></div></div><div class="reasons">${r.rs.map(([c,a,b])=>`<div class="reason"><i style="background:${c}"></i><div><b>${esc(a)}</b><span>${esc(b)}</span></div></div>`).join("")}</div></div>`;
  renderMendelianCross(f,m);
  const A=[];fs.forEach(f=>ms.forEach(m=>A.push({f,m,...match(f,m)})));A.sort((a,b)=>b.score-a.score);$("#labRows").innerHTML=A.slice(0,14).map(x=>`<tr><td>${x.f.id} · ${esc(x.f.gene)}</td><td>${x.m.id} · ${esc(x.m.gene)}</td><td>${sharesSeries(x.f,x.m)?"同系列":"战略跨系"}</td><td><span class="badge ${x.both?"ready":"future"}">${x.both?"READY":"FUTURE"}</span></td><td><span class="badge scoreBadge">${x.score}</span></td><td>${x.common.length?x.common.join(" / "):(sharesSeries(x.f,x.m)?"同系强化":"人工复核")}</td></tr>`).join("");renderAiPanelV4("pairingAi","pairing")}
 $("#labF").onchange=renderLab;$("#labM").onchange=renderLab;
-async function applyRecommendation(id){if(!canWrite())return;const rec=REMOTE_RAW.recommendations.find(r=>Number(r.id)===Number(id));if(!rec)return toast("找不到 AI 建议",true);const proposal=rec.proposal_payload||{},hasPlan=proposal.action==="create_annual_plan";try{const existing=REMOTE_RAW.plans.find(p=>Number(p.ai_recommendation_id)===Number(id));if(existing)return toast("该建议已经在年度审核表中");const year=Number(hasPlan?proposal.plan_year:state.year),scenario=await ensureAiDraftScenario(year);const row={scenario_id:scenario.id,plan_year:year,priority:hasPlan?(proposal.priority||"B"):"C",route_id:hasPlan?(proposal.route_id||null):null,project_name:hasPlan?(proposal.project_name||rec.title):rec.title,female_snake_id:hasPlan?(proposal.female_snake_id||null):null,male_snake_id:hasPlan?(proposal.male_snake_id||null):null,female_node_id:null,male_node_id:null,goal:hasPlan?(proposal.goal||rec.summary||null):(rec.summary||null),mode:hasPlan?(proposal.mode||"AI draft"):"AI review",status:"planned",planned_clutches:hasPlan?Number(proposal.planned_clutches??1):0,notes:`AI 建议 #${rec.id}；${hasPlan?"配对草案":"复核事项"}，提交后需人工审核。`,source_type:"ai",review_status:"pending",ai_recommendation_id:rec.id,submitted_at:nowIso()};const {error}=await sb.from("annual_breeding_plans").insert(row);if(error)throw error;const {error:reviewError}=await sb.from("ai_recommendations").update({status:"accepted",reviewed_at:nowIso()}).eq("id",id);if(reviewError)throw reviewError;await refreshRemote(false);toast(hasPlan?"已进入年度审核；通过后会自动显示在年度规划中。":"已作为年度复核事项进入审核表；通过后会显示在年度规划中。") }catch(err){toast(err.message||String(err),true)}}
+async function applyRecommendation(id){return submitBusinessReview(id,'annual');}
+async function submitBusinessReview(id,kind){if(!canWrite())return;const {error}=await sb.rpc('submit_ai_business_review',{p_id:id,p_kind:kind,p_year:state.year});if(error)throw error;await refreshRemote(false);toast('已提交人工审核');}
 
 function openDrawer(s){const geneText=tokenSet(s);$("#drawerContent").innerHTML=`<div class="eyebrow">Individual profile</div><h2>${esc(s.gene)}</h2><p>${esc(s.id)} · ${esc(s.series)} · ${esc(s.role)}</p><div class="drawerFacts"><div class="drawerFact"><label>Sex</label><strong>${s.sex==="F"?"♀ 母":s.sex==="M"?"♂ 公":"未知"}</strong></div><div class="drawerFact"><label>Strategic score</label><strong>${s.score}/100</strong></div><div class="drawerFact"><label>Birth</label><strong>${s.birth}</strong></div><div class="drawerFact"><label>Mature</label><strong>${s.mature}</strong></div><div class="drawerFact"><label>Cost</label><strong>${fmt(s.price)}</strong></div><div class="drawerFact"><label>${state.year} status</label><strong>${ready(s)?"预计年内成熟":"未成熟 / 待核实"}</strong></div></div><div class="drawerSection"><b>当前系统理解</b><div>${esc(s.role)}。原始 gene text 用于人工可读展示；遗传状态以 Supabase 的 snake_genes 原子基因记录为准。</div></div><div class="drawerSection"><b>已关联原子基因</b><div>${geneText.length?geneText.map(esc).join(" · "):"尚未关联原子基因"}</div></div><div class="drawerActions writeOnly"><button class="primaryBtn" data-edit-snake="${esc(s.id)}">编辑个体与子基因</button><button class="dangerBtn" data-retire-snake="${esc(s.id)}">标记退役</button></div>`;$("#drawer").classList.add("open");const eb=$("#drawer [data-edit-snake]"),rb=$("#drawer [data-retire-snake]");if(eb)eb.onclick=()=>openSnakeForm(s.id);if(rb)rb.onclick=()=>retireSnake(s.id)}
 $("#drawerClose").onclick=()=>$("#drawer").classList.remove("open");$("#topSnake").onclick=()=>{const snake=[...DATA.snakes].sort((a,b)=>b.score-a.score)[0];if(snake)openDrawer(snake);else toast("暂无已载入个体",true)};
@@ -472,7 +476,7 @@ function snakeIdPrefixForInvestor(value){
   const owner=investmentOwnerFromIdentity(value)||investmentOwnerFromIdentity(currentUser?.email);
   return SNAKE_ID_PREFIX_BY_OWNER[owner?.email]||"S";
 }
-function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
+function acceptedPlanRows(){if(!AI_LAYER_READY)return REMOTE_RAW.plans.filter(p=>p.status!=="cancelled"&&p.review_status!=="pending"&&p.review_status!=="returned");const accepted=new Set(REMOTE_RAW.scenarios.filter(s=>s.status==="accepted").map(s=>Number(s.id)));return REMOTE_RAW.plans.filter(p=>{if(p.status==="cancelled")return false;if(p.review_status==="pending"||p.review_status==="returned")return false;if(p.source_type==="ai")return p.review_status==="approved";return !p.scenario_id||accepted.has(Number(p.scenario_id))})}
 function defaultScenarioId(){const baseline=REMOTE_RAW.scenarios.find(s=>s.scenario_type==="baseline"&&s.status==="accepted");return baseline?baseline.id:""}
 
 function supabaseConfigured(){
@@ -505,13 +509,14 @@ function toast(msg,isError=false){
   clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),2800);
   if(!isError)showSuccess(msg);
 }
-function openModal(id){$("#"+id)?.classList.add("open")}
+function openModal(id){$("#"+id)?.classList.add("open");if(id==="editModal")snakeFormBaseline=snakeFormSnapshot();}
 let editSaving=false, snakeFormBaseline="";
-function snakeFormSnapshot(){return JSON.stringify([Array.from(new FormData($("#editForm")).entries()),editGenes,document.querySelector('.snake-series')?.readSeries?.()||[]])}
+function snakeFormSnapshot(){return JSON.stringify([Array.from(new FormData($("#editForm")).entries()),editGenes,editMorphAliases,editMorphComponents,document.querySelector('.snake-series')?.readSeries?.()||[]])}
 async function requestModalClose(id){
-  if(id==="editModal"&&editContext?.table==="snakes"){
+  if(id==="workflowModal"&&$("#workflowModalSubmit")?.disabled)return toast("正在保存，请稍候。",true);
+  if(id==="editModal"){
     if(editSaving||window.SuohaPhotos?.isBusy())return toast("正在保存，请稍候。",true);
-    if(snakeFormSnapshot()!==snakeFormBaseline&&!await confirmWorkflow({title:"放弃本次个体修改？",sub:"尚未保存的个体资料将丢失。选择取消可继续填写；已单独保存的系列和照片不受影响。",confirm:"放弃修改"}))return;
+    if(snakeFormSnapshot()!==snakeFormBaseline&&!await confirmWorkflow({title:editContext?.table==="snakes"?"放弃本次个体修改？":"放弃本次修改？",sub:"尚未保存的资料将丢失。选择取消可继续填写；已单独保存的系列和照片不受影响。",confirm:"放弃修改"}))return;
   }
   closeModal(id);
 }
@@ -854,7 +859,11 @@ function snakeFormHtml(row={}){
     <div class="formField"><label>战略分</label><input name="strategic_score" type="number" min="0" max="100" value="${row.strategic_score??""}"></div>
     <div class="formField"><label>投资人</label><input name="investor" value="${esc(investorValue)}"></div>
     <div class="formField"><label>来源</label><select name="origin">${["purchased","produced","other"].map(x=>`<option value="${x}" ${row.origin===x?"selected":""}>${({purchased:"购入 · 种群库",produced:"自繁 · 新个体进入自繁库",other:"其他来源"})[x]}</option>`).join("")}</select></div>
-    <div class="formField full"><label>育种角色</label><input name="role" value="${esc(row.role||"")}"></div>
+    <div class="formField"><label>母本（历史补录可选）</label><select name="dam_id"><option value="">未知</option>${REMOTE_RAW.snakes.filter(s=>s.sex==='F'&&s.id!==row.id).map(s=>`<option value="${esc(s.id)}" ${row.dam_id===s.id?'selected':''}>${esc(s.id)} · ${esc(s.gene_text)}</option>`).join('')}</select></div>
+<div class="formField"><label>公本（历史补录可选）</label><select name="sire_id"><option value="">未知</option>${REMOTE_RAW.snakes.filter(s=>s.sex==='M'&&s.id!==row.id).map(s=>`<option value="${esc(s.id)}" ${row.sire_id===s.id?'selected':''}>${esc(s.id)} · ${esc(s.gene_text)}</option>`).join('')}</select></div>
+<div class="formField full"><label>关联窝次（选择后以窝次亲本为准）</label><select name="clutch_id"><option value="">历史补录 / 未关联</option>${(window.SuohaWorkspace?.snapshot().clutches||[]).map(c=>`<option value="${c.id}" ${String(row.clutch_id)===String(c.id)?'selected':''}>${esc(c.clutch_code||'#'+c.id)} · ${esc(c.female_snake_id)} × ${esc(c.male_snake_id)}</option>`).join('')}</select></div>
+<div class="formField full"><label>育种角色</label>
+<input name="role" value="${esc(row.role||"")}"></div>
     <div class="formField full"><label>内部备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
   </div></details><details class="snake-extra" ${row.id?"open":""}><summary>结构化基因 · 可选补充</summary><div id="geneEditor"></div></details>`;
 }
@@ -866,6 +875,8 @@ function planFormHtml(row={}){
     <div class="formField"><label>计划年份</label><input name="plan_year" type="number" min="2020" max="2200" value="${row.plan_year||state.year}" required></div>
     <div class="formField"><label>优先级</label><select name="priority">${["A","B","R","G","C"].map(x=>`<option ${row.priority===x?"selected":""}>${x}</option>`).join("")}</select></div>
     ${scenarioField}
+    <div class="formField full"><label>关联繁殖路线</label><select name="route_id"><option value="">未关联</option>${REMOTE_RAW.routes.map(r=>`<option value="${esc(r.id)}" ${row.route_id===r.id?"selected":""}>${esc(r.name)}</option>`).join("")}</select></div>
+    <input type="hidden" name="pairing_snapshot_id" value="${esc(row.pairing_snapshot_id||'')}">
     <div class="formField"><label>预计交配日期</label><input name="expected_pairing_date" type="date" value="${esc(row.expected_pairing_date||'')}"></div>
     <div class="formField"><label>预计产蛋日期</label><input name="expected_laying_date" type="date" value="${esc(row.expected_laying_date||'')}"></div>
     <div class="formField"><label>预计出壳日期</label><input name="expected_hatching_date" type="date" value="${esc(row.expected_hatching_date||'')}"></div>
@@ -873,13 +884,14 @@ function planFormHtml(row={}){
     <div class="formField"><label>首页提醒</label><select name="reminders_enabled"><option value="true" ${row.reminders_enabled!==false?'selected':''}>开启</option><option value="false" ${row.reminders_enabled===false?'selected':''}>关闭</option></select></div>
     <p class="smallNote">预计日期由你设置，不代表已发生；实际交配、产蛋、出壳在繁育记录中填写。提醒在登录后的工作概览显示。</p>
     <div class="formField full"><label>计划名称</label><input name="project_name" value="${esc(row.project_name||"")}" required></div>
-    <div class="formField"><label>母蛇</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F").map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
-    <div class="formField"><label>公蛇</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M").map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
+    <div class="formField"><label>母蛇</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F"&&((s.status==="active"&&s.inventory_library!=="nursery")||s.id===row.female_snake_id)).map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
+    <div class="formField"><label>公蛇</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M"&&((s.status==="active"&&s.inventory_library!=="nursery")||s.id===row.male_snake_id)).map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
     <div class="formField"><label>配对方式</label><input name="mode" value="${esc(row.mode||"")}"></div>
     <div class="formField"><label>计划状态</label><select name="status">${["planned","ready","conditional","completed","cancelled","investment_gap"].map(x=>`<option ${row.status===x?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="formField"><label>计划窝数</label><input name="planned_clutches" type="number" min="0" value="${row.planned_clutches??1}"></div>
     <div class="formField full"><label>育种目标</label><textarea name="goal">${esc(row.goal||"")}</textarea></div>
     <div class="formField full"><label>计划备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
+    <div class="formField full"><label>结案 / 取消原因（结束计划时必填）</label><textarea name="completion_reason">${esc(row.completion_reason||"")}</textarea></div>
   </div>`;
 }
 function investmentFormHtml(row={}){
@@ -893,7 +905,7 @@ function investmentFormHtml(row={}){
     <div class="formField"><label>Strategic score</label><input name="strategic_score" type="number" min="0" max="100" value="${row.strategic_score??""}"></div>
     <div class="formField"><label>Target sex</label><select name="target_sex"><option value="">—</option>${["F","M","U"].map(x=>`<option ${row.target_sex===x?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="formField"><label>Planned year</label><input name="planned_year" type="number" value="${row.planned_year??state.year}"></div>
-    <div class="formField"><label>Budget min</label><input name="budget_min" type="number" min="0" step="0.01" value="${row.budget_min??""}"></div>
+    <div class="formField full"><label>实际购入个体（可选）</label><select name="acquired_snake_id"><option value="">尚未购入 / 不关联</option>${REMOTE_RAW.snakes.map(s=>`<option value="${esc(s.id)}" ${row.acquired_snake_id===s.id?"selected":""}>${esc(s.id)} · 已记购入成本 ${fmt(s.price)}</option>`).join("")}</select><small>关联仅用于追踪采购结果，不生成重复支出；预算仍保留。</small></div><div class="formField"><label>Budget min</label><input name="budget_min" type="number" min="0" step="0.01" value="${row.budget_min??""}"></div>
     <div class="formField"><label>Budget max</label><input name="budget_max" type="number" min="0" step="0.01" value="${row.budget_max??""}"></div>
     <div class="formField full"><label>Thesis</label><textarea name="thesis">${esc(row.thesis||"")}</textarea></div>
     <div class="formField full"><label>Criteria (one per line)</label><textarea name="criteria">${esc(criteria)}</textarea></div>
@@ -954,7 +966,7 @@ function openPlanForm(id=null){
   const row=id?REMOTE_RAW.plans.find(x=>String(x.id)===String(id))||{}:{};
   editContext={table:"annual_breeding_plans",id:id||null};
   $("#editModalTitle").textContent=id?`编辑年度计划 #${id}`:"新增年度计划";
-  $("#editModalSub").textContent="public.annual_breeding_plans";
+  $("#editModalSub").textContent="设置亲本、预期日期与计划目标；实际配种和窝次另行记录。";
   $("#editFormFields").innerHTML=planFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
 }
 function openInvestmentForm(id=null){
@@ -962,7 +974,7 @@ function openInvestmentForm(id=null){
   const row=id?REMOTE_RAW.investments.find(x=>x.id===id)||{}:{};
   editContext={table:"investments",id:id||null};
   $("#editModalTitle").textContent=id?`编辑 ${id}`:"新增投资项";
-  $("#editModalSub").textContent="public.investments";
+  $("#editModalSub").textContent="预算是采购计划，实际支出请在台账登记。";
   $("#editFormFields").innerHTML=investmentFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
 }
 function openGeneDefinitionForm(id=null){
@@ -1005,6 +1017,7 @@ async function saveEdit(){
   const o=formObject($("#editForm"));
   const t=editContext.table;
   if(t==="snakes"){
+    if(o.clutch_id){o.clutch_id=Number(o.clutch_id);const clutch=window.SuohaWorkspace.snapshot().clutches.find(c=>Number(c.id)===o.clutch_id);if(!clutch)throw Error("关联窝次暂不可用，请刷新");o.dam_id=clutch.female_snake_id;o.sire_id=clutch.male_snake_id;o.origin="produced";}
     o.series_names=window.SnakeEntry.read();o.series=o.series_names.join(" / ");
     if(o.birth_date&&o.birth_date>localDate())throw new Error("出生日期不能晚于今天");
     if(o.birth_date&&o.mature_date&&o.mature_date<o.birth_date)throw new Error("预计成熟日期不能早于出生日期");
@@ -1042,6 +1055,10 @@ async function saveEdit(){
     normalizedEditMorphAliases(o.id);
     normalizedEditMorphComponents();
   }
+  if(t==="snakes"){
+    const newGenes=editGenes.filter(g=>g.isNew).map(g=>({id:String(g.gene_id||'').trim(),name_zh:String(g.name_zh||'').trim(),name_en:g.name_en||null,inheritance_type:g.inheritance_type||'unknown'}));
+    const {error}=await sb.rpc('save_snake_profile',{p_id:editContext.id||null,p_data:o,p_genes:normalizedEditGenes(),p_new_genes:newGenes});if(error)throw error;return;
+  }
   let q;
   if(editContext.id&&t==="gene_aliases"){
     q=sb.from(t).update(o).eq("alias",editContext.id);
@@ -1054,17 +1071,7 @@ async function saveEdit(){
     q=sb.from(t).update(o).eq(pk,editContext.id);
   }else q=sb.from(t).insert(o);
   const {error}=await q;if(error)throw error;
-  if(t==="snakes"){
-    const snakeId=editContext.id||o.id;
-    try{await materializeNewGenes();await syncSnakeGenes(snakeId)}
-    catch(geneError){
-      if(!editContext.id){
-        const {error:rollbackError}=await sb.from("snakes").delete().eq("id",snakeId);
-        if(rollbackError)console.error("Could not roll back snake after gene sync failure:",rollbackError);
-      }
-      throw geneError;
-    }
-  }else if(t==="morphs"){
+  if(t==="morphs"){
     const morphId=editContext.id||o.id;
     try{await syncMorphAliases(morphId);await syncMorphComponents(morphId)}
     catch(componentError){
@@ -1076,38 +1083,15 @@ async function saveEdit(){
     }
   }
 }
-async function materializeNewGenes(){
-  const drafts=editGenes.filter(g=>g.isNew);if(!drafts.length)return;
-  const ids=new Set(REMOTE_RAW.genes.map(g=>g.id));
-  const rows=drafts.map((g,i)=>{
-    const id=String(g.gene_id||"").trim();
-    if(!/^[a-z][a-z0-9_]{1,63}$/.test(id))throw new Error(`新子基因 #${i+1} 的 ID 必须为小写英文、数字或下划线，例如 caramel。`);
-    if(ids.has(id))throw new Error(`新子基因 ID 已存在：${id}`);ids.add(id);
-    const nameZh=String(g.name_zh||"").trim();if(!nameZh)throw new Error(`新子基因 ${id} 必须填写中文名称。`);
-    const inheritance=GENE_INHERITANCE_TYPES.includes(g.inheritance_type)?g.inheritance_type:"unknown";
-    return {id,code:null,name_zh:nameZh,name_en:String(g.name_en||"").trim()||null,inheritance_type:inheritance};
-  });
-  const {data,error}=await sb.from("genes").insert(rows).select();if(error)throw error;
-  REMOTE_RAW.genes.push(...(data||rows));
-  editGenes.forEach(g=>{if(g.isNew)delete g.isNew});
-}
 function normalizedEditGenes(){
   const seen=new Set();
   return editGenes.map((g,i)=>({gene_id:String(g.gene_id||"").trim(),state:g.state||"visual",probability:g.probability===""||g.probability==null?1:Number(g.probability),source:String(g.source||"manual").trim()||"manual",notes:g.notes||""})).filter(g=>g.gene_id).map((g,i)=>{
-    if(!REMOTE_RAW.genes.some(x=>x.id===g.gene_id))throw new Error(`第 ${i+1} 条子基因不存在于 genes 表：${g.gene_id}`);
+    if(!REMOTE_RAW.genes.some(x=>x.id===g.gene_id)&&!editGenes.some(x=>x.isNew&&x.gene_id===g.gene_id))throw new Error(`第 ${i+1} 条子基因不存在于 genes 表：${g.gene_id}`);
     if(seen.has(g.gene_id))throw new Error(`子基因重复：${g.gene_id}`);
     if(!GENE_STATES.includes(g.state))throw new Error(`无效子基因状态：${g.state}`);
     if(g.probability!==null&&(!Number.isFinite(g.probability)||g.probability<0||g.probability>1))throw new Error(`子基因概率必须在 0 到 1 之间：${g.gene_id}`);
     seen.add(g.gene_id);return g;
   });
-}
-async function syncSnakeGenes(snakeId){
-  const desired=normalizedEditGenes().map(g=>({...g,snake_id:snakeId}));
-  const before=snakeGeneRows(snakeId).map(x=>x.gene_id);
-  if(desired.length){const {error}=await sb.from("snake_genes").upsert(desired,{onConflict:"snake_id,gene_id"});if(error)throw error;}
-  const retained=new Set(desired.map(x=>x.gene_id));
-  const removed=before.filter(id=>!retained.has(id));
-  if(removed.length){const {error}=await sb.from("snake_genes").delete().eq("snake_id",snakeId).in("gene_id",removed);if(error)throw error;}
 }
 function normalizedEditMorphComponents(){
   const seen=new Set();
@@ -1147,7 +1131,7 @@ async function syncMorphComponents(morphId){
   if(removed.length){const {error:deleteError}=await sb.from("morph_components").delete().eq("morph_id",morphId).in("gene_id",removed);if(deleteError)throw deleteError;}
 }
 $("#editForm").addEventListener("keydown",e=>{
-  if(editContext?.table==="snakes"&&e.key==="Enter"&&!e.isComposing&&e.target.matches('input'))e.preventDefault();
+  if(e.key==="Enter"&&!e.isComposing&&e.target.matches('input'))e.preventDefault();
 });
 $("#editForm").onsubmit=async e=>{
   e.preventDefault();if(editSaving)return;editSaving=true;const submit=$("#editForm button[type=submit]");submit.disabled=true;$("#editMessage").textContent="正在保存…";
@@ -1185,7 +1169,7 @@ async function deleteMorph(id){
   if(error)return toast(error.message,true);
   toast("组合黑话已删除");await refreshRemote(false);
 }
-async function markRecordCompleted(table,id,label){if(!canWrite())return toast("当前账号没有写权限",true);try{const {error}=await sb.from(table).update({status:"completed"}).eq("id",id);if(error)throw error;await refreshRemote(false);toast(`${label}已设为完成`)}catch(err){toast(err.message||String(err),true)}}
+async function markRecordCompleted(table,id,label){if(table==="annual_breeding_plans"){const model=window.SuohaWorkspace.snapshot(),events=model.events.filter(e=>String(e.plan_id)===String(id)),clutches=model.clutches.filter(c=>events.some(e=>e.id===c.breeding_event_id));openWorkflowModal({title:"结束年度计划",sub:`已记录 ${events.length} 次配种、${clutches.length} 窝，其中 ${clutches.filter(c=>c.status==="incubating").length} 窝仍在孵化。结案不会自动生成产出，窝次提醒继续保留。`,fields:[{name:"reason",label:"结案说明（未完成事项及原因）",required:true}],submit:"确认结束",onSubmit:async v=>{const {error}=await sb.rpc("complete_breeding_plan",{p_id:id,p_reason:v.reason});if(error)throw error;await refreshRemote(false);}});return;}if(!canWrite())return toast("当前账号没有写权限",true);try{const {error}=await sb.from(table).update({status:"completed"}).eq("id",id);if(error)throw error;await refreshRemote(false);toast(`${label}已设为完成`)}catch(err){toast(err.message||String(err),true)}}
 async function deleteSnake(id){
   if(!canWrite())return toast("当前账号没有写权限",true);
   const snake=REMOTE_RAW.snakes.find(row=>String(row.id)===String(id));
@@ -1230,8 +1214,10 @@ async function retireSnake(id){
 }
 
 function reviewStatusLabel(row){return row.review_status==="pending"?"待审核":row.review_status==="returned"?"已退回":"已通过"}
-async function approveInvestmentReview(id){if(!canWrite())return;const row=REMOTE_RAW.investments.find(r=>String(r.id)===String(id));if(!row)return toast("找不到投资记录",true);try{const {error}=await sb.from("investments").update({review_status:"approved",reviewed_at:nowIso()}).eq("id",id);if(error)throw error;if(row.ai_recommendation_id){const {error:recError}=await sb.from("ai_recommendations").update({status:"applied",reviewed_at:nowIso(),applied_at:nowIso()}).eq("id",row.ai_recommendation_id);if(recError)throw recError}await refreshRemote(false);toast("投资审核已通过，已显示在投资计划页面。") }catch(err){toast(err.message||String(err),true)}}
-async function approveAnnualReview(id){if(!canWrite())return;const row=REMOTE_RAW.plans.find(r=>Number(r.id)===Number(id));if(!row)return toast("找不到年度计划",true);try{const {error}=await sb.from("annual_breeding_plans").update({review_status:"approved",reviewed_at:nowIso()}).eq("id",id);if(error)throw error;if(row.ai_recommendation_id){const {error:recError}=await sb.from("ai_recommendations").update({status:"applied",reviewed_at:nowIso(),applied_at:nowIso()}).eq("id",row.ai_recommendation_id);if(recError)throw recError}const related=REMOTE_RAW.plans.filter(p=>Number(p.scenario_id)===Number(row.scenario_id)&&Number(p.id)!==Number(id));if(row.scenario_id&&related.every(p=>p.review_status==="approved")){const {error:scenarioError}=await sb.from("planning_scenarios").update({status:"accepted"}).eq("id",row.scenario_id);if(scenarioError)throw scenarioError}await refreshRemote(false);toast("年度计划审核已通过，已显示在年度产出页面。") }catch(err){toast(err.message||String(err),true)}}
+async function approveInvestmentReview(id){return reviewBusiness('investment',id,'approved');}
+async function approveAnnualReview(id){return reviewBusiness('annual',id,'approved');}
+async function reviewBusiness(kind,id,status,reason=''){if(!canWrite())return;const {error}=await sb.rpc('review_business_record',{p_kind:kind,p_id:String(id),p_status:status,p_reason:reason});if(error)throw error;await refreshRemote(false);toast('审核状态已更新');}
+function changeBusinessReview(kind,id,status){openWorkflowModal({title:status==='returned'?'退回修改':'重新提交审核',sub:'修改原因和审核历史将保留。',fields:[{name:'reason',label:status==='returned'?'退回原因':'修改说明',required:true}],submit:'确认',onSubmit:async v=>reviewBusiness(kind,id,status,v.reason)});}
 function renderAdmin(){
   if(!$("#adminTable"))return;
   updateAuthUI();
@@ -1258,12 +1244,13 @@ function renderAdmin(){
     html=`<div class="factPanel"><b>组合黑话映射</b><br>这里维护 morphs、morph_aliases 和 morph_components：例如“爆炸”可以作为“太阳爆炸”的别名。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>中文名</th><th>英文名</th><th>别名</th><th>类型</th><th>组成原子基因</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.name_zh||"")}</td><td>${esc(r.name_en||"")}</td><td>${esc(aliasTextForMorph(r.id))}</td><td>${esc(r.morph_type||"")}</td><td>${esc(componentText(r.id))}</td><td><div class="rowActions"><button class="iconBtn" data-admin-edit-morph="${esc(r.id)}">编辑</button><button class="iconBtn danger" data-admin-del-morph="${esc(r.id)}">删除</button></div></td></tr>`).join(""):`<tr><td colspan="7">还没有配置组合黑话。</td></tr>`}</tbody></table></div>`;
   }else if(adminTab==="annual-review"){
     const rows=REMOTE_RAW.plans.filter(r=>r.source_type==="ai");
-    html=`<div class="factPanel"><b>年度计划审核</b><br>通过后保留在本表并灰显，同时自动出现在年度产出页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>项目</th><th>父本 × 母本</th><th>目标</th><th>来源</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${r.plan_year}</td><td>${esc(r.project_name)}</td><td>${esc(r.female_snake_id||"—")} × ${esc(r.male_snake_id||"—")}</td><td>${esc(r.goal||"—")}</td><td>AI · ${reviewStatusLabel(r)}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-annual="${r.id}">审核通过</button>`:`<span class="reviewedBadge">审核已通过</span>`}<button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 年度计划记录。</td></tr>`}</tbody></table></div>`;
+    html=`<div class="factPanel"><b>年度计划审核</b><br>通过后保留在本表并灰显，同时自动出现在年度产出页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>Year</th><th>项目</th><th>父本 × 母本</th><th>目标</th><th>来源</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${r.plan_year}</td><td>${esc(r.project_name)}</td><td>${esc(r.female_snake_id||"—")} × ${esc(r.male_snake_id||"—")}</td><td>${esc(r.goal||"—")}</td><td>AI · ${reviewStatusLabel(r)}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-annual="${r.id}">审核通过</button><button class="iconBtn" data-review-kind="annual" data-review-id="${r.id}" data-review-status="returned">退回修改</button>`:`<span class="reviewedBadge">${reviewStatusLabel(r)}</span>`}${r.review_status==="returned"?`<button class="iconBtn" data-review-kind="annual" data-review-id="${r.id}" data-review-status="pending">重新提交</button><small>${esc(r.review_reason||"")}</small>`:""}<button class="iconBtn" data-admin-edit-plan="${r.id}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 年度计划记录。</td></tr>`}</tbody></table></div>`;
   }else{
     const rows=REMOTE_RAW.investments.filter(r=>r.source_type==="ai");
-    html=`<div class="factPanel"><b>投资审核</b><br>通过后保留在本表并灰显，同时自动出现在投资计划页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>建议</th><th>年份</th><th>战略分</th><th>依据</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.planned_year||"—"}</td><td>${r.strategic_score??"—"}</td><td>${esc(r.thesis||"—")}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-investment="${esc(r.id)}">审核通过</button>`:`<span class="reviewedBadge">审核已通过</span>`}<button class="iconBtn" data-admin-edit-invest="${esc(r.id)}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 投资建议记录。</td></tr>`}</tbody></table></div>`;
+    html=`<div class="factPanel"><b>投资审核</b><br>通过后保留在本表并灰显，同时自动出现在投资计划页面。</div><div class="tableWrap"><table class="dataTable"><thead><tr><th>ID</th><th>建议</th><th>年份</th><th>战略分</th><th>依据</th><th>操作</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr class="${r.review_status==="approved"?"reviewedRow":""}"><td>${esc(r.id)}</td><td>${esc(r.name)}</td><td>${r.planned_year||"—"}</td><td>${r.strategic_score??"—"}</td><td>${esc(r.thesis||"—")}</td><td><div class="rowActions">${r.review_status==="pending"?`<button class="iconBtn" data-approve-investment="${esc(r.id)}">审核通过</button><button class="iconBtn" data-review-kind="investment" data-review-id="${esc(r.id)}" data-review-status="returned">退回修改</button>`:`<span class="reviewedBadge">${reviewStatusLabel(r)}</span>`}${r.review_status==="returned"?`<button class="iconBtn" data-review-kind="investment" data-review-id="${esc(r.id)}" data-review-status="pending">重新提交</button><small>${esc(r.review_reason||"")}</small>`:""}<button class="iconBtn" data-admin-edit-invest="${esc(r.id)}">编辑</button></div></td></tr>`).join(""):`<tr><td colspan="6">当前没有 AI 投资建议记录。</td></tr>`}</tbody></table></div>`;
   }
   $("#adminTable").innerHTML=html;
+  $$("[data-review-kind]").forEach(b=>b.onclick=()=>changeBusinessReview(b.dataset.reviewKind,b.dataset.reviewId,b.dataset.reviewStatus));
   $$("[data-admin-edit-snake]").forEach(x=>x.onclick=()=>openSnakeForm(x.dataset.adminEditSnake));
   $$("[data-admin-retire-snake]").forEach(x=>x.onclick=()=>retireSnake(x.dataset.adminRetireSnake));
   $$("[data-admin-delete-snake]").forEach(x=>x.onclick=()=>deleteSnake(x.dataset.adminDeleteSnake));

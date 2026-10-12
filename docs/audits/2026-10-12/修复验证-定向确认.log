@@ -1,0 +1,19 @@
+npm notice run suoha-hognose@2.0.0 npx
+npm notice run playwright test tests/browser/audit-workflows.spec.js tests/browser/snake-entry.spec.js tests/browser/reminders.spec.js --workers=1 --timeout=60000
+
+Running 8 tests using 1 worker
+
+(node:489028) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop] › tests\browser\audit-workflows.spec.js:2:1 › audit fixes keep population, plans, review states and task filters consistent (16.8s)
+  ✓  2 [desktop] › tests\browser\reminders.spec.js:3:1 › staff reminder count, dismissal persistence, restore and module navigation (7.8s)
+  ✓  3 [desktop] › tests\browser\reminders.spec.js:17:1 › shop navigation exposes buyer login on desktop and mobile (4.2s)
+  ✓  4 [desktop] › tests\browser\snake-entry.spec.js:2:1 › individual entry supports multiple series, inline rename, date shortcuts and editing (12.3s)
+(node:432496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 [mobile] › tests\browser\audit-workflows.spec.js:2:1 › audit fixes keep population, plans, review states and task filters consistent (15.7s)
+  ✓  6 [mobile] › tests\browser\reminders.spec.js:3:1 › staff reminder count, dismissal persistence, restore and module navigation (13.6s)
+  ✓  7 [mobile] › tests\browser\reminders.spec.js:17:1 › shop navigation exposes buyer login on desktop and mobile (5.1s)
+  ✓  8 [mobile] › tests\browser\snake-entry.spec.js:2:1 › individual entry supports multiple series, inline rename, date shortcuts and editing (14.2s)
+
+  8 passed (2.2m)

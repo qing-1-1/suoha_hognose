@@ -29,7 +29,7 @@ test("investment expenses are loaded and rendered by the frontend", () => {
   assert.match(dataSource, /from\("investment_expenses"\)/);
   assert.match(dataSource, /investmentExpenses: expenseLedger/);
   assert.match(appSource, /function renderInvestmentLedger\(\)/);
-  assert.match(appSource, /sb\.from\("investment_expenses"\)\.insert/);
+  assert.match(appSource, /sb\.rpc\("record_investment_expense"/);
   assert.match(appSource, /function deleteLedgerExpense\(id\)/);
   assert.match(appSource, /data-ledger-delete/);
   assert.match(appSource, /sb\.from\("investment_expenses"\)\.delete\(\)\.eq\("id",id\)/);

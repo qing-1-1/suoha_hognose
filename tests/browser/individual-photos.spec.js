@@ -82,9 +82,9 @@ test('individual editor manages a private photo library without losing unsaved a
   await expect(page.locator('#editModal')).not.toBeVisible();
   expect(await page.evaluate(()=>photoFixture.snakes[0].notes)).toBeUndefined();
   expect(await page.evaluate(()=>photoFixture.specimen_media.length)).toBe(1);
-  const nav=page.viewportSize().width<833?'.mobileNav':'.sidebar';
-  await page.locator(nav+' [data-page="publishing"]').click();
-  await page.locator('#workspacePublishing').getByRole('button',{name:'照片',exact:true}).click();
+  const nav=page.viewportSize().width<833?'.mobileNav':'.sidebar';const go=async p=>{const target=page.locator(nav+' [data-page="'+p+'"]');if(nav==='.mobileNav'&&!await target.isVisible())await page.locator('#mobileMore').click();await target.click();};
+  await go('publishing');
+  await page.locator('#workspacePublishing summary').filter({hasText:'更多操作'}).click();await page.locator('#workspacePublishing').getByRole('button',{name:'照片',exact:true}).click();
   await expect(page.locator('#listingPhotoEditor .animal-photo-card')).toHaveCount(1);
   await expect(page.locator('#listingPhotoEditor')).toContainText('未发布，仅内部可见');
   await page.locator('#workspaceDialog').getByRole('button',{name:'关闭',exact:true}).click();

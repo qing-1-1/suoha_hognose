@@ -9,3 +9,10 @@ test('partial read errors do not become a successful truncated collection',async
  let calls=0;const client={from(){return{select(){return this},order(){return this},range(){return Promise.resolve(++calls===1?{data:Array.from({length:500},(_,id)=>({id})),count:501}:{error:{message:'network failure'}});}};}};
  const r=await api().fetchAll(client,'snakes');assert.equal(r.data.length,0);assert.equal(r.error.message,'network failure');
 });
+test('concurrent readers share one request and a later refresh performs a fresh read',async()=>{
+ const data=api();let calls=0;
+ const client={from(){return {select(){return this},order(){return this},range(){calls++;return Promise.resolve({data:[{id:1}],count:1,error:null});}};}};
+ const [a,b]=await Promise.all([data.fetchAll(client,'auctions'),data.fetchAll(client,'auctions')]);
+ assert.equal(calls,1);assert.equal(a.data.length,1);assert.equal(b.data.length,1);
+ await data.fetchAll(client,'auctions');assert.equal(calls,2);
+});

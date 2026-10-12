@@ -16,10 +16,16 @@
   }
 
   // Stable ranged reads include older rows beyond Supabase's response cap.
-  async function fetchAll(client, table, orders = [['id', true]]) {
+  const inflight=new WeakMap();
+  function fetchAll(client,table,orders=[['id',true]],filters=[]){
+    let queries=inflight.get(client);if(!queries){queries=new Map();inflight.set(client,queries);}
+    const key=JSON.stringify([table,orders,filters]);if(queries.has(key))return queries.get(key);
+    const request=readAll(client,table,orders,filters).finally(()=>queries.delete(key));queries.set(key,request);return request;
+  }
+  async function readAll(client, table, orders = [['id', true]], filters = []) {
     const rows = []; let count = null;
     for (let offset = 0; ; ) {
-      let query = client.from(table).select('*', {count:'exact'});
+      let query = client.from(table).select('*', {count:'exact'});for(const [key,value] of filters)query=query.eq(key,value);
       for (const [field, ascending] of orders) query = query.order(field, {ascending});
       const result = await query.range(offset, offset + 499);
       if (result.error) return {...result, data:[]};
@@ -30,6 +36,7 @@
     }
   }
 
+  const health={};
   async function fetchBusinessTables(client) {
     const expenseLedger = await fetchInvestmentExpenses(client);
     const morphAliases = await fetchMorphAliases(client);
@@ -53,7 +60,7 @@
       edges: results[3].data || [], plans: results[4].data || [], investments: results[5].data || [],
       genes: results[6].data || [], aliases: results[7].data || [], morphs: results[8].data || [],
       morphComponents: results[9].data || [], snakeGenes: results[10].data || [],
-      investmentExpenses: expenseLedger, morphAliases, acquisitionCosts
+      investmentExpenses: expenseLedger||[], morphAliases, acquisitionCosts,health:{...health}
     };
   }
 
@@ -61,9 +68,9 @@
     const rows = [];
     for (let offset = 0; ; offset += 1000) {
       const { data, error } = await client.from("investment_expenses").select("*").order("spent_at", {ascending:false}).order("id").range(offset,offset+999);
-      if(error) { console.warn("investment_expenses unavailable:",error.message); return []; }
+      if(error) { health.expenses=error.message; return null; }
       rows.push(...(data || []));
-      if((data || []).length < 1000) return rows;
+      if((data || []).length < 1000){health.expenses="";return rows;}
     }
   }
 
@@ -71,9 +78,9 @@
     const rows = [];
     for(let offset=0; ; offset+=1000) {
       const {data,error}=await client.from("snake_acquisition_costs").select("*").order("id").range(offset,offset+999);
-      if(error) { console.warn("acquisition cost history unavailable:",error.message); return null; }
+      if(error) { health.acquisitions=error.message; return null; }
       rows.push(...(data||[]));
-      if((data||[]).length<1000)return rows;
+      if((data||[]).length<1000){health.acquisitions="";return rows;}
     }
   }
 

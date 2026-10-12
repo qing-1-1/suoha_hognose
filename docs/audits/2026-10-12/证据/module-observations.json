@@ -1,0 +1,1662 @@
+[
+  {
+    "device": "desktop",
+    "id": "overview",
+    "label": "工作概览",
+    "pageOverflow": false,
+    "text": "WORKSPACE / OVERVIEW\n\n工作概览\n\n把今天的工作，与长期的繁育方向放在一起。\n\n查看公开网站 ↗\n刷新\n\nSUOHA HOGNOSE / PRIVATE WORKSPACE\n\n审查账号（测试数据），欢迎回来。\n\n2026 年的计划、真实个体和每一条待办，都从这里继续。公开展示与内部档案分开管理。\n\n繁育日程\n\n暂无临近的预计日程。可在年度计划设置提醒日期。\n\n查看繁育计划\n新增计划\n活跃个体\n4\n进入种群档案 ↗\n2026 年度计划\n2\n计划条数，不代表实际产出 ↗\n待联系意向\n0\n当前权限内的全部待办\n已发布档案\n1\n当前权限内的发布配置 ↗\n需要你关注\n待审核的 AI 建议\n保留人工确认，不自动执行\n0 项 · 查看\n到期预留\n需人工联系确认，取消后恢复为仅展示\n1 项 · 查看\n待补照片的发布档案\n没有真实照片的个体不会被替换成示例图\n1 项\n本年度计划\n年度配对测试\nF01 × M01\n3 计划窝\n已取消测试计划\nF01 × M01\n2 计划窝\n进入年度规划\n最近 AI 分析\n暂无分析记录。分析完成后，可从这里继续追问。",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "查看繁育计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "新增计划",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "活跃个体\n4\n进入种群档案 ↗",
+        "disabled": false,
+        "width": 278,
+        "height": 145
+      },
+      {
+        "text": "2026 年度计划\n2\n计划条数，不代表实际产出 ↗",
+        "disabled": false,
+        "width": 278,
+        "height": 145
+      },
+      {
+        "text": "待联系意向\n0\n当前权限内的全部待办",
+        "disabled": false,
+        "width": 278,
+        "height": 145
+      },
+      {
+        "text": "已发布档案\n1\n当前权限内的发布配置 ↗",
+        "disabled": false,
+        "width": 278,
+        "height": 145
+      },
+      {
+        "text": "0 项 · 查看",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "1 项 · 查看",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "1 项",
+        "disabled": false,
+        "width": 49,
+        "height": 38
+      },
+      {
+        "text": "进入年度规划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "population",
+    "label": "种群库",
+    "pageOverflow": false,
+    "text": "POPULATION INTELLIGENCE\n种群库\n\n管理购入与选育留种的个体。自繁幼体在独立的自繁库中管理，确认留种后再转入。\n\n＋ 新增个体\n总个体\n◫\n5\n3 Female · 2 Male\n2026 可繁\n◎\n3\n2F / 1M 已成熟\n总投入\n¥\n¥0\n种群投入\n¥0\n其他投入\n¥0\n已形成公母结构系列\n⌁\n1\n按 2026 成熟状态\n性别结构\n\n现有 5 条个体\n\n5\nTOTAL\nFemale\n3\nMale\n2\nFemale : Male\n1.5 : 1\n系列分布\n\n同一个体可计入多个系列\n\nRed\n4\nAlbino\n2\n成熟节奏\n\n累计可繁公母\n\n成熟母蛇\n成熟公蛇\n0\n1\n2\n2\n3\n24\n25\n26\n27\n28\n29\n30\n成熟年份切片\n\n点击年份会同步所有页面\n\n2024\n2\n累计成熟 / 5\n2025\n5\n累计成熟 / 5\n2026\n5\n累计成熟 / 5\n2027\n5\n累计成熟 / 5\n2028\n5\n累计成熟 / 5\n2029\n5\n累计成熟 / 5\n2030\n5\n累计成熟 / 5\n个体数据库\n\n可筛选与搜索\n\n全部系列\nAlbino\nRed\n全部性别\nFemale\nMale\n按编号\n战略分优先\n预计成熟时间\n购入成本从高到低\n显示方式\n列表\n卡片\nID\t系列\t基因\t性别\t成年\t所选年份 / 销售\t价格\t角色\t战略分\nF01\tRed / Albino\t白化测试母蛇\t♀ 母\t2025/06\t预计年内成熟正常\t¥1,200\t\t70\nKEPT\tRed\t已留存自繁\t♀ 母\t2025/06\t预计年内成熟正常\t¥0\t\t0\nM01\tAlbino\t白化测试公蛇\t♂ 公\t2025/06\t预计年内成熟正常\t¥800\t\t0\nRETIRED\tRed\t退役公蛇\t♂ 公\t2024/01\t预计 2024 年正常\t¥0\t\t0\nSOLD\tRed\t已售母蛇\t♀ 母\t2024/01\t预计 2024 年已售\t¥0\t\t0",
+    "buttons": [
+      {
+        "text": "＋ 新增个体",
+        "disabled": false,
+        "width": 85,
+        "height": 38
+      },
+      {
+        "text": "列表",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "卡片",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "routes",
+    "label": "繁殖路线",
+    "pageOverflow": false,
+    "text": "MULTI-GENERATION PLANNING\n繁殖路线图\n\n现有个体、关键 F1 留种和 F2 / 回交方向放在同一张图里。年份会真实改变成熟状态与路线可执行性；点击节点会高亮直接上下游并刷新右侧详情。\n\n显示未来节点\n显示 F2\n高价值模式\n新建路线\n2026 可繁母蛇\n♀\n2\n全库 3F · 67% 已成熟\n2026 可繁公蛇\n♂\n1\n全库 2M · 50% 已成熟\n当前路线可执行连接\n⌁\n1\n共 1 条规划连线\n路线最高战略分\n★\n70\n测试繁殖路线\n重置选择\n显示完整路线\n编辑\n2026 VIEW · 3/6 MATURE\n适应画布\n撤销移动\n重做移动\n拖动后自动保存\n白化测试母蛇\nRed / Albino · ♀\nF01 ·\n70\n♀\n白化测试公蛇\nAlbino · ♂\nM01 ·\n-\n♂\n计划后代\n2026 · PROJECT\n-\n◆\n母蛇\n公蛇\n关键后代\n投资缺口\n♀\n白化测试母蛇\n\nF01 · Red / Albino ·\n\n繁殖战略分\n70/100\nSex\nFemale\nMature\n2025/06\nBirth\n2023/06\nCost\n¥1,200\nInvestor\n—\nStatus\n2026 可繁\n真实库存个体。战略分衡量它在现有繁殖网络中的连接价值，不等于市场估值。当前年份已成熟。\nDIRECT CONNECTIONS\n计划后代\n下游 ·",
+    "buttons": [
+      {
+        "text": "显示未来节点",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "显示 F2",
+        "disabled": false,
+        "width": 64,
+        "height": 38
+      },
+      {
+        "text": "高价值模式",
+        "disabled": false,
+        "width": 82,
+        "height": 38
+      },
+      {
+        "text": "新建路线",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      },
+      {
+        "text": "测试繁殖路线",
+        "disabled": false,
+        "width": 92,
+        "height": 34
+      },
+      {
+        "text": "重置选择",
+        "disabled": false,
+        "width": 68,
+        "height": 36
+      },
+      {
+        "text": "显示完整路线",
+        "disabled": false,
+        "width": 90,
+        "height": 36
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 46,
+        "height": 36
+      },
+      {
+        "text": "适应画布",
+        "disabled": false,
+        "width": 68,
+        "height": 36
+      },
+      {
+        "text": "撤销移动",
+        "disabled": true,
+        "width": 68,
+        "height": 36
+      },
+      {
+        "text": "重做移动",
+        "disabled": true,
+        "width": 68,
+        "height": 36
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "nursery",
+    "label": "繁育个体",
+    "pageOverflow": false,
+    "text": "NURSERY / GROW • SELECT • RETAIN\n\n繁育个体\n\n保留全部自繁档案。留存后同步显示在种群总览，本栏保留原始记录并标记已留存。\n\n补录自繁个体\n从窝次登记幼体\n自繁档案\n2\n在养幼体\n2\n待出售\n0\n已售\n0\n在养\n全部状态\n已售\n退役\n死亡\n2 / 2 条\n出生年份\n全部年份\n2026\n2023\n分组方式\n按窝次\n按年份\n卡片\n列表\nCL01\n\nF01 × M01 · 出壳 2026-06-01 · 已登记 2 / 5 · 未登记 3\n\n批量登记幼体\nBABY · 性别待确认\n正常\n暂无个体照片\n基因待确认\n\nRed · 在养\n\n出生\n2026-06\n母本 / 公本\nF01 / M01\n窝次\n#1\n\n最近记录 2026-10-10 · 喂食记录 · 自繁库\n\n查看档案 ↗\n留存\n上架\nKEPT · ♀ 母\n正常\n暂无个体照片\n已留存自繁\n\nRed · 在养\n\n出生\n2023-06\n母本 / 公本\nF01 / M01\n窝次\n#1\n\n暂无成长记录 · 种群库 / 已留存\n\n查看档案 ↗\n已留存 · 种群同步\n上架",
+    "buttons": [
+      {
+        "text": "补录自繁个体",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "从窝次登记幼体",
+        "disabled": false,
+        "width": 105,
+        "height": 38
+      },
+      {
+        "text": "卡片",
+        "disabled": false,
+        "width": 50,
+        "height": 44
+      },
+      {
+        "text": "列表",
+        "disabled": false,
+        "width": 50,
+        "height": 44
+      },
+      {
+        "text": "批量登记幼体",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "查看档案 ↗",
+        "disabled": false,
+        "width": 86,
+        "height": 38
+      },
+      {
+        "text": "留存",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "上架",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "查看档案 ↗",
+        "disabled": false,
+        "width": 86,
+        "height": 38
+      },
+      {
+        "text": "上架",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "production",
+    "label": "年度产出",
+    "pageOverflow": false,
+    "text": "PRODUCTION ROADMAP\n年度产出计划\n\n规划的是繁殖容量与项目优先级，不等于成熟母蛇必须全部繁殖；主动给休养、失败配对和关键留种留空间。\n\n繁育计划与实际进度\n\n预计时间与真实记录分开。记录交配结果，再关联窝次；每窝可单独调整预计出壳日。\n\n新增繁育计划\n计划阶段\n全部阶段\n待配种\n已交配 / 待产蛋\n孵化中\n窝次已结束\n交配未成功\n相关月份\n全年\n1 月\n2 月\n3 月\n4 月\n5 月\n6 月\n7 月\n8 月\n9 月\n10 月\n11 月\n12 月\n0 个计划 · 月份匹配预计或实际日期\n本年度暂无繁育日程。点击新增繁育计划，设置亲本、预计日期和提醒。\nSELECTED PLANNING YEAR · LIVE SUPABASE DATA\n2026\n已配置 5 个核心计划\n容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。\nMATURE ACTIVE FEMALE\n2 ♀\nMATURE ACTIVE MALE\n1 ♂\nCORE PLANS\n5\nPLAN / FEMALE\n250%\n本年度核心排配\n下方查看完整计划\nA\n年度配对测试\n♀ F01 白化测试母蛇 × ♂ M01 白化测试公蛇\nB\n已取消测试计划\n♀ F01 白化测试母蛇 × ♂ M01 白化测试公蛇\n项目 Pipeline\n\n关键后代进入下一阶段\n\n2026\n计划后代\n测试繁殖路线\nACTIVE\n2026 本年度繁育计划\n\n按照当前 planning year 自动切换推荐排配；A 为优先执行，B 为次级，R 为备用，G 为投资缺口。\n\nCORE ROUTES SHOWN\n2 组\n未安排母蛇\n1 条\nRESERVE / CONDITIONAL\n0 项\nA\n年度配对测试\n♀ F01 · 白化测试母蛇\n×\n♂ M01 · 白化测试公蛇\n预计年内成熟\n编辑\n设为完成\n删除\nB\n已取消测试计划\n♀ F01 · 白化测试母蛇\n×\n♂ M01 · 白化测试公蛇\n预计年内成熟\n编辑\n设为完成\n删除\n规划范围容量\n\n成熟母蛇 vs 已录入计划窝数\n\n成熟活跃母蛇\n计划窝数\n0\n1\n3\n4\n5\n2024\n2025\n2026\n2027\n2028\n2029\n2030\n所选年份项目配额\n\n优先旗舰与桥梁项目\n\n年度配对测试\n1 项\n已取消测试计划\n1 项\n年度执行层级\n\nA 必须优先 / B 条件允许 / C 主动留白\n\nA · 高优先\n\n• 年度配对测试\n\nB · 次优先\n\n• 已取消测试计划\n\nR / C / G · 备用与条件\n\n• 暂无\n\n固定规则检查\n\n基于实时成熟状态、现有计划与路线依赖\n\n截至 2026/10/12 10:32:02 的固定检查\n活跃且成熟：2 条母蛇、1 条公蛇。当前年份已有 5 条核心计划；这些数字仅来自 snakes、annual_breeding_plans 与状态字段。\nAI 年度规划草案\n\n固定 Prompt 由数据库版本化加载；只生成草案\n\n生成草案\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。",
+    "buttons": [
+      {
+        "text": "新增繁育计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "生成草案",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "investment",
+    "label": "投资计划",
+    "pageOverflow": false,
+    "text": "GENETIC CAPITAL ALLOCATION\n未来投资计划\n\n把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。\n\n采购与投资决策\n实际支出台账\n最高优先投资\n◇\n待购测试公蛇\n来自 investments 表\n零公系列\n♂\n1\nRed\n投资记录\n⌁\n1\n来自 investments 表\n投资原则\n★\n解锁 > 数量\n以实际种群结构计算\n#1\n待购测试公蛇\nplanned\n80\nUNLOCK\n系统投资\nWINDOW\n2026\nBUDGET STANCE\n1000–2000\n编辑\n设为完成\n删除\n最大结构性缺口\n\n由当前种群实时计算\n\nRed · 2F / 0M\nF01 · KEPT\n待购测试公蛇\n来自实时 investments 表\n待形成新项目\n须由实际路线与计划确认\n实时投资结构诊断\n\n种群、成熟、数据完整度与路线覆盖\n\n种群与成熟窗口\n活跃 3 条：2 母 / 1 公；2026 年可繁 2 母 / 1 公。\n性别结构缺口\n1 个系列有活跃母蛇但无活跃公蛇：Red。\n基因数据待确认\n活跃个体未发现 unknown 或 possible het 的原子基因记录。\n路线覆盖\n1 条活跃个体尚未进入路线节点。\n查看全部 1 条\n候选个体投资评估\n\n综合候选事实、当前种群结构与近期公开市场资料，辅助判断是否值得采购。\n\n联网评估候选\n候选基因型\n性别\n未知\n母\n公\n卖方报价\n币种\nCNY 人民币\nUSD 美元\nEUR 欧元\nGBP 英镑\nJPY 日元\n预计可繁殖时间（年/月）\n年份\n2024年\n2025年\n2026年\n2027年\n2028年\n2029年\n2030年\n2031年\n2032年\n2033年\n2034年\n2035年\n2036年\n2037年\n2038年\n2039年\n2040年\n2041年\n月份\n1月\n2月\n3月\n4月\n5月\n6月\n7月\n8月\n9月\n10月\n11月\n12月\n来源 / 谱系参考（可选）\n其他参考信息（可选）\n输入基因型后会显示系统可识别的原子基因；未识别部分会作为缺失数据提醒 AI。\n填写候选基因型后即可联网生成采购建议。\nAI 投资建议\n\n固定 Prompt + 结构化输出；不推测外部市场\n\n生成建议\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。",
+    "buttons": [
+      {
+        "text": "采购与投资决策",
+        "disabled": false,
+        "width": 116,
+        "height": 38
+      },
+      {
+        "text": "实际支出台账",
+        "disabled": false,
+        "width": 104,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "联网评估候选",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "生成建议",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "lab",
+    "label": "配对实验室",
+    "pageOverflow": false,
+    "text": "PAIRING SANDBOX\n配对实验室\n\n固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；孟德尔引擎只计算已定义的单基因位点，并会公开其假设和缺失数据。\n\n选择父母\n\n真实库存个体\n\nFemale\nF01 · 白化测试母蛇\nSOLD · 已售母蛇\nKEPT · 已留存自繁\nMale\nM01 · 白化测试公蛇\nRETIRED · 退役公蛇\n♀ 白化测试母蛇\nF01 · Red / Albino\nREADY\n×\n♂ 白化测试公蛇\nM01 · Albino\nREADY\n概率仅使用 snake_genes 中已定义为单基因遗传的位点。可能携带率会纳入计算；unknown、line trait、polygenic 及同位点冲突不会被伪造为精确概率。\n固定规则结果\n\n事实与确定性约束，不是 AI 判断\n\n2026 VIEW\n100\nRULE CHECK\n同系列\n以实际路线和年度计划复核。\n共享原子基因\n白化\n2026 预计年内成熟\n双方为预计年内成熟的活跃个体；实际配种需核对体况与记录。\n加入配对比较\n加入年度计划\n孟德尔后代概率\n\n按 loci 分离计算；组合形态仅在所需位点均可计算时派生\n\n白化\ngene:albino\n白化 表现\n50%\n白化 隐性携带\n50%\n综合后代基因型\n共 2 种可计算组合；默认显示前 15 种\n全部基因\n含 白化\n白化\n50%\n隐白化\n50%\n不同位点按独立分离计算；当前数据库未保存连锁与共同亲本导致的联合携带概率。\n显性 visual 按杂合、super 按纯合计算；若实际剂量未知，结果应视为估算。\nAI 配对建议\n\n固定 Prompt、模型、时间与审核状态均会保存\n\n分析当前配对\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。\n系统推荐候选\n\n按当前年份和策略匹配分排序\n\n母蛇\t公蛇\t系列关系\t成熟\t策略分\t用途\nF01 · 白化测试母蛇\tM01 · 白化测试公蛇\t同系列\tREADY\t100\t白化\nKEPT · 已留存自繁\tM01 · 白化测试公蛇\t战略跨系\tREADY\t60\t人工复核\nF01 · 白化测试母蛇\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nSOLD · 已售母蛇\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nKEPT · 已留存自繁\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nSOLD · 已售母蛇\tM01 · 白化测试公蛇\t战略跨系\tFUTURE\t30\t人工复核",
+    "buttons": [
+      {
+        "text": "加入配对比较",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "加入年度计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "分析当前配对",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "admin",
+    "label": "数据与审核看板",
+    "pageOverflow": false,
+    "text": "AUTHORIZED WORKSPACE\n数据与审核看板\n\n只有 profiles 中 role 为 editor / admin 且 active=true 的登录用户才能写入。这里提供核心业务表与 AI 审核入口。\n\n↻ 刷新数据库\n＋ 新增\n核心数据表\n\n前端按钮只是体验层；真正权限由 Supabase RLS 控制。\n\n数据表\nSnakes\nAnnual plans\nInvestments\n原子基因\n基因黑话\n组合黑话\n审核表\n年度审核\n投资审核\nID\t系列\t基因\t性别\t状态\t战略分\t操作\nF01\tRed / Albino\t白化测试母蛇\tF\tactive\t70\t\n编辑\n停用\n删除\n\nM01\tAlbino\t白化测试公蛇\tM\tactive\t\t\n编辑\n停用\n删除\n\nSOLD\tRed\t已售母蛇\tF\tsold\t\t\n编辑\n停用\n删除\n\nRETIRED\tRed\t退役公蛇\tM\tretired\t\t\n编辑\n停用\n删除\n\nBABY\tRed\t基因待确认\tU\tactive\t\t\n编辑\n停用\n删除\n\nKEPT\tRed\t已留存自繁\tF\tactive\t\t\n编辑\n停用\n删除",
+    "buttons": [
+      {
+        "text": "↻ 刷新数据库",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "＋ 新增",
+        "disabled": false,
+        "width": 63,
+        "height": 38
+      },
+      {
+        "text": "Snakes",
+        "disabled": false,
+        "width": 66,
+        "height": 36
+      },
+      {
+        "text": "Annual plans",
+        "disabled": false,
+        "width": 100,
+        "height": 36
+      },
+      {
+        "text": "Investments",
+        "disabled": false,
+        "width": 95,
+        "height": 36
+      },
+      {
+        "text": "原子基因",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "基因黑话",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "组合黑话",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "年度审核",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "投资审核",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "publishing",
+    "label": "公开展示",
+    "pageOverflow": false,
+    "text": "PUBLISHING / PUBLIC ARCHIVE\n\n公开展示\n\n在同一个体上管理公开资料、一口价售卖与拍卖。配置拍卖时自动带入个体；成交后进入意向与销售。\n\n新增展示档案\n当前显示 1 份配置\n个体\t公开状态\t交易方式 / 价格\t照片\t操作\n\n暂无个体照片\n测试公开个体\nF01 / audit-f01\n缺公开照片\n\t已发布 在售\t一口价售卖\n¥1,800.00\n\t0 张内部 / 0 张选入公开\t\n发布预览\n编辑\n配置拍卖\n拍卖记录\n照片\n删除\n查看 ↗",
+    "buttons": [
+      {
+        "text": "新增展示档案",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "发布预览",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "配置拍卖",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "拍卖记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "照片",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "auctions",
+    "label": "拍卖管理",
+    "pageOverflow": false,
+    "text": "AUCTIONS\n\n拍卖管理\n\n临近截止的有效出价自动延长截止时间。成交自动进入意向与销售，收款与交付由人工核实。\n\n创建拍卖\n刷新\n\n已开拍的规则不可修改。结拍任务每分钟执行；出价以服务器截止时间为准。待付款超过期限后，请先核实收款再取消预留。\n\n个体 / 场次\t价格 / 出价\t规则\t时间\t状态 / 操作\n测试公开个体\nF01 · 44444444\n\t¥1800\n5 次 · 加价至少 ¥50\n\t30 分钟无人出价结束\n成交后 2 小时内联系付款\n\t2026/10/1 08:00:00 开始\n2026/10/2 08:00:00 截止\n自动延时，无强制截止\n\t已成交\n查看\n出价记录\n处理成交",
+    "buttons": [
+      {
+        "text": "创建拍卖",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "出价记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "处理成交",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "sales",
+    "label": "意向与销售",
+    "pageOverflow": false,
+    "text": "SALES DESK / INQUIRIES\n\n意向与销售\n\n从联系到交付，保留每一次确认。已收款交易暂不支持直接取消，避免丢失账务历史。\n\n刷新\n处理中\n全部记录\n\n已读取 1 / 1 条意向；不作为全部历史成交额统计。\n\n意向 / 个体\t客户联系\t状态\t预留到期\t操作\nAUDIT001\nF01 · —\n\t测试买家\n测试联系\n\t已预留\t2026/10/1\n已到期，请人工处理\n\t处理 / 历史",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "处理中",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "全部记录",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "处理 / 历史",
+        "disabled": false,
+        "width": 83,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "payments",
+    "label": "收款码与审核",
+    "pageOverflow": false,
+    "text": "收款审核\n\n先处理待审核付款，再进入意向与销售安排交付。截图金额由服务端识别，到账仍需核实。\n\n刷新\n付款记录\n待审核\n已确认\n已退回\n全部\n\n待审核 1 条。可切换分类查看历史记录；已核实订单继续在“意向与销售”处理交付。\n\n订单\t付款信息\tOCR / 状态\t操作\nAUDIT001\n2026/10/1 08:00:00\n\t未上传截图 · 测试转账\nAUDIT001\n\t手动填写 · 待人工确认\t查看 / 审核\n收款方式设置 微信 / 支付宝 / 收款码",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "待审核",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "已确认",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "已退回",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "全部",
+        "disabled": false,
+        "width": 56,
+        "height": 38
+      },
+      {
+        "text": "查看 / 审核",
+        "disabled": false,
+        "width": 83,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 136,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "records",
+    "label": "繁育与成长记录",
+    "pageOverflow": false,
+    "text": "HUSBANDRY / ACTUAL RECORDS\n\n繁育与成长记录\n\n记录已经发生的事实。年度计划不会自动变成配种、窝次或后代。\n\n新增记录\n配种事件 · 1\n窝次与孵化 · 1\n体重与成长 · 1\n\n已读取 1 条记录。\n\nF01 ♀ × M01 ♂\n2026/2/1 · 关联计划 #1 ·\n交配成功\n编辑\n记录窝次",
+    "buttons": [
+      {
+        "text": "新增记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "配种事件 · 1",
+        "disabled": false,
+        "width": 97,
+        "height": 38
+      },
+      {
+        "text": "窝次与孵化 · 1",
+        "disabled": false,
+        "width": 109,
+        "height": 38
+      },
+      {
+        "text": "体重与成长 · 1",
+        "disabled": false,
+        "width": 109,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "记录窝次",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "desktop",
+    "id": "annual-review",
+    "text": "年度计划审核\n通过后保留在本表并灰显，同时自动出现在年度产出页面。\nYEAR\t项目\t父本 × 母本\t目标\t来源\t操作\n2026\t已退回AI计划\t— × —\t—\tAI · 已退回\t\n审核已通过\n编辑"
+  },
+  {
+    "device": "desktop",
+    "id": "logic",
+    "data": {
+      "plannedClutches": 5,
+      "planRows": [
+        {
+          "id": 1,
+          "status": "planned",
+          "clutches": 3
+        },
+        {
+          "id": 2,
+          "status": "cancelled",
+          "clutches": 2
+        },
+        {
+          "id": 3,
+          "status": "planned",
+          "clutches": 1
+        }
+      ],
+      "labFemales": [
+        "F01",
+        "SOLD",
+        "KEPT"
+      ],
+      "labMales": [
+        "M01",
+        "RETIRED"
+      ],
+      "overviewActive": 4,
+      "stock": 5
+    },
+    "errors": []
+  },
+  {
+    "device": "mobile",
+    "id": "overview",
+    "label": "工作概览",
+    "pageOverflow": false,
+    "text": "WORKSPACE / OVERVIEW\n\n工作概览\n\n把今天的工作，与长期的繁育方向放在一起。\n\n查看公开网站 ↗\n刷新\n\nSUOHA HOGNOSE / PRIVATE WORKSPACE\n\n审查账号（测试数据），欢迎回来。\n\n2026 年的计划、真实个体和每一条待办，都从这里继续。公开展示与内部档案分开管理。\n\n繁育日程\n\n暂无临近的预计日程。可在年度计划设置提醒日期。\n\n查看繁育计划\n新增计划\n活跃个体\n4\n进入种群档案 ↗\n2026 年度计划\n2\n计划条数，不代表实际产出 ↗\n待联系意向\n0\n当前权限内的全部待办\n已发布档案\n1\n当前权限内的发布配置 ↗\n需要你关注\n待审核的 AI 建议\n保留人工确认，不自动执行\n0 项 · 查看\n到期预留\n需人工联系确认，取消后恢复为仅展示\n1 项 · 查看\n待补照片的发布档案\n没有真实照片的个体不会被替换成示例图\n1 项\n本年度计划\n年度配对测试\nF01 × M01\n3 计划窝\n已取消测试计划\nF01 × M01\n2 计划窝\n进入年度规划\n最近 AI 分析\n暂无分析记录。分析完成后，可从这里继续追问。",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "查看繁育计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "新增计划",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "活跃个体\n4\n进入种群档案 ↗",
+        "disabled": false,
+        "width": 171,
+        "height": 135
+      },
+      {
+        "text": "2026 年度计划\n2\n计划条数，不代表实际产出 ↗",
+        "disabled": false,
+        "width": 171,
+        "height": 135
+      },
+      {
+        "text": "待联系意向\n0\n当前权限内的全部待办",
+        "disabled": false,
+        "width": 171,
+        "height": 135
+      },
+      {
+        "text": "已发布档案\n1\n当前权限内的发布配置 ↗",
+        "disabled": false,
+        "width": 171,
+        "height": 135
+      },
+      {
+        "text": "0 项 · 查看",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "1 项 · 查看",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "1 项",
+        "disabled": false,
+        "width": 49,
+        "height": 38
+      },
+      {
+        "text": "进入年度规划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "population",
+    "label": "种群库",
+    "pageOverflow": false,
+    "text": "POPULATION INTELLIGENCE\n种群库\n\n管理购入与选育留种的个体。自繁幼体在独立的自繁库中管理，确认留种后再转入。\n\n＋ 新增个体\n总个体\n◫\n5\n3 Female · 2 Male\n2026 可繁\n◎\n3\n2F / 1M 已成熟\n总投入\n¥\n¥0\n种群投入\n¥0\n其他投入\n¥0\n已形成公母结构系列\n⌁\n1\n按 2026 成熟状态\n性别结构\n\n现有 5 条个体\n\n5\nTOTAL\nFemale\n3\nMale\n2\nFemale : Male\n1.5 : 1\n系列分布\n\n同一个体可计入多个系列\n\nRed\n4\nAlbino\n2\n成熟节奏\n\n累计可繁公母\n\n成熟母蛇\n成熟公蛇\n0\n1\n2\n2\n3\n24\n25\n26\n27\n28\n29\n30\n成熟年份切片\n\n点击年份会同步所有页面\n\n2024\n2\n累计成熟 / 5\n2025\n5\n累计成熟 / 5\n2026\n5\n累计成熟 / 5\n2027\n5\n累计成熟 / 5\n2028\n5\n累计成熟 / 5\n2029\n5\n累计成熟 / 5\n2030\n5\n累计成熟 / 5\n个体数据库\n\n可筛选与搜索\n\n全部系列\nAlbino\nRed\n全部性别\nFemale\nMale\n按编号\n战略分优先\n预计成熟时间\n购入成本从高到低\n显示方式\n列表\n卡片\nID\t系列\t基因\t性别\t成年\t所选年份 / 销售\t价格\t角色\t战略分\nF01\tRed / Albino\t白化测试母蛇\t♀ 母\t2025/06\t预计年内成熟正常\t¥1,200\t\t70\nKEPT\tRed\t已留存自繁\t♀ 母\t2025/06\t预计年内成熟正常\t¥0\t\t0\nM01\tAlbino\t白化测试公蛇\t♂ 公\t2025/06\t预计年内成熟正常\t¥800\t\t0\nRETIRED\tRed\t退役公蛇\t♂ 公\t2024/01\t预计 2024 年正常\t¥0\t\t0\nSOLD\tRed\t已售母蛇\t♀ 母\t2024/01\t预计 2024 年已售\t¥0\t\t0",
+    "buttons": [
+      {
+        "text": "＋ 新增个体",
+        "disabled": false,
+        "width": 85,
+        "height": 38
+      },
+      {
+        "text": "列表",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "卡片",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "routes",
+    "label": "繁殖路线",
+    "pageOverflow": false,
+    "text": "MULTI-GENERATION PLANNING\n繁殖路线图\n\n现有个体、关键 F1 留种和 F2 / 回交方向放在同一张图里。年份会真实改变成熟状态与路线可执行性；点击节点会高亮直接上下游并刷新右侧详情。\n\n显示未来节点\n显示 F2\n高价值模式\n新建路线\n2026 可繁母蛇\n♀\n2\n全库 3F · 67% 已成熟\n2026 可繁公蛇\n♂\n1\n全库 2M · 50% 已成熟\n当前路线可执行连接\n⌁\n1\n共 1 条规划连线\n路线最高战略分\n★\n70\n测试繁殖路线\n重置选择\n显示完整路线\n编辑\n2026 VIEW · 3/6 MATURE\n适应画布\n撤销移动\n重做移动\n拖动后自动保存\n白化测试母蛇\nRed / Albino · ♀\nF01 ·\n70\n♀\n白化测试公蛇\nAlbino · ♂\nM01 ·\n-\n♂\n计划后代\n2026 · PROJECT\n-\n◆\n母蛇\n公蛇\n关键后代\n投资缺口\n♀\n白化测试母蛇\n\nF01 · Red / Albino ·\n\n繁殖战略分\n70/100\nSex\nFemale\nMature\n2025/06\nBirth\n2023/06\nCost\n¥1,200\nInvestor\n—\nStatus\n2026 可繁\n真实库存个体。战略分衡量它在现有繁殖网络中的连接价值，不等于市场估值。当前年份已成熟。\nDIRECT CONNECTIONS\n计划后代\n下游 ·",
+    "buttons": [
+      {
+        "text": "显示未来节点",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "显示 F2",
+        "disabled": false,
+        "width": 64,
+        "height": 38
+      },
+      {
+        "text": "高价值模式",
+        "disabled": false,
+        "width": 82,
+        "height": 38
+      },
+      {
+        "text": "新建路线",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      },
+      {
+        "text": "测试繁殖路线",
+        "disabled": false,
+        "width": 92,
+        "height": 34
+      },
+      {
+        "text": "重置选择",
+        "disabled": false,
+        "width": 58,
+        "height": 38
+      },
+      {
+        "text": "显示完整路线",
+        "disabled": false,
+        "width": 78,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 38,
+        "height": 38
+      },
+      {
+        "text": "适应画布",
+        "disabled": false,
+        "width": 58,
+        "height": 38
+      },
+      {
+        "text": "撤销移动",
+        "disabled": true,
+        "width": 58,
+        "height": 38
+      },
+      {
+        "text": "重做移动",
+        "disabled": true,
+        "width": 58,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "nursery",
+    "label": "繁育个体",
+    "pageOverflow": false,
+    "text": "NURSERY / GROW • SELECT • RETAIN\n\n繁育个体\n\n保留全部自繁档案。留存后同步显示在种群总览，本栏保留原始记录并标记已留存。\n\n补录自繁个体\n从窝次登记幼体\n自繁档案\n2\n在养幼体\n2\n待出售\n0\n已售\n0\n在养\n全部状态\n已售\n退役\n死亡\n2 / 2 条\n出生年份\n全部年份\n2026\n2023\n分组方式\n按窝次\n按年份\n卡片\n列表\nCL01\n\nF01 × M01 · 出壳 2026-06-01 · 已登记 2 / 5 · 未登记 3\n\n批量登记幼体\nBABY · 性别待确认\n正常\n暂无个体照片\n基因待确认\n\nRed · 在养\n\n出生\n2026-06\n母本 / 公本\nF01 / M01\n窝次\n#1\n\n最近记录 2026-10-10 · 喂食记录 · 自繁库\n\n查看档案 ↗\n留存\n上架\nKEPT · ♀ 母\n正常\n暂无个体照片\n已留存自繁\n\nRed · 在养\n\n出生\n2023-06\n母本 / 公本\nF01 / M01\n窝次\n#1\n\n暂无成长记录 · 种群库 / 已留存\n\n查看档案 ↗\n已留存 · 种群同步\n上架",
+    "buttons": [
+      {
+        "text": "补录自繁个体",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "从窝次登记幼体",
+        "disabled": false,
+        "width": 105,
+        "height": 38
+      },
+      {
+        "text": "卡片",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "列表",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "批量登记幼体",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "查看档案 ↗",
+        "disabled": false,
+        "width": 86,
+        "height": 38
+      },
+      {
+        "text": "留存",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "上架",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "查看档案 ↗",
+        "disabled": false,
+        "width": 86,
+        "height": 38
+      },
+      {
+        "text": "上架",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "production",
+    "label": "年度产出",
+    "pageOverflow": false,
+    "text": "PRODUCTION ROADMAP\n年度产出计划\n\n规划的是繁殖容量与项目优先级，不等于成熟母蛇必须全部繁殖；主动给休养、失败配对和关键留种留空间。\n\n繁育计划与实际进度\n\n预计时间与真实记录分开。记录交配结果，再关联窝次；每窝可单独调整预计出壳日。\n\n新增繁育计划\n计划阶段\n全部阶段\n待配种\n已交配 / 待产蛋\n孵化中\n窝次已结束\n交配未成功\n相关月份\n全年\n1 月\n2 月\n3 月\n4 月\n5 月\n6 月\n7 月\n8 月\n9 月\n10 月\n11 月\n12 月\n0 个计划 · 月份匹配预计或实际日期\n本年度暂无繁育日程。点击新增繁育计划，设置亲本、预计日期和提醒。\nSELECTED PLANNING YEAR · LIVE SUPABASE DATA\n2026\n已配置 5 个核心计划\n容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。\nMATURE ACTIVE FEMALE\n2 ♀\nMATURE ACTIVE MALE\n1 ♂\nCORE PLANS\n5\nPLAN / FEMALE\n250%\n本年度核心排配\n下方查看完整计划\nA\n年度配对测试\n♀ F01 白化测试母蛇 × ♂ M01 白化测试公蛇\nB\n已取消测试计划\n♀ F01 白化测试母蛇 × ♂ M01 白化测试公蛇\n项目 Pipeline\n\n关键后代进入下一阶段\n\n2026\n计划后代\n测试繁殖路线\nACTIVE\n2026 本年度繁育计划\n\n按照当前 planning year 自动切换推荐排配；A 为优先执行，B 为次级，R 为备用，G 为投资缺口。\n\nCORE ROUTES SHOWN\n2 组\n未安排母蛇\n1 条\nRESERVE / CONDITIONAL\n0 项\nA\n年度配对测试\n♀ F01 · 白化测试母蛇\n×\n♂ M01 · 白化测试公蛇\n预计年内成熟\n编辑\n设为完成\n删除\nB\n已取消测试计划\n♀ F01 · 白化测试母蛇\n×\n♂ M01 · 白化测试公蛇\n预计年内成熟\n编辑\n设为完成\n删除\n规划范围容量\n\n成熟母蛇 vs 已录入计划窝数\n\n成熟活跃母蛇\n计划窝数\n0\n1\n3\n4\n5\n2024\n2025\n2026\n2027\n2028\n2029\n2030\n所选年份项目配额\n\n优先旗舰与桥梁项目\n\n年度配对测试\n1 项\n已取消测试计划\n1 项\n年度执行层级\n\nA 必须优先 / B 条件允许 / C 主动留白\n\nA · 高优先\n\n• 年度配对测试\n\nB · 次优先\n\n• 已取消测试计划\n\nR / C / G · 备用与条件\n\n• 暂无\n\n固定规则检查\n\n基于实时成熟状态、现有计划与路线依赖\n\n截至 2026/10/12 10:32:07 的固定检查\n活跃且成熟：2 条母蛇、1 条公蛇。当前年份已有 5 条核心计划；这些数字仅来自 snakes、annual_breeding_plans 与状态字段。\nAI 年度规划草案\n\n固定 Prompt 由数据库版本化加载；只生成草案\n\n生成草案\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。",
+    "buttons": [
+      {
+        "text": "新增繁育计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "生成草案",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "investment",
+    "label": "投资计划",
+    "pageOverflow": false,
+    "text": "GENETIC CAPITAL ALLOCATION\n未来投资计划\n\n把新增个体当作资本配置：能解锁多少现有母蛇、连接多少项目、改善多少血缘结构，而不是单纯增加数量。\n\n采购与投资决策\n实际支出台账\n最高优先投资\n◇\n待购测试公蛇\n来自 investments 表\n零公系列\n♂\n1\nRed\n投资记录\n⌁\n1\n来自 investments 表\n投资原则\n★\n解锁 > 数量\n以实际种群结构计算\n#1\n待购测试公蛇\nplanned\n80\nUNLOCK\n系统投资\nWINDOW\n2026\nBUDGET STANCE\n1000–2000\n编辑\n设为完成\n删除\n最大结构性缺口\n\n由当前种群实时计算\n\nRed · 2F / 0M\nF01 · KEPT\n待购测试公蛇\n来自实时 investments 表\n待形成新项目\n须由实际路线与计划确认\n实时投资结构诊断\n\n种群、成熟、数据完整度与路线覆盖\n\n种群与成熟窗口\n活跃 3 条：2 母 / 1 公；2026 年可繁 2 母 / 1 公。\n性别结构缺口\n1 个系列有活跃母蛇但无活跃公蛇：Red。\n基因数据待确认\n活跃个体未发现 unknown 或 possible het 的原子基因记录。\n路线覆盖\n1 条活跃个体尚未进入路线节点。\n查看全部 1 条\n候选个体投资评估\n\n综合候选事实、当前种群结构与近期公开市场资料，辅助判断是否值得采购。\n\n联网评估候选\n候选基因型\n性别\n未知\n母\n公\n卖方报价\n币种\nCNY 人民币\nUSD 美元\nEUR 欧元\nGBP 英镑\nJPY 日元\n预计可繁殖时间（年/月）\n年份\n2024年\n2025年\n2026年\n2027年\n2028年\n2029年\n2030年\n2031年\n2032年\n2033年\n2034年\n2035年\n2036年\n2037年\n2038年\n2039年\n2040年\n2041年\n月份\n1月\n2月\n3月\n4月\n5月\n6月\n7月\n8月\n9月\n10月\n11月\n12月\n来源 / 谱系参考（可选）\n其他参考信息（可选）\n输入基因型后会显示系统可识别的原子基因；未识别部分会作为缺失数据提醒 AI。\n填写候选基因型后即可联网生成采购建议。\nAI 投资建议\n\n固定 Prompt + 结构化输出；不推测外部市场\n\n生成建议\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。",
+    "buttons": [
+      {
+        "text": "采购与投资决策",
+        "disabled": false,
+        "width": 116,
+        "height": 38
+      },
+      {
+        "text": "实际支出台账",
+        "disabled": false,
+        "width": 104,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "设为完成",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 36
+      },
+      {
+        "text": "联网评估候选",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "生成建议",
+        "disabled": false,
+        "width": 71,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "lab",
+    "label": "配对实验室",
+    "pageOverflow": false,
+    "text": "PAIRING SANDBOX\n配对实验室\n\n固定层依据原子子基因、成熟状态、个体状态与现有正式计划筛选组合；孟德尔引擎只计算已定义的单基因位点，并会公开其假设和缺失数据。\n\n选择父母\n\n真实库存个体\n\nFemale\nF01 · 白化测试母蛇\nSOLD · 已售母蛇\nKEPT · 已留存自繁\nMale\nM01 · 白化测试公蛇\nRETIRED · 退役公蛇\n♀ 白化测试母蛇\nF01 · Red / Albino\nREADY\n×\n♂ 白化测试公蛇\nM01 · Albino\nREADY\n概率仅使用 snake_genes 中已定义为单基因遗传的位点。可能携带率会纳入计算；unknown、line trait、polygenic 及同位点冲突不会被伪造为精确概率。\n固定规则结果\n\n事实与确定性约束，不是 AI 判断\n\n2026 VIEW\n100\nRULE CHECK\n同系列\n以实际路线和年度计划复核。\n共享原子基因\n白化\n2026 预计年内成熟\n双方为预计年内成熟的活跃个体；实际配种需核对体况与记录。\n加入配对比较\n加入年度计划\n孟德尔后代概率\n\n按 loci 分离计算；组合形态仅在所需位点均可计算时派生\n\n白化\ngene:albino\n白化 表现\n50%\n白化 隐性携带\n50%\n综合后代基因型\n共 2 种可计算组合；默认显示前 15 种\n全部基因\n含 白化\n白化\n50%\n隐白化\n50%\n不同位点按独立分离计算；当前数据库未保存连锁与共同亲本导致的联合携带概率。\n显性 visual 按杂合、super 按纯合计算；若实际剂量未知，结果应视为估算。\nAI 配对建议\n\n固定 Prompt、模型、时间与审核状态均会保存\n\n分析当前配对\n固定 Prompt 尚未加载\n\n请先执行 AI 决策层 SQL 迁移，然后刷新页面。\n\n尚无本轮 AI 分析。\n系统推荐候选\n\n按当前年份和策略匹配分排序\n\n母蛇\t公蛇\t系列关系\t成熟\t策略分\t用途\nF01 · 白化测试母蛇\tM01 · 白化测试公蛇\t同系列\tREADY\t100\t白化\nKEPT · 已留存自繁\tM01 · 白化测试公蛇\t战略跨系\tREADY\t60\t人工复核\nF01 · 白化测试母蛇\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nSOLD · 已售母蛇\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nKEPT · 已留存自繁\tRETIRED · 退役公蛇\t同系列\tFUTURE\t45\t同系强化\nSOLD · 已售母蛇\tM01 · 白化测试公蛇\t战略跨系\tFUTURE\t30\t人工复核",
+    "buttons": [
+      {
+        "text": "加入配对比较",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "加入年度计划",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "分析当前配对",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "admin",
+    "label": "数据与审核看板",
+    "pageOverflow": false,
+    "text": "AUTHORIZED WORKSPACE\n数据与审核看板\n\n只有 profiles 中 role 为 editor / admin 且 active=true 的登录用户才能写入。这里提供核心业务表与 AI 审核入口。\n\n↻ 刷新数据库\n＋ 新增\n核心数据表\n\n前端按钮只是体验层；真正权限由 Supabase RLS 控制。\n\n数据表\nSnakes\nAnnual plans\nInvestments\n原子基因\n基因黑话\n组合黑话\n审核表\n年度审核\n投资审核\nID\t系列\t基因\t性别\t状态\t战略分\t操作\nF01\tRed / Albino\t白化测试母蛇\tF\tactive\t70\t\n编辑\n停用\n删除\n\nM01\tAlbino\t白化测试公蛇\tM\tactive\t\t\n编辑\n停用\n删除\n\nSOLD\tRed\t已售母蛇\tF\tsold\t\t\n编辑\n停用\n删除\n\nRETIRED\tRed\t退役公蛇\tM\tretired\t\t\n编辑\n停用\n删除\n\nBABY\tRed\t基因待确认\tU\tactive\t\t\n编辑\n停用\n删除\n\nKEPT\tRed\t已留存自繁\tF\tactive\t\t\n编辑\n停用\n删除",
+    "buttons": [
+      {
+        "text": "↻ 刷新数据库",
+        "disabled": false,
+        "width": 93,
+        "height": 38
+      },
+      {
+        "text": "＋ 新增",
+        "disabled": false,
+        "width": 63,
+        "height": 38
+      },
+      {
+        "text": "Snakes",
+        "disabled": false,
+        "width": 66,
+        "height": 36
+      },
+      {
+        "text": "Annual plans",
+        "disabled": false,
+        "width": 100,
+        "height": 36
+      },
+      {
+        "text": "Investments",
+        "disabled": false,
+        "width": 95,
+        "height": 36
+      },
+      {
+        "text": "原子基因",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "基因黑话",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "组合黑话",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "年度审核",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "投资审核",
+        "disabled": false,
+        "width": 74,
+        "height": 36
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "停用",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "publishing",
+    "label": "公开展示",
+    "pageOverflow": false,
+    "text": "PUBLISHING / PUBLIC ARCHIVE\n\n公开展示\n\n在同一个体上管理公开资料、一口价售卖与拍卖。配置拍卖时自动带入个体；成交后进入意向与销售。\n\n新增展示档案\n当前显示 1 份配置\n暂无个体照片\n测试公开个体\nF01 / audit-f01\n缺公开照片\n已发布 在售\n一口价售卖\n¥1,800.00\n0 张内部 / 0 张选入公开\n发布预览\n编辑\n配置拍卖\n拍卖记录\n照片\n删除\n查看 ↗",
+    "buttons": [
+      {
+        "text": "新增展示档案",
+        "disabled": false,
+        "width": 94,
+        "height": 38
+      },
+      {
+        "text": "发布预览",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "配置拍卖",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "拍卖记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "照片",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "删除",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "auctions",
+    "label": "拍卖管理",
+    "pageOverflow": false,
+    "text": "AUCTIONS\n\n拍卖管理\n\n临近截止的有效出价自动延长截止时间。成交自动进入意向与销售，收款与交付由人工核实。\n\n创建拍卖\n刷新\n\n已开拍的规则不可修改。结拍任务每分钟执行；出价以服务器截止时间为准。待付款超过期限后，请先核实收款再取消预留。\n\n个体 / 场次\t价格 / 出价\t规则\t时间\t状态 / 操作\n测试公开个体\nF01 · 44444444\n\t¥1800\n5 次 · 加价至少 ¥50\n\t30 分钟无人出价结束\n成交后 2 小时内联系付款\n\t2026/10/1 08:00:00 开始\n2026/10/2 08:00:00 截止\n自动延时，无强制截止\n\t已成交\n查看\n出价记录\n处理成交",
+    "buttons": [
+      {
+        "text": "创建拍卖",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "出价记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "处理成交",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "sales",
+    "label": "意向与销售",
+    "pageOverflow": false,
+    "text": "SALES DESK / INQUIRIES\n\n意向与销售\n\n从联系到交付，保留每一次确认。已收款交易暂不支持直接取消，避免丢失账务历史。\n\n刷新\n处理中\n全部记录\n\n已读取 1 / 1 条意向；不作为全部历史成交额统计。\n\n意向 / 个体\t客户联系\t状态\t预留到期\t操作\nAUDIT001\nF01 · —\n\t测试买家\n测试联系\n\t已预留\t2026/10/1\n已到期，请人工处理\n\t处理 / 历史",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "处理中",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "全部记录",
+        "disabled": false,
+        "width": 80,
+        "height": 38
+      },
+      {
+        "text": "处理 / 历史",
+        "disabled": false,
+        "width": 39,
+        "height": 94
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "payments",
+    "label": "收款码与审核",
+    "pageOverflow": false,
+    "text": "收款审核\n\n先处理待审核付款，再进入意向与销售安排交付。截图金额由服务端识别，到账仍需核实。\n\n刷新\n付款记录\n待审核\n已确认\n已退回\n全部\n\n待审核 1 条。可切换分类查看历史记录；已核实订单继续在“意向与销售”处理交付。\n\n订单\t付款信息\tOCR / 状态\t操作\nAUDIT001\n2026/10/1 08:00:00\n\t未上传截图 · 测试转账\nAUDIT001\n\t手动填写 · 待人工确认\t查看 / 审核\n收款方式设置 微信 / 支付宝 / 收款码",
+    "buttons": [
+      {
+        "text": "刷新",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "待审核",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "已确认",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "已退回",
+        "disabled": false,
+        "width": 68,
+        "height": 38
+      },
+      {
+        "text": "全部",
+        "disabled": false,
+        "width": 56,
+        "height": 38
+      },
+      {
+        "text": "查看 / 审核",
+        "disabled": false,
+        "width": 49,
+        "height": 79
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 136,
+        "height": 38
+      },
+      {
+        "text": "",
+        "disabled": false,
+        "width": 125,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "records",
+    "label": "繁育与成长记录",
+    "pageOverflow": false,
+    "text": "HUSBANDRY / ACTUAL RECORDS\n\n繁育与成长记录\n\n记录已经发生的事实。年度计划不会自动变成配种、窝次或后代。\n\n新增记录\n配种事件 · 1\n窝次与孵化 · 1\n体重与成长 · 1\n\n已读取 1 条记录。\n\nF01 ♀ × M01 ♂\n2026/2/1 · 关联计划 #1 ·\n交配成功\n编辑\n记录窝次",
+    "buttons": [
+      {
+        "text": "新增记录",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      },
+      {
+        "text": "配种事件 · 1",
+        "disabled": false,
+        "width": 97,
+        "height": 38
+      },
+      {
+        "text": "窝次与孵化 · 1",
+        "disabled": false,
+        "width": 109,
+        "height": 38
+      },
+      {
+        "text": "体重与成长 · 1",
+        "disabled": false,
+        "width": 109,
+        "height": 38
+      },
+      {
+        "text": "编辑",
+        "disabled": false,
+        "width": 50,
+        "height": 38
+      },
+      {
+        "text": "记录窝次",
+        "disabled": false,
+        "width": 72,
+        "height": 38
+      }
+    ]
+  },
+  {
+    "device": "mobile",
+    "id": "annual-review",
+    "text": "年度计划审核\n通过后保留在本表并灰显，同时自动出现在年度产出页面。\nYEAR\t项目\t父本 × 母本\t目标\t来源\t操作\n2026\t已退回AI计划\t— × —\t—\tAI · 已退回\t\n审核已通过\n编辑"
+  },
+  {
+    "device": "mobile",
+    "id": "logic",
+    "data": {
+      "plannedClutches": 5,
+      "planRows": [
+        {
+          "id": 1,
+          "status": "planned",
+          "clutches": 3
+        },
+        {
+          "id": 2,
+          "status": "cancelled",
+          "clutches": 2
+        },
+        {
+          "id": 3,
+          "status": "planned",
+          "clutches": 1
+        }
+      ],
+      "labFemales": [
+        "F01",
+        "SOLD",
+        "KEPT"
+      ],
+      "labMales": [
+        "M01",
+        "RETIRED"
+      ],
+      "overviewActive": 4,
+      "stock": 5
+    },
+    "errors": []
+  }
+]

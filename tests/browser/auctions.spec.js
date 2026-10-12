@@ -31,18 +31,18 @@ for(const entry of ['management','publishing'])test(`staff can configure an auct
  const fixture={snakes:[{id:'S1',series:'测试',sex:'F',gene_text:'测试蛇',status:'active',price:1000}],specimen_listings:[{id:'${listing}',snake_id:'S1',slug:'auction-test',title:'测试拍卖蛇',published:true,sale_status:'available',currency:'CNY'}]};
  window.supabase={createClient:()=>({auth:{onAuthStateChange(){},getSession:async()=>({data:{session:{user,access_token:'test'}}})},from(table){const chain={select(){return this},order(){return this},limit(){return this},range(){return this},eq(){return this},maybeSingle:async()=>({data:{...user,role:'admin',active:true,display_name:'staff'}}),then(resolve){resolve({data:fixture[table]||[],count:(fixture[table]||[]).length,error:null})}};return chain;},rpc:async(name,args)=>{if(name==='create_auction'){window.createdAuction=args;fixture.auctions=[{id:'${auction}',listing_id:args.p_listing,status:'open',start_price:args.p_price,increment:args.p_increment,idle_minutes:args.p_idle,starts_at:args.p_starts,ends_at:new Date(Date.now()+86400000).toISOString(),hard_ends_at:new Date(Date.now()+259200000).toISOString(),payment_hours:args.p_payment_hours,bid_count:0}];return {data:'${auction}',error:null};}return {data:[],error:null};}})};` }));
  await page.goto('/admin');await expect(page.locator('#authGate')).toBeHidden();
- const nav=page.viewportSize().width<833?'.mobileNav':'.sidebar';
+ const nav=page.viewportSize().width<833?'.mobileNav':'.sidebar';const go=async p=>{const target=page.locator(nav+' [data-page="'+p+'"]');if(nav==='.mobileNav'&&!await target.isVisible())await page.locator('#mobileMore').click();await target.click();};
  for(const name of ['auctions','payments']){
   await expect(page.locator(nav+' [data-page='+name+'] .navIcon svg')).toHaveCount(1);
   if(nav==='.sidebar')await expect(page.locator(nav+' [data-page='+name+'] .navIcon svg')).toBeVisible();
   else await expect(page.locator('.mobile-nav-group[aria-label="经营"] [data-page='+name+']')).toHaveCount(1);
  }
  if(entry==='publishing'){
-  await page.locator(nav+' [data-page=publishing]').click();
-  await page.locator('#workspacePublishing').getByRole('button',{name:'配置拍卖',exact:true}).click();
+  await go('publishing');
+  await page.locator('#workspacePublishing summary').filter({hasText:'更多操作'}).click();await page.locator('#workspacePublishing').getByRole('button',{name:'配置拍卖',exact:true}).click();
   await expect(page.getByLabel('拍卖个体',{exact:true})).toHaveValue(listing);
  }else{
-  await page.locator(nav+' [data-page=auctions]').click();
+  await go('auctions');
   await page.getByRole('button',{name:'创建拍卖',exact:true}).click();await page.getByLabel('拍卖个体',{exact:true}).selectOption(listing);
  }
  await page.getByLabel('起拍价（元）',{exact:true}).fill('1500');await page.getByLabel('无人继续出价结束间隔（分钟）',{exact:true}).fill('10');await page.getByRole('button',{name:'确认创建拍卖',exact:true}).click();
@@ -56,7 +56,7 @@ for(const entry of ['management','publishing'])test(`staff can configure an auct
   await expect(page.locator('#workspaceDialog [name=currency]')).toBeDisabled();
   await page.locator('#workspaceDialog').getByRole('button',{name:'取消',exact:true}).click();
   await page.screenshot({path:`artifacts/publishing-auction-${test.info().project.name}.png`,fullPage:true});
-  await page.locator('#workspacePublishing').getByRole('button',{name:'管理拍卖',exact:true}).click();
+  await page.locator('#workspacePublishing summary').filter({hasText:'更多操作'}).click();await page.locator('#workspacePublishing').getByRole('button',{name:'管理拍卖',exact:true}).click();
   await expect(page.getByRole('button',{name:'查看全部场次',exact:true})).toBeVisible();
  }
  await expect(page.locator('#workspaceAuctions')).toContainText('10 分钟无人出价结束');
