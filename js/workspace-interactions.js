@@ -6,7 +6,7 @@
   document.addEventListener('keydown',event=>{
     if(document.querySelector('dialog[open]'))return;
     const modal=[...document.querySelectorAll('.modalBackdrop.open')].at(-1);if(!modal)return;
-    if(event.key==='Escape'){event.preventDefault();closeModal(modal.id);return;}
+    if(event.key==='Escape'){if(event.isComposing)return;if(modal.id==='editModal')return;event.preventDefault();const cancel=modal.querySelector('[data-close-modal]');if(cancel)cancel.click();else closeModal(modal.id);return;}
     if(event.key!=='Tab')return;
     const focusable=[...modal.querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')].filter(el=>!el.disabled&&el.getClientRects().length);
     if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);

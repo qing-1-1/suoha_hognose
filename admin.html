@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/assets/workspace-upgrades.css">
 <link rel="stylesheet" href="/assets/interface-polish.css">
 <link rel="stylesheet" href="/assets/individual-photos.css">
+<link rel="stylesheet" href="/assets/snake-entry.css">
 <link rel="stylesheet" href="/assets/auctions.css">
 <script defer src="/js/individual-photos.js"></script>
 <link rel="stylesheet" href="/assets/brand-world.css">
@@ -149,7 +150,7 @@
   <div class="kpis" id="popKpis"></div>
   <div class="grid3">
     <div class="card"><div class="cardHead"><div><h3>性别结构</h3><p id="sexStructureMeta">等待种群数据</p></div></div><div class="cardBody" id="sexChart"></div></div>
-    <div class="card"><div class="cardHead"><div><h3>系列分布</h3></div></div><div class="cardBody"><div class="bars" id="seriesBars"></div></div></div>
+    <div class="card"><div class="cardHead"><div><h3>系列分布</h3><p>同一个体可计入多个系列</p></div></div><div class="cardBody"><div class="bars" id="seriesBars"></div></div></div>
     <div class="card"><div class="cardHead"><div><h3>成熟节奏</h3><p>累计可繁公母</p></div></div><div class="cardBody"><div class="chartArea" id="maturityChart"></div></div></div>
   </div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>成熟年份切片</h3><p>点击年份会同步所有页面</p></div></div><div class="cardBody"><div class="maturityStrip" id="maturityStrip"></div></div></div>
@@ -299,6 +300,7 @@
 <!-- AI defines its analysis functions first; app.js installs the UI wrappers and starts the app. -->
 <script src="/js/ai.js"></script>
 <script src="/js/genetics.js"></script>
+<script src="/js/snake-entry.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/workspace.js"></script>
 <script src="/js/auction-admin.js"></script>

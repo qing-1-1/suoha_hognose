@@ -77,6 +77,8 @@ test('individual editor manages a private photo library without losing unsaved a
   expect(await page.evaluate(()=>photoFixture.specimen_media.length)).toBe(1);
   expect(await page.evaluate(()=>photoFixture.removed.includes(photoFixture.uploads.at(-2).path))).toBe(true);
   await page.locator('#editModal').getByRole('button',{name:'取消',exact:true}).click();
+  await expect(page.locator('#workflowModal')).toContainText('放弃本次个体修改');
+  await page.locator('#workflowModal').getByRole('button',{name:'放弃修改',exact:true}).click();
   await expect(page.locator('#editModal')).not.toBeVisible();
   expect(await page.evaluate(()=>photoFixture.snakes[0].notes)).toBeUndefined();
   expect(await page.evaluate(()=>photoFixture.specimen_media.length)).toBe(1);

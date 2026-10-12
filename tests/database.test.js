@@ -110,6 +110,12 @@ test('migrations enforce public boundary, transaction states and actual offsprin
  await db.exec(fs.readFileSync('supabase/migrations/026_public_media_selection.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/027_growth_and_batch_registration.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/028_specimen_thumbnails.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/035_snake_multiple_series.sql','utf8'));
+ await db.exec("update snakes set series_names=array['Red','Albino'] where id='M01'");
+ for(const series of ['Red','Albino'])assert.equal((await db.query('select public_catalog_v2(p_series=>$1) as data',[series])).rows[0].data.total,1);
+ await db.exec("select rename_snake_series('Red','Scarlet')");
+ assert.equal((await db.query("select public_catalog_v2(p_series=>'Red') as data")).rows[0].data.total,0);
+ assert.equal((await db.query("select public_catalog_v2(p_series=>'Scarlet') as data")).rows[0].data.total,1);
  const thumb='11111111-1111-4111-8111-111111111111/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp';
  await db.query("update specimen_media set thumbnail_path=$1 where caption='原有照片'",[thumb]);
  await assert.rejects(db.query("update specimen_media set thumbnail_path='22222222-2222-4222-8222-222222222222/aaaa.webp' where caption='原有照片'"),/specimen_thumbnail_path/);
