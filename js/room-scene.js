@@ -11,7 +11,7 @@
   const ellipsize=(text,width,font)=>{const chars=Array.from(text),units=chars.map(c=>c.codePointAt(0)<256?.58:1),limit=width/font;if(units.reduce((a,b)=>a+b,0)<=limit)return text;let used=0,index=0;while(index<chars.length&&used+units[index]<=limit-1){used+=units[index++];}return chars.slice(0,index).join('')+'…';};
   class RoomScene {
     constructor(host, callbacks = {}) {
-      this.host = host; this.callbacks = callbacks; this.state = {view:'plan',config:{width:5000,depth:4000,cabinets:[]}};
+      this.host = host; this.callbacks = callbacks; this.state = {view:'perspective',config:{width:5000,depth:4000,cabinets:[]}};
       this.camera = {zoom:1,x:0,y:0}; this.cameras={};this.animations=[];this.overlays=[];this.pointer = null; this.pointers = new Map(); this.uid = `rw${Math.random().toString(36).slice(2,9)}`;
       this.orbit={yaw:Math.PI/4,pitch:.5};
       this.host.classList.add('rw-scene-host');
@@ -31,9 +31,16 @@
         if(source){const rect=source.getBoundingClientRect(),clone=this.svg.cloneNode(true);clone.setAttribute('aria-hidden','true');clone.removeAttribute('role');clone.querySelectorAll('[tabindex],button').forEach(el=>el.setAttribute('tabindex','-1'));if(oldView!=='cabinet'){const world=clone.querySelector('.rw-scene-world');[...world.children].forEach(el=>{if(el.dataset.cabinet!==String(next.cabinetId))el.remove();});}snapshot={rect,clone,cabinetId:next.cabinetId||oldCabinet};}
       }
       this.pulseNow=next.highlightPulse===true||(next.highlightPulse!==false&&next.hoverDate&&next.hoverDate!==this.state.hoverDate);
+      this.locationPulseNow=!!next.focusSlotId&&(next.focusSlotId!==this.state.focusSlotId||next.locationPulse===true);
       this.state = {...this.state,...next,...(next.config?{config:structuredClone(next.config)}:{})};
       if(oldView!==this.state.view){this.cameras[oldView]={...this.camera};this.camera={...(this.cameras[this.state.view]||{zoom:1,x:0,y:0})};}
-      if(this.state.view==='cabinet'&&oldCabinet!==this.state.cabinetId)this.camera={zoom:1,x:0,y:0};
+      if(this.state.view==='cabinet'&&(oldView!=='cabinet'||oldCabinet!==this.state.cabinetId)){
+        const c=this.state.config.cabinets.find(c=>c.id===this.state.cabinetId);
+        const scale=c?Math.min((this.svg.clientWidth||800)/(c.width+280),(this.svg.clientHeight||640)/(c.height+280)):1;
+        const heights=c?.type==='incubator'?global.SuohaRoomModel.incubatorLayout(c).boxes.map(b=>b.height):(c?.levels||[]).filter(l=>l.slots?.length).map(l=>Math.min(num(l.height,150)-22,num(l.boxHeight,num(l.height,150)-22)));
+        const smallest=Math.max(1,Math.min(...heights));
+        this.camera={zoom:Math.max(1,Math.min(4,48/(smallest*scale))),x:0,y:0};
+      }
       this.render();
       if(oldView!==this.state.view||oldCabinet!==this.state.cabinetId) this.transition(oldView,snapshot);
     }
@@ -83,6 +90,13 @@
     up(e) {this.pointers.delete(e.pointerId);if(this.pointers.size<2)this.pinch=null;const p=this.pointer;if(!p)return;if(p.cab&&p.moved){const c=this.cabinets.find(c=>String(c.id)===p.cab);this.callbacks.onMove?.({cabinetId:c.id,x:c.x,z:c.z,rotation:c.rotation});}this.preventClick=p.moved;this.clickTarget=p.moved?null:p.target;this.pointer=null;}
     activate(e) {if(this.preventClick){this.preventClick=false;return;}const target=e.target.closest('[data-slot],[data-cabinet]')||this.clickTarget;this.clickTarget=null;const slot=target?.closest('[data-slot]');if(slot){this.callbacks.onSlot?.(slot.dataset.slot);return;}const cab=target?.closest('[data-cabinet]');if(cab)this.callbacks.onCabinet?.(cab.dataset.cabinet);}
     focusSlot(slotId) {const target=[...this.world.querySelectorAll('[data-slot]')].find(el=>el.dataset.slot===String(slotId));target?.focus({preventScroll:true});return !!target;}
+    highlightSlot(slotId) {
+      if(slotId==null){this.update({focusSlotId:null});return true;}
+      const cabinet=(this.state.config.cabinets||[]).find(c=>(c.levels||[]).some(l=>(l.slots||[]).some(s=>String(s.id)===String(slotId))));
+      if(!cabinet)return false;
+      this.callbacks.onViewChange?.({view:'cabinet',cabinetId:cabinet.id});
+      this.update({view:'cabinet',cabinetId:cabinet.id,focusSlotId:String(slotId),locationPulse:true});this.focusSlot(slotId);return true;
+    }
     ensureVisible(target) {
       if(!this.fitted)return;const host=this.svg.getBoundingClientRect(),rect=target.getBoundingClientRect(),margin=16;
       const dx=rect.width>host.width-2*margin?rect.left+rect.width/2-host.left-host.width/2:rect.left<host.left+margin?rect.left-host.left-margin:rect.right>host.right-margin?rect.right-host.right+margin:0;
@@ -100,13 +114,17 @@
     }
     slotTasks(id) {const state=this.state,dates=state.selectedDates instanceof Set?[...state.selectedDates]:state.selectedDates;return (state.tasks||[]).filter(t=>String(t.slotId??t.slot_id)===String(id)&&(!t.status||t.status==='pending')&&(state.hoverDate?t.date===state.hoverDate:!dates?.length||dates.includes(t.date)));}
     face(id) {
-      const tasks=this.slotTasks(id), dates=[...new Set(tasks.map(t=>t.date))].sort();
-      if(!dates.length)return {fill:`url(#${this.uid}-glass)`,stroke:'#9faeac',dates:[],pulse:''};
+      const cabinet=this.slotCabinets?.get(String(id)),eggBox=cabinet?.type==='incubator'&&cabinet.purpose==='eggs',located=String(this.state.focusSlotId??'')===String(id);
+      const pulse=located&&this.locationPulseNow&&!global.matchMedia?.('(prefers-reduced-motion: reduce)').matches?' rw-day-pulse':'';
+      const tasks=cabinet?.type==='incubator'?[]:this.slotTasks(id), dates=[...new Set(tasks.map(t=>t.date))].sort();
+      if(!dates.length)return {fill:located?'#f5db91':eggBox?'#eae5cf':`url(#${this.uid}-glass)`,stroke:located?'#c58924':'#9faeac',dates:[],pulse};
       const palette=global.SuohaRoomModel?.dayColors||colors;
       const dateColors=dates.map(d=>palette[dayIndex(d)]||colors[dayIndex(d)]),gradient=`${this.uid}-slot-${this.faceCounter++}`;
       this.extraDefs+=`<linearGradient id="${gradient}" x1="0" x2="1" y1="0" y2="0">${dateColors.map((c,i)=>`<stop offset="${i/dateColors.length}" stop-color="${escape(c)}"/><stop offset="${(i+1)/dateColors.length}" stop-color="${escape(c)}"/>`).join('')}</linearGradient>`;
-      return {fill:`url(#${gradient})`,stroke:dateColors[0],dates,pulse:this.state.hoverDate&&this.pulseNow?' rw-day-pulse':''};
+      return {fill:`url(#${gradient})`,stroke:located?'#c58924':dateColors[0],dates,pulse:pulse||(this.state.hoverDate&&this.pulseNow?' rw-day-pulse':'')};
     }
+    incubation(id) {return (this.state.incubations||[]).find(row=>String(row.slot_id??row.slotId)===String(id));}
+    occupancy(c) {return (c.levels||[]).flatMap(l=>l.slots||[]).filter(s=>c.type==='incubator'&&c.purpose==='eggs'?this.incubation(s.id):this.snake(s.id)).length;}
     snake(id) {
       const assignments=this.state.assignments||[], a=Array.isArray(assignments)?assignments.find(a=>String(a.slotId??a.slot_id)===String(id)):assignments[id];
       const snakeId=typeof a==='string'?a:a?.snakeId??a?.snake_id;
@@ -123,6 +141,7 @@
       }
       const active=document.activeElement,inScene=this.svg.contains(active),focus=inScene?{slot:active.dataset?.slot,cabinet:active.dataset?.cabinet,row:active.dataset?.row,column:active.dataset?.column}:null;
       this.room=this.state.config||{};this.room={width:5000,depth:4000,...this.room};this.cabinets=this.room.cabinets||[];this.extraDefs='';this.faceCounter=0;
+      this.slotCabinets=new Map(this.cabinets.flatMap(c=>(c.levels||[]).flatMap(l=>(l.slots||[]).map(s=>[String(s.id),c]))));
       this.host.dataset.view=this.state.view;this.host.classList.toggle('is-building',!!this.state.build);
       const c=this.cabinets.find(c=>String(c.id)===String(this.state.cabinetId));
       this.world.innerHTML=this.state.view==='cabinet'&&c?this.front(c):this.roomView();
@@ -132,10 +151,13 @@
       }
       this.svg.querySelector('defs').innerHTML=`<linearGradient id="${this.uid}-metal" x1="0" x2="1"><stop stop-color="#8b9798"/><stop offset=".22" stop-color="#edf1ed"/><stop offset=".5" stop-color="#c3cdca"/><stop offset=".8" stop-color="#f7f8f4"/><stop offset="1" stop-color="#879497"/></linearGradient><linearGradient id="${this.uid}-glass" x1="0" y1="0" x2=".2" y2="1"><stop stop-color="#e9efeb" stop-opacity=".94"/><stop offset=".3" stop-color="#d6e1dc" stop-opacity=".8"/><stop offset="1" stop-color="#afbfba" stop-opacity=".95"/></linearGradient><pattern id="${this.uid}-floor" width="500" height="140" patternUnits="userSpaceOnUse"><rect width="500" height="140" fill="#eee8db"/><path d="M0 0H500M0 0V140M240 65H485M12 100H230" stroke="#dfd5c4" stroke-width="3"/></pattern><filter id="${this.uid}-shadow" x="-40%" y="-40%" width="190%" height="200%"><feDropShadow dx="12" dy="25" stdDeviation="20" flood-color="#344939" flood-opacity=".2"/></filter>${this.extraDefs}`;
       this.host.querySelector('.rw-scene-caption').innerHTML=`<span>${this.state.view==='cabinet'?'CABINET / DETAIL':'HABITAT / '+(this.state.view==='plan'?'FLOOR PLAN':'SPATIAL VIEW')}</span><strong>${escape(this.state.view==='cabinet'&&c?c.name:this.room.name||'我的爬房')}</strong>`;
-      this.host.querySelector('.rw-scene-hint').textContent=this.state.view==='cabinet'?'点击盒子查看完整标签 · 方向键切换格位':this.state.view==='perspective'?(this.state.build?'拖动柜体摆放 · 拖动空白旋转视角':'拖动旋转视角 · Shift＋拖动平移 · 滚轮／双指缩放') :this.state.build?'拖动柜体调整位置 · 点击柜体展开':'点击柜体展开 · 拖动画布 · 滚轮缩放';
+      this.host.querySelector('.rw-scene-hint').textContent=this.state.view==='cabinet'?'拖动平移 · 缩放查看 · 点击盒子查看完整标签':this.state.view==='perspective'?(this.state.build?'拖动柜体摆放 · 拖动空白旋转视角':'拖动旋转视角 · Shift＋拖动平移 · 滚轮／双指缩放') :this.state.build?'拖动柜体调整位置 · 点击柜体展开':'点击柜体展开 · 拖动画布 · 滚轮缩放';
       this.applyCamera();
+      if(this.state.focusSlotId){const id=String(this.state.focusSlotId),button=[...this.world.querySelectorAll('[data-slot]')].find(el=>el.dataset.slot===id),face=button?.closest('.rw-model-slot')?.querySelector('.rw-box-face')||[...this.world.querySelectorAll('[data-plan-slot],[data-room-slot]')].find(el=>(el.dataset.planSlot||el.dataset.roomSlot)===id);if(face){face.dataset.located='true';face.style.stroke='#c58924';face.style.strokeWidth=String(this.state.view==='cabinet'?Math.max(5,3/Math.max(.01,face.getScreenCTM()?.a||1)):12);if(this.locationPulseNow)this.ensureVisible(button||face);}}
       if(focus&&!this.pointer?.moved){const cells=[...this.world.querySelectorAll('[data-slot]')],cabinets=[...this.world.querySelectorAll('[data-cabinet]')];const restored=cells.find(el=>el.dataset.slot===focus.slot)||cells.find(el=>el.dataset.slot===this.lastFocusedSlot)||cells.find(el=>el.dataset.row===focus.row&&el.dataset.column===focus.column)||cabinets.find(el=>el.dataset.cabinet===(focus.cabinet||this.state.cabinetId))||cells[0]||cabinets[0];restored?.focus({preventScroll:true});}
+      if(this.locationPulseNow&&this.state.view==='cabinet')this.focusSlot(this.state.focusSlotId);
       this.pulseNow=false;
+      this.locationPulseNow=false;
     }
     roomView() {
       const w=num(this.room.width,5000),d=num(this.room.depth,4000),h=num(this.room.height,2600),iso=this.state.view==='perspective';
@@ -169,6 +191,7 @@
       return out;
     }
     roomCabinet(c,p,iso) {
+      if(c.type==='incubator')return this.roomIncubator(c,p,iso);
       const w=num(c.width,1000),d=num(c.depth,600),height=num(c.height,1600),angle=num(c.rotation)*Math.PI/180;
       const q=(x,z,h=0)=>p(num(c.x)+x*Math.cos(angle)-z*Math.sin(angle),num(c.z)+x*Math.sin(angle)+z*Math.cos(angle),h);
       const base=[q(-w/2,-d/2),q(w/2,-d/2),q(w/2,d/2),q(-w/2,d/2)];
@@ -199,6 +222,27 @@
       }
       return out+'</g>';
     }
+    roomIncubator(c,p,iso) {
+      const w=num(c.width),d=num(c.depth),h=num(c.height),angle=num(c.rotation)*Math.PI/180,eggs=c.purpose==='eggs',layout=global.SuohaRoomModel.incubatorLayout(c);
+      const q=(x,z,y=0)=>p(num(c.x)+x*Math.cos(angle)-z*Math.sin(angle),num(c.z)+x*Math.sin(angle)+z*Math.cos(angle),y);
+      const side=Math.cos(this.orbit.yaw+angle)>=0?1:-1,front=(x,z,y=0)=>q(x*side,z*side,y),slots=(c.levels||[]).flatMap(l=>l.slots||[]);
+      let out=`<g data-cabinet="${escape(c.id)}" data-cabinet-type="incubator" class="rw-model-cabinet rw-incubator-model" role="button" tabindex="0" aria-label="${escape(c.name)}，${eggs?'蛋孵化':'冬化'}箱，${this.occupancy(c)}/${slots.length} 盒，点击展开"><title>${escape(c.name)} · ${eggs?'蛋盒独立记录':'蛇只冬化'} · 内部无隔板</title>`;
+      if(!iso){
+        out+=poly([q(-w/2,-d/2),q(w/2,-d/2),q(w/2,d/2),q(-w/2,d/2)],'class="rw-incubator-shell" fill="#ece8db" stroke="#aaa99a" stroke-width="25"');
+        const rows=c.levels||[],rowH=Math.min(65,(d-90)/Math.max(1,rows.length));rows.forEach((l,li)=>(l.slots||[]).forEach((s,i,arr)=>{const f=this.face(s.id),x=-w/2+30+i*(w-60)/arr.length,z=-(rows.length*rowH)/2+(rows.length-1-li)*rowH,bw=(w-60)/arr.length-10;out+=poly([q(x,z),q(x+bw,z),q(x+bw,z+rowH-9),q(x,z+rowH-9)],`class="rw-box-face${f.pulse}" data-plan-slot="${escape(s.id)}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="5"`);}));
+        out+=line(q(-w*.2,d/2-8),q(w*.2,d/2-8),'stroke="#8b968b" stroke-width="18"');
+      } else {
+        out+=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,h),front(-w/2,-d/2,h)],'class="rw-incubator-back" fill="#e1dece" fill-opacity="1" stroke="#a4aa9e" stroke-width="15"');
+        const visibleX=Math.sin(this.orbit.yaw+angle)>=0?w/2:-w/2;out+=poly([q(visibleX,-d/2),q(visibleX,d/2),q(visibleX,d/2,h),q(visibleX,-d/2,h)],'class="rw-incubator-shell" fill="#cfcec0" stroke="#a4aa9e" stroke-width="15"');
+        out+=poly([q(-w/2,-d/2,h),q(w/2,-d/2,h),q(w/2,d/2,h),q(-w/2,d/2,h)],'class="rw-incubator-shell" fill="#f3f0e5" stroke="#a4aa9e" stroke-width="15"');
+        out+=`<g class="rw-incubator-stack" data-stack-height="${layout.stackHeight}">`;
+        layout.boxes.forEach(b=>{const x=b.x-w/2,z=d/2-b.z,y=b.y,f=this.face(b.slotId);out+=poly([front(x,z,y),front(x+b.width,z,y),front(x+b.width,z,y+b.height),front(x,z,y+b.height)],`class="rw-box-face${f.pulse}" data-room-slot="${escape(b.slotId)}" data-stack-y="${y}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="4"`);out+=line(front(x+8,z+1,y+b.height-6),front(x+b.width-8,z+1,y+b.height-6),'stroke="#f9faf4" stroke-width="7"');const mark=front(x+b.width/2,z+2,y+b.height*.5);if(eggs&&this.incubation(b.slotId))out+=`<text x="${mark[0]}" y="${mark[1]}" text-anchor="middle" font-size="${Math.min(50,b.height*.28)}" fill="#697058">${num(this.incubation(b.slotId).egg_count)} 枚</text>`;});
+        out+='</g>';
+        [-w/2,w/2].forEach(x=>{out+=line(front(x,d/2,0),front(x,d/2,h),'stroke="#f2f0e6" stroke-width="25"');});
+        out+=line(front(-w/2,d/2,0),front(w/2,d/2,0),'stroke="#b0b4a7" stroke-width="18"');
+      }
+      return out+'</g>';
+    }
     cabinetLabel(c,p,iso) {
       const angle=num(c.rotation)*Math.PI/180,cx=num(c.x),cz=num(c.z),width=this.room.width,depth=this.room.depth;
       let nx=-Math.sin(angle),nz=Math.cos(angle);
@@ -207,31 +251,36 @@
       const offset=num(c.depth)/2+(Math.abs(nx)>.5?labelWidth/2+80:180);
       const x=Math.max(labelWidth/2+60,Math.min(width-labelWidth/2-60,cx+nx*offset));
       const z=Math.max(130,Math.min(depth-200,cz+nz*offset));
-      const label=p(x,z),slots=(c.levels||[]).flatMap(l=>l.slots||[]),occupied=slots.filter(s=>this.snake(s.id)).length;
-      return `<g class="rw-cabinet-label" data-label-cabinet="${escape(c.id)}" data-label-x="${x}" data-label-z="${z}" pointer-events="none"><rect x="${label[0]-labelWidth/2}" y="${label[1]-90}" width="${labelWidth}" height="210" rx="24" fill="#f9faf3" fill-opacity=".9"/><text x="${label[0]}" y="${label[1]}" text-anchor="middle" class="rw-cab-name">${escape(ellipsize(String(c.name),labelWidth-30,84))}</text><text x="${label[0]}" y="${label[1]+90}" text-anchor="middle" class="rw-cab-count">${occupied} / ${slots.length} 已入住</text></g>`;
+      const label=p(x,z),slots=(c.levels||[]).flatMap(l=>l.slots||[]),occupied=this.occupancy(c),purpose=c.type==='incubator'?(c.purpose==='eggs'?'孵化盒':'冬化盒'):'已入住';
+      return `<g class="rw-cabinet-label" data-label-cabinet="${escape(c.id)}" data-label-x="${x}" data-label-z="${z}" pointer-events="none"><rect x="${label[0]-labelWidth/2}" y="${label[1]-90}" width="${labelWidth}" height="210" rx="24" fill="#f9faf3" fill-opacity=".9"/><text x="${label[0]}" y="${label[1]}" text-anchor="middle" class="rw-cab-name">${escape(ellipsize(String(c.name),labelWidth-30,84))}</text><text x="${label[0]}" y="${label[1]+90}" text-anchor="middle" class="rw-cab-count">${occupied} / ${slots.length} ${purpose}</text></g>`;
     }
     front(c) {
-      const w=num(c.width,1000),h=num(c.height,1600),levels=c.levels||[],renderScale=Math.min((this.svg.clientWidth||800)/(w+280),(this.svg.clientHeight||640)/(h+280))*this.camera.zoom,compact=(this.host.clientWidth||800)<650;let out='',bottom=h;
-      out+=`<ellipse cx="${w/2}" cy="${h+25}" rx="${w*.6}" ry="35" fill="#879280" opacity=".14"/><rect x="-24" y="0" width="${w+48}" height="${h}" class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#97a59a" stroke-width="3"/><rect x="12" y="24" width="${w-24}" height="${h-60}" fill="#d7dfd7" fill-opacity="1"/><path d="M8 6V${h-25}H${w-8}V6" stroke="#a5b4aa" stroke-width="13" fill="none"/>`;
+      const w=num(c.width,1000),h=num(c.height,1600),levels=c.levels||[],renderScale=Math.min((this.svg.clientWidth||800)/(w+280),(this.svg.clientHeight||640)/(h+280))*this.camera.zoom,compact=(this.host.clientWidth||800)<650,incubator=c.type==='incubator',eggs=incubator&&c.purpose==='eggs',layout=incubator?global.SuohaRoomModel.incubatorLayout(c):null,stack=new Map((layout?.boxes||[]).map(b=>[String(b.slotId),b]));let out='',bottom=h;
+      out+=`<ellipse cx="${w/2}" cy="${h+25}" rx="${w*.6}" ry="35" fill="#879280" opacity=".14"/>`;
+      out+=incubator?`<rect x="-26" y="-18" width="${w+52}" height="${h+36}" rx="16" class="rw-incubator-shell" fill="#efece0" stroke="#aaa99a" stroke-width="8"/><rect x="0" y="0" width="${w}" height="${h}" class="rw-incubator-back" fill="#dedbcb" fill-opacity="1"/>`:`<rect x="-24" y="0" width="${w+48}" height="${h}" class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#97a59a" stroke-width="3"/><rect x="12" y="24" width="${w-24}" height="${h-60}" fill="#d7dfd7" fill-opacity="1"/><path d="M8 6V${h-25}H${w-8}V6" stroke="#a5b4aa" stroke-width="13" fill="none"/>`;
       levels.forEach((l,li)=>{const lh=num(l.height,150),top=bottom-lh,slots=l.slots||[];
-        out+=`<text x="-70" y="${top+lh/2}" text-anchor="end" class="rw-level-label">${String(li+1).padStart(2,'0')}</text>`;
-        slots.forEach((s,i)=>{const cellW=(w-36)/Math.max(1,slots.length),bw=Math.min(cellW-12,num(l.boxWidth,cellW-12)||cellW-12),bh=Math.min(lh-22,num(l.boxHeight,lh-22)||lh-22),x=18+i*cellW+(cellW-bw)/2,y=bottom-bh-8,f=this.face(s.id),snake=this.snake(s.id),name=snake?.code||snake?.name||snake?.id||'空盒';
-          const tasks=this.slotTasks(s.id),pending=(this.state.tasks||[]).filter(t=>String(t.slotId??t.slot_id)===String(s.id)&&(!t.status||t.status==='pending')).sort((a,b)=>String(a.dueAt||a.plannedAt||a.date+(a.time||'')).localeCompare(String(b.dueAt||b.plannedAt||b.date+(b.time||'')))),mouseTask=tasks[0]||pending[0];let mouse=mouseTask?(mouseTask.mouseMin!=null&&mouseTask.mouseMax!=null?`${mouseTask.mouseMin}–${mouseTask.mouseMax}g`:'待确认'):null;
+        const firstBox=stack.get(String(slots[0]?.id));out+=`<text x="-70" y="${firstBox?h-firstBox.y-firstBox.height/2:top+lh/2}" text-anchor="end" class="rw-level-label">${String(li+1).padStart(2,'0')}</text>`;
+        slots.forEach((s,i)=>{const box=stack.get(String(s.id)),cellW=(w-36)/Math.max(1,slots.length),bw=box?.width??Math.min(cellW-12,num(l.boxWidth,cellW-12)||cellW-12),bh=box?.height??Math.min(lh-22,num(l.boxHeight,lh-22)||lh-22),x=box?.x??18+i*cellW+(cellW-bw)/2,y=box?h-box.y-box.height:bottom-bh-8,f=this.face(s.id),snake=eggs?null:this.snake(s.id),incubation=eggs?this.incubation(s.id):null,name=eggs?(incubation?.clutch_code||incubation?.clutch_id||'空蛋盒'):snake?.code||snake?.name||snake?.id||'空盒';
+          const tasks=incubator?[]:this.slotTasks(s.id),pending=incubator?[]:(this.state.tasks||[]).filter(t=>String(t.slotId??t.slot_id)===String(s.id)&&(!t.status||t.status==='pending')).sort((a,b)=>String(a.dueAt||a.plannedAt||a.date+(a.time||'')).localeCompare(String(b.dueAt||b.plannedAt||b.date+(b.time||'')))),mouseTask=tasks[0]||pending[0];let mouse=mouseTask?(mouseTask.mouseMin!=null&&mouseTask.mouseMax!=null?`${mouseTask.mouseMin}–${mouseTask.mouseMax}g`:'待确认'):incubator&&!eggs?'冬化暂停喂食':null;
           const fields=this.state.labels||{},show=key=>Array.isArray(fields)?fields.includes(key):fields[key]!==false;
           const sex=snake?.sex==='male'||snake?.sex==='M'?'♂':snake?.sex==='female'||snake?.sex==='F'?'♀':snake?.sex||'';
-          const weight=global.SuohaRoomModel?.latestWeight(snake?.id,this.state.measurements||[])?.weight??tasks[0]?.weight;
-          if(!mouseTask&&weight!=null){const rule=global.SuohaRoomModel?.matchMouse(weight,this.state.config.rules||[]);if(rule)mouse=`${rule.mouseMin}–${rule.mouseMax}g`;}
+          const weight=eggs?null:global.SuohaRoomModel?.latestWeight(snake?.id,this.state.measurements||[])?.weight??tasks[0]?.weight;
+          if(!incubator&&!mouseTask&&weight!=null){const rule=global.SuohaRoomModel?.matchMouse(weight,this.state.config.rules||[]);if(rule)mouse=`${rule.mouseMin}–${rule.mouseMax}g`;}
           const gene=snake?.gene_text||snake?.gene_description||snake?.genetics||snake?.morph||snake?.genes||'';
           const details=[show('sex')?sex:'',show('weight')&&weight!=null?`${weight}g`:'',show('gene')&&typeof gene==='string'?gene:''].filter(Boolean).join(' · ');
           const nextTask=pending[0];let nextText=nextTask?`${nextTask.date} ${nextTask.time||''}`:'';
           if(nextTask?.dueAt&&Number.isFinite(Date.parse(nextTask.dueAt))){try{nextText=new Intl.DateTimeFormat('sv-SE',{timeZone:this.state.config.timezone||'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(nextTask.dueAt));}catch(_){/* Validated configuration normally supplies a valid IANA timezone. */}}
           const values={id:name,sex,gene:typeof gene==='string'?gene:'',weight:weight!=null?`${weight}g`:'',mouse:mouse||'',next:nextText,note:String(this.state.config.slotNotes?.[s.id]??'')};
-          const label=global.SuohaRoomLabels?.renderLabel({template:c.labelTemplate??this.state.config.labelTemplate,labels:this.state.labels??this.state.config.labels,values,compact:false})||{lines:[name,details,mouse].filter(Boolean),fontSize:12,align:'left',ariaLabel:[name,details,mouse,values.note].filter(Boolean).join('；')};
-          out+=`<g class="rw-model-slot"><title>${escape(label.ariaLabel)}</title><rect class="rw-box-face${f.pulse}" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="8" fill="${f.fill}" stroke="${f.stroke}" stroke-width="3"/><path d="M${x+8} ${y+bh*.15}H${x+bw-8}M${x+10} ${y+bh-10}H${x+bw-10}" stroke="#fff" stroke-opacity=".6" stroke-width="4"/><path d="M${x+8} ${y+bh-15}L${x+17} ${y+bh*.15}H${x+bw-17}L${x+bw-8} ${y+bh-15}" stroke="#fff" stroke-opacity=".38" stroke-width="4" fill="none"/><rect x="${x+bw*.32}" y="${y+9}" width="${bw*.36}" height="7" rx="3" fill="#70867a" opacity=".6"/>`;
+          let label=global.SuohaRoomLabels?.renderLabel({template:c.labelTemplate??this.state.config.labelTemplate,labels:this.state.labels??this.state.config.labels,values,compact:false})||{lines:[name,details,mouse].filter(Boolean),fontSize:12,align:'left',ariaLabel:[name,details,mouse,values.note].filter(Boolean).join('；')};
+          if(eggs){const parent=id=>{const animal=(this.state.snakes||[]).find(s=>String(s.id)===String(id));return animal?.code||animal?.name||id||'待确认';},status={incubating:'孵化中',hatched:'已出壳',closed:'已结束',lost:'损失记录'}[incubation?.status]||incubation?.status||'状态待确认',lines=incubation?[name,`${incubation.egg_count??'待确认'} 枚 · ${status}`,`母 ${parent(incubation.female_snake_id)} × 父 ${parent(incubation.male_snake_id)}`,incubation.expected_on?`预计 ${incubation.expected_on}`:'',incubation.plan_id?`计划 ${incubation.plan_id}`:'',incubation.notes,values.note].filter(Boolean):[name,'点击分配真实窝次'];label={lines,fontSize:12,align:'left',ariaLabel:lines.join('；')};}
+          out+=`<g class="rw-model-slot" data-content-kind="${eggs?'eggs':incubator?'brumation':'snake'}" ${box?`data-stack-y="${box.y}"`:''}><title>${escape(label.ariaLabel)}</title><rect class="rw-box-face${f.pulse}" x="${x}" y="${y}" width="${bw}" height="${bh}" rx="8" fill="${f.fill}" stroke="${f.stroke}" stroke-width="3"/><path d="M${x+8} ${y+bh*.15}H${x+bw-8}M${x+10} ${y+bh-10}H${x+bw-10}" stroke="#fff" stroke-opacity=".6" stroke-width="4"/><path d="M${x+8} ${y+bh-15}L${x+17} ${y+bh*.15}H${x+bw-17}L${x+bw-8} ${y+bh-15}" stroke="#fff" stroke-opacity=".38" stroke-width="4" fill="none"/><rect x="${x+bw*.32}" y="${y+9}" width="${bw*.36}" height="7" rx="3" fill="#70867a" opacity=".6"/>`;
           if(snake)out+=`<path d="M${x+bw*.2} ${y+bh*.8}C${x+bw*.65} ${y+bh*.3},${x+bw*.84} ${y+bh*.98},${x+bw*.45} ${y+bh*.8}S${x+bw*.32} ${y+bh*.44},${x+bw*.72} ${y+bh*.68}" stroke="#617b62" stroke-width="${Math.max(5,bh*.07)}" fill="none" opacity=".13" stroke-linecap="round"/>`;
           // Identification has its own header; the two information rows no longer spend one row on the ID.
-          const labelFont=label.fontSize/renderScale,lineHeight=labelFont*1.4,idFont=11/renderScale,pad=10,headerH=idFont*1.45+pad,bodyY=y+headerH;
-          const bodyLines=label.lines.filter(text=>text.trim()!==String(name).trim()),availableLines=Math.max(0,Math.min(2,Math.floor((bh-headerH-pad)/lineHeight))),visibleLines=bodyLines.slice(0,availableLines);
+          const idFont=10/renderScale,pad=4,headerH=idFont*1.4+pad,bodyY=y+headerH;
+          const bodyLines=label.lines.filter(text=>text.trim()!==String(name).trim()),wantedLines=Math.min(2,bodyLines.length);
+          const fittingFont=(bh-headerH-pad)*renderScale/(Math.max(1,wantedLines)*1.4);
+          const labelFont=Math.max(10,Math.min(label.fontSize,fittingFont))/renderScale,lineHeight=labelFont*1.4;
+          const availableLines=Math.max(0,Math.min(2,Math.floor((bh-headerH-pad)/lineHeight+1e-6))),visibleLines=bodyLines.slice(0,availableLines);
           const align=compact?'left':label.align,anchor={left:'start',center:'middle',right:'end'}[align]||'start',labelX=align==='center'?x+bw/2:align==='right'?x+bw-20:x+20;
           const dateFont=(compact?7:9)/renderScale,dateWidth=f.dates.length?Math.min(bw*.4,f.dates.length*dateFont+pad):0,idWidth=Math.max(0,bw-40-dateWidth);
           out+=`<rect x="${x+10}" y="${y+pad}" width="${bw-20}" height="${headerH-pad}" rx="3" fill="#fffff7" fill-opacity=".9"/><text class="rw-box-id" x="${x+20}" y="${y+pad+idFont}" font-size="${idFont}" fill="#263e2d" font-weight="600">${escape(ellipsize(String(name),idWidth,idFont))}</text>`;
@@ -239,9 +288,10 @@
           visibleLines.forEach((text,index)=>{const more=index===visibleLines.length-1&&bodyLines.length>visibleLines.length,short=ellipsize(text+(more?'…':''),bw-40,labelFont);out+=`<text class="rw-label-line" x="${labelX}" y="${bodyY+labelFont+index*lineHeight}" font-size="${labelFont}" text-anchor="${anchor}" fill="#59705c">${escape(short)}</text>`;});
           if(f.dates.length){out+=`<text class="rw-box-days" x="${x+bw-20}" y="${y+pad+idFont}" font-size="${Math.min(dateFont,(dateWidth-pad)/f.dates.length)}" text-anchor="end" fill="#163d29" font-weight="600">${escape(f.dates.map(d=>'一二三四五六日'[dayIndex(d)]).join(''))}</text>`;}
           out+=`<foreignObject x="${x}" y="${y}" width="${bw}" height="${bh}"><button xmlns="http://www.w3.org/1999/xhtml" type="button" class="rw-slot-hit" data-slot="${escape(s.id)}" data-row="${li}" data-column="${i}" title="${escape(label.ariaLabel)}" aria-label="${escape(`${c.name} 第${li+1}层 第${i+1}格，${name}；${label.ariaLabel}；点击查看完整详情`)}"></button></foreignObject></g>`;
-        });out+=`<rect x="-20" y="${bottom}" width="${w+40}" height="16" fill="url(#${this.uid}-metal)"/>`;bottom=top;});
-      [-21,w-3].forEach(x=>{out+=`<rect x="${x}" y="-15" width="25" height="${h+12}" rx="3" fill="url(#${this.uid}-metal)"/><circle cx="${x+12}" cy="${h+8}" r="20" fill="#53665c"/><circle cx="${x+12}" cy="${h+8}" r="11" fill="#c0c9bf"/>`;});
-      out+=`<rect x="-26" y="-20" width="${w+52}" height="26" rx="4" fill="url(#${this.uid}-metal)"/><text x="${w/2}" y="${h+100}" text-anchor="middle" font-size="27" fill="#7c8d77">${w} × ${num(c.depth)} × ${h} mm · ${levels.length} 层</text>`;
+        });if(!incubator)out+=`<rect class="rw-rack-shelf" x="-20" y="${bottom}" width="${w+40}" height="16" fill="url(#${this.uid}-metal)"/>`;bottom=top;});
+      if(incubator){out+=`<path d="M-12 -8V${h+9}H${w+12}V-8" class="rw-incubator-shell" stroke="#f4f1e7" stroke-width="22" fill="none"/>`;[18,w-48].forEach(x=>{out+=`<rect x="${x}" y="${h+18}" width="32" height="17" rx="4" fill="#8b9185"/>`;});}
+      else [-21,w-3].forEach(x=>{out+=`<rect x="${x}" y="-15" width="25" height="${h+12}" rx="3" fill="url(#${this.uid}-metal)"/><circle cx="${x+12}" cy="${h+8}" r="20" fill="#53665c"/><circle cx="${x+12}" cy="${h+8}" r="11" fill="#c0c9bf"/>`;});
+      out+=`<rect x="-26" y="-20" width="${w+52}" height="26" rx="4" fill="${incubator?'#f4f1e7':`url(#${this.uid}-metal)`}"/><text x="${w/2}" y="${h+100}" text-anchor="middle" font-size="27" fill="#7c8d77">${w} × ${num(c.depth)} × ${h} mm · ${levels.length} 层${incubator?' · '+(eggs?'蛋孵化':'冬化')+' · 无隔板堆叠':''}</text>`;
       if(!levels.length)out+=`<text x="${w/2}" y="${h/2}" text-anchor="middle" font-size="35" fill="#f3f6ee">空框架 · 在搭建模式添加第一层</text>`;
       this.bounds=[-140,-100,w+280,h+280];return out;
     }

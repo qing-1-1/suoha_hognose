@@ -35,14 +35,35 @@
     return next;
   }
   function createCabinet(options = {}) {
+    if(options.type==='incubator')return createIncubator(options);
     const cabinet = { id:options.id || uid('cabinet'), name:options.name || '银色爬柜', width:Number(options.width ?? 1200), depth:Number(options.depth ?? 500), height:Number(options.height ?? 1800), x:Number(options.x ?? (Number(options.width ?? 1200)/2+100)), z:Number(options.z ?? (Number(options.depth ?? 500)/2+100)), rotation:Number(options.rotation ?? 0), levels:[], schedule:null, slotSchedules:{}, ruleSetId:null };
     return resizeLevels(cabinet, options.levels || Array.from({length:5}, () => ({height:300,count:3,boxWidth:360,boxDepth:460,boxHeight:240})));
+  }
+  function resizeIncubator(cabinet,specs,box = {}) {
+    const first=specs[0]||cabinet.levels?.[0]||{},old=cabinet.levels?.[0]||{};
+    const dimensions={boxWidth:Number(box.boxWidth??first.boxWidth??old.boxWidth??360),boxDepth:Number(box.boxDepth??first.boxDepth??old.boxDepth??540),boxHeight:Number(box.boxHeight??first.boxHeight??old.boxHeight??240)};
+    return resizeLevels({...cabinet,type:'incubator',schedule:null,slotSchedules:{}},specs.map(spec=>({...spec,...dimensions,height:dimensions.boxHeight})));
+  }
+  function createIncubator(options = {}) {
+    const width=Number(options.width??1200),depth=Number(options.depth??600);
+    const cabinet={id:options.id||uid('incubator'),name:options.name||(options.purpose==='eggs'?'孵蛋箱':'冬化箱'),type:'incubator',purpose:options.purpose??'brumation',width,depth,height:Number(options.height??1800),x:Number(options.x??width/2+100),z:Number(options.z??depth/2+100),rotation:Number(options.rotation??0),levels:[],schedule:null,slotSchedules:{},ruleSetId:null};
+    return resizeIncubator(cabinet,options.levels||Array.from({length:5},()=>({count:3})),options);
+  }
+  // Cabinet-local coordinates: left/front origin in x/z, floor-origin y.
+  // Each logical row contributes only its present columns; no shelf gaps.
+  function incubatorLayout(cabinet) {
+    const heights=[],boxes=[];let columns=0;
+    (cabinet.levels||[]).forEach((level,row)=>{columns=Math.max(columns,level.slots?.length||0);(level.slots||[]).forEach((slot,column)=>{
+      const width=Number(level.boxWidth),depth=Number(level.boxDepth),height=Number(level.boxHeight),y=heights[column]||0;
+      boxes.push({slotId:slot.id,boxId:slot.box_id,levelId:level.id,row,column,x:column*width,y,z:0,width,depth,height});heights[column]=y+height;
+    });});
+    return {boxes,columns,stackHeight:Math.max(0,...heights)};
   }
   function cloneLevel(level) {
     return {id:uid('level'),height:Number(level.height),count:Number(level.count),boxWidth:Number(level.boxWidth),boxDepth:Number(level.boxDepth),boxHeight:Number(level.boxHeight),slots:Array.from({length:Number(level.count)},()=>({id:uid('slot'),box_id:uid('box')}))};
   }
   function cloneCabinet(cabinet, options = {}) {
-    return {id:uid('cabinet'),name:options.name || `${cabinet.name} 副本`,width:Number(cabinet.width),depth:Number(cabinet.depth),height:Number(cabinet.height),x:Number(options.x??cabinet.x),z:Number(options.z??cabinet.z),rotation:Number(cabinet.rotation),levels:cabinet.levels.map(cloneLevel),schedule:null,slotSchedules:{},ruleSetId:null,...(cabinet.labelTemplate?{labelTemplate:clone(cabinet.labelTemplate)}:{})};
+    return {id:uid('cabinet'),name:options.name || `${cabinet.name} 副本`,width:Number(cabinet.width),depth:Number(cabinet.depth),height:Number(cabinet.height),x:Number(options.x??cabinet.x),z:Number(options.z??cabinet.z),rotation:Number(cabinet.rotation),levels:cabinet.levels.map(cloneLevel),schedule:null,slotSchedules:{},ruleSetId:null,...(cabinet.type?{type:cabinet.type}:{}),...(cabinet.purpose?{purpose:cabinet.purpose}:{}),...(cabinet.labelTemplate?{labelTemplate:clone(cabinet.labelTemplate)}:{})};
   }
   function locateSlot(config,slotId) {
     for(const cabinet of config.cabinets||[])for(const level of cabinet.levels||[])for(const slot of level.slots||[])if(slot.id===slotId)return {cabinet,level,slot};
@@ -52,7 +73,8 @@
     const info=locateSlot(config,slotId);
     if(!info)return null;
     const independent=Object.prototype.hasOwnProperty.call(info.cabinet.slotSchedules||{},slotId);
-    return {cabinetId:info.cabinet.id,slotId,source:independent?'slot':'cabinet',schedule:clone((independent?info.cabinet.slotSchedules[slotId]:info.cabinet.schedule)??null),cabinetPaused:!!info.cabinet.schedule?.paused};
+    const rawSchedule=clone((independent?info.cabinet.slotSchedules[slotId]:info.cabinet.schedule)??null),suspended=info.cabinet.type==='incubator';
+    return {cabinetId:info.cabinet.id,slotId,source:independent?'slot':'cabinet',schedule:suspended?null:rawSchedule,rawSchedule,suspended,suspendReason:suspended?(info.cabinet.purpose==='eggs'?'孵蛋箱不安排蛇只喂食':'冬化期间暂停喂食'):null,cabinetPaused:!!info.cabinet.schedule?.paused||suspended};
   }
   function previewMove(snapshot,request,snakes,measurements,options) {
     const config=clone(snapshot.config),assignments=clone(snapshot.assignments||[]),records=clone(snapshot.records||[]),warnings=[],errors=[];
@@ -67,6 +89,14 @@
     if(!request.wholeBox&&request.sourceSlotId&&request.sourceSlotId!==originalSource?.slot_id)errors.push('来源格位已改变或已移空，请刷新后重新预览');
     if(request.wholeBox&&request.snakeId&&sourceAssignment?.snake_id!==request.snakeId)errors.push('来源蛇只已改变或盒子已移空，请刷新后重新预览');
     if(targetSlotId&&!target)errors.push('目标格位不存在');
+    if(target?.cabinet.type==='incubator'&&target.cabinet.purpose==='eggs')errors.push('孵蛋箱仅放蛋盒，不能放入蛇只');
+    if(mode==='carry'&&(source?.cabinet.type==='incubator'||target?.cabinet.type==='incubator'))errors.push('移入或移出孵化箱须采用目标计划，不能携带喂食排期');
+    if(request.wholeBox&&(source?.cabinet.type==='incubator'||target?.cabinet.type==='incubator'))errors.push('孵化箱只支持移动蛇只，不支持整盒交换');
+    for(const [animal,destination] of [[request.wholeBox?sourceAssignment?.snake_id:request.snakeId,target],[targetAssignment?.snake_id,source]]){
+      if(!animal||destination?.cabinet.type!=='incubator'||destination.cabinet.purpose!=='brumation')continue;
+      const locked=[...(snapshot.planned_tasks||[]).filter(t=>t.batch_id||t.batch_item_id),...(snapshot.locked_tasks||[]),...(snapshot.batches||[]).flatMap(b=>b.items||[])].filter(t=>t.snake_id===animal);
+      if(locked.some(t=>{const r=records.find(r=>r.snake_id===animal&&Date.parse(r.planned_at)===Date.parse(t.planned_at))||t.record;return !r||r.result==='offered';}))errors.push('进入冬化前须先完成或跳过已确认备料批次');
+    }
     if(request.wholeBox&&(!source||!target||sourceSlotId===targetSlotId))errors.push('整盒移动需要两个不同的实际格位');
     if(!request.wholeBox){const snake=snakes.find(s=>s.id===request.snakeId);if(!snake||(targetSlotId&&snake.status&&snake.status!=='active'))errors.push('仅在养蛇只可放入格位');}
     if(targetAssignment&&targetAssignment.snake_id!==request.snakeId&&(!request.swap||(!request.wholeBox&&!source)))errors.push('目标已有蛇只，请明确选择交换并提供原格位');
@@ -101,6 +131,8 @@
     result.affected=[...affectedIds].map(snakeId=>{const from=(snapshot.assignments||[]).find(a=>a.snake_id===snakeId)?.slot_id||null,to=result.assignments.find(a=>a.snake_id===snakeId)?.slot_id||null,beforeScheduleInfo=effectiveSchedule(snapshot.config,from),afterScheduleInfo=effectiveSchedule(config,to);return {snakeId,fromSlotId:from,toSlotId:to,beforeSchedule:beforeScheduleInfo?.schedule??null,afterSchedule:afterScheduleInfo?.schedule??null,beforeScheduleInfo,afterScheduleInfo,beforeTasks:result.beforeTasks.filter(t=>t.snakeId===snakeId),afterTasks:result.afterTasks.filter(t=>t.snakeId===snakeId)};});
     if(records.some(r=>affectedIds.has(r.snake_id)))warnings.push('既有实际喂食记录保留原柜位及鼠量；待确认投喂任务导航到新位置');
     if(result.afterTasks.some(t=>t.locked))warnings.push('已锁定备料保留确认时的安排，需复核新位置与计划差异');
+    if(target?.cabinet.type==='incubator')warnings.push('移入冬化箱后暂停喂食；移出时恢复目标格位的喂食计划');
+    if(source?.cabinet.type==='incubator')warnings.push('移出冬化箱后采用目标格位的喂食计划，原历史记录不迁移');
     return result;
   }
   function localParts(value, timezone) {
@@ -185,6 +217,9 @@
     if (!Array.isArray(config.cabinets)) return [...errors,'柜体列表无效'];
     for (const cabinet of config.cabinets) {
       const name=cabinet.name || '柜体';
+      if(cabinet.type!=null&&!['rack','incubator'].includes(cabinet.type))errors.push(name+'：柜体类型无效');
+      if(cabinet.type==='incubator'&&!['brumation','eggs'].includes(cabinet.purpose))errors.push(name+'：孵化箱用途须为冬化或孵蛋');
+      if(cabinet.type==='incubator'&&(cabinet.schedule!=null||Object.keys(cabinet.slotSchedules||{}).length))errors.push(name+'：孵化箱不支持喂食排期');
       for (const key of ['width','depth','height']) if (!positive(cabinet[key])) errors.push(name+'：柜体尺寸须为正数');
       if (Number(cabinet.height)>Number(config.height)) errors.push(name+'：柜体高于房间');
       if (![cabinet.x,cabinet.z,cabinet.rotation].every(numeric)) errors.push(name+'：位置或角度无效');
@@ -195,7 +230,12 @@
       if (polygons.some(other=>overlaps(corners,other))) errors.push(name+'：柜体与其他柜体重叠');
       polygons.push(corners);
       if (!Array.isArray(cabinet.levels) || !cabinet.levels.length) errors.push(name+'：至少需要一层');
-      if ((cabinet.levels||[]).reduce((n,l)=>n+Number(l.height),0)>Number(cabinet.height)) errors.push(name+'：层高合计超出柜高');
+      if (cabinet.type!=='incubator'&&(cabinet.levels||[]).reduce((n,l)=>n+Number(l.height),0)>Number(cabinet.height)) errors.push(name+'：层高合计超出柜高');
+      if(cabinet.type==='incubator'){
+        const first=cabinet.levels?.[0];
+        if((cabinet.levels||[]).some(l=>['boxWidth','boxDepth','boxHeight'].some(k=>Number(l[k])!==Number(first[k]))))errors.push(name+'：孵化箱各层须使用统一盒型');
+        if(incubatorLayout(cabinet).boxes.some(b=>b.x+b.width>Number(cabinet.width)+0.001||b.z+b.depth>Number(cabinet.depth)+0.001||b.y+b.height>Number(cabinet.height)+0.001))errors.push(name+'：堆叠盒子超出孵化箱空间');
+      }
       for (const level of cabinet.levels||[]) {
         if (!Number.isInteger(level.count) || level.count<1 || level.count>50 || level.slots?.length!==level.count) errors.push(name+'：每层格数或格位列表无效');
         if (![level.height,level.boxWidth,level.boxDepth,level.boxHeight].every(positive)) errors.push(name+'：层和盒子尺寸须为正数');
@@ -231,7 +271,7 @@
       if (!old || String(record.occurred_at||'')>String(old.occurred_at||'')) results.set(key,record);
     }
     for (const cabinet of config.cabinets||[]) {
-      if (cabinet.schedule?.paused) continue;
+      if (cabinet.schedule?.paused||cabinet.type==='incubator') continue;
       for (const level of cabinet.levels||[]) for (const slot of level.slots||[]) {
         const assignment=assignmentMap.get(slot.id); if (!assignment) continue;
         const schedule=Object.prototype.hasOwnProperty.call(cabinet.slotSchedules||{},slot.id) ? cabinet.slotSchedules[slot.id] : cabinet.schedule;
@@ -282,6 +322,7 @@
       const needsReview=!!locked&&!stored.result&&(!existing||['mouseMin','mouseMax','quantity','dueAt'].some((k,i)=>existing[k]!==[stored.mouse_min_g,stored.mouse_max_g,stored.quantity,dueAt][i])||locked.slot_id!==slotId);
       const task={...existing,id:`${stored.snake_id}:${plannedAt}`,snakeId:stored.snake_id,slotId,cabinetId:historical?stored.cabinet_id:rack?.id||null,date,time,plannedAt,dueAt,originalPlannedAt:plannedAt,weight:measured?.weight??null,measurementId:stored.measurement_id||measured?.measurementId||null,measuredAt:measured?.measuredAt||null,mouseMin:stored.mouse_min_g??null,mouseMax:stored.mouse_max_g??null,quantity:stored.quantity??null,status,warnings:[...(stored.warnings||[])],recordId:stored.result?stored.id:null,frozen:!stored.result,locked:!!locked,batchId:locked?.batch_id||null,batchItemId:locked?.batch_item_id||null,needsReview:needsReview||existing?.needsReview||false,snapshotSlotId:locked?.slot_id||stored.slot_id,snapshotCabinetId:locked?.cabinet_id||stored.cabinet_id};
       task.needsLocation=!historical&&!placement;task.ruleVersionId=stored.rule_version_id||locked?.rule_version_id||existing?.ruleVersionId||null;
+      if(!stored.result&&rack?.type==='incubator'){task.status='suspended';task.suspended=true;task.warnings.push('冬化期间暂停喂食');if(task.locked)task.needsReview=true;}
       if(index>=0)tasks[index]=task;else tasks.push(task);
     }
     const reserved=new Map();for(const task of tasks)if(task.locked)reserved.set(task.snakeId+':'+task.date,task);
@@ -292,15 +333,27 @@
     const dates=selectedDates && selectedDates.size!==undefined ? [...selectedDates] : selectedDates;
     const filtered=tasks.filter(t=>(!dates?.length || dates.includes(t.date)) && (!cabinetId || t.cabinetId===cabinetId));
     const unique=[...new Map(filtered.map(t=>[t.snakeId+':'+(t.plannedAt||t.date+'T'+t.time),t])).values()];
-    const groups=new Map();let unknownCount=0,pendingCount=0,completedCount=0;
+    const groups=new Map();let unknownCount=0,pendingCount=0,completedCount=0,suspendedCount=0;
     for (const task of unique) {
+      if(task.status==='suspended'){suspendedCount++;continue;}
       if (task.status!=='pending') {completedCount++;continue;} pendingCount++;
       if (!task.plannedAt || !positive(task.mouseMin) || !positive(task.mouseMax) || !Number.isInteger(task.quantity) || task.quantity<1) {unknownCount++;continue;}
       const key=task.mouseMin+':'+task.mouseMax;
       const group=groups.get(key)||{mouseMin:task.mouseMin,mouseMax:task.mouseMax,quantity:0,taskCount:0};
       group.quantity+=task.quantity;group.taskCount++;groups.set(key,group);
     }
-    return {groups:[...groups.values()].sort((a,b)=>a.mouseMin-b.mouseMin || a.mouseMax-b.mouseMax),pendingCount,completedCount,unknownCount,taskCount:unique.length,snakeCount:new Set(unique.map(t=>t.snakeId)).size};
+    return {groups:[...groups.values()].sort((a,b)=>a.mouseMin-b.mouseMin || a.mouseMax-b.mouseMax),pendingCount,completedCount,unknownCount,suspendedCount,taskCount:unique.length,snakeCount:new Set(unique.map(t=>t.snakeId)).size};
   }
-  return {defaultConfig,createCabinet,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,summarize,dayColors,cabinetCorners};
+  function feedingOverview(config,assignments,snakes,measurements,records,{now=Date.now(),lookaheadDays=366,plannedTasks=[],lockedTasks=[]}={}) {
+    if(!Number.isInteger(lookaheadDays)||lookaheadDays<1||lookaheadDays>366)throw new Error('查询未来天数须为 1–366');
+    const today=localDate(now,config.timezone),through=addDays(today,lookaheadDays),tasks=generateTasks(config,assignments,snakes,measurements,records,{from:today,to:through,now,plannedTasks,lockedTasks});
+    // Past-due history comes only from persisted snapshots, never recurrence reconstruction.
+    const pastDates=[...new Set([...plannedTasks,...lockedTasks,...(records||[]).filter(r=>r.result==='offered')].map(t=>t.due_at||t.planned_at).filter(t=>t&&!Number.isNaN(Date.parse(t))).map(t=>localDate(t,config.timezone)).filter(d=>d<today))];
+    const overdueTasks=pastDates.flatMap(date=>generateTasks({...config,cabinets:(config.cabinets||[]).map(c=>({...c,schedule:null,slotSchedules:{}}))},assignments,snakes,measurements,records,{from:date,to:date,now,plannedTasks,lockedTasks})).filter(t=>['pending','offered'].includes(t.status));
+    const todayTasks=tasks.filter(t=>t.date===today),future=tasks.filter(t=>t.status==='pending'&&t.dueAt&&Date.parse(t.dueAt)>=new Date(now).getTime()),nextByCabinet={},nextBySnake={};
+    for(const task of future){if(task.cabinetId&&!nextByCabinet[task.cabinetId])nextByCabinet[task.cabinetId]=task;if(!nextBySnake[task.snakeId])nextBySnake[task.snakeId]=task;}
+    overdueTasks.push(...todayTasks.filter(t=>['pending','offered'].includes(t.status)&&t.dueAt&&Date.parse(t.dueAt)<new Date(now).getTime()));
+    return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake};
+  }
+  return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,summarize,dayColors,cabinetCorners};
 });

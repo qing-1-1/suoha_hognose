@@ -3,6 +3,87 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../js/room-model.js');
 
+test('incubator default and sparse column stacks have no floating boxes or physical shelf gaps',()=>{
+  const c=M.createIncubator({levels:[{count:3},{count:1},{count:3}],purpose:'eggs'}),cfg=M.defaultConfig();cfg.cabinets=[c];
+  assert.equal(c.type,'incubator');assert.equal(c.purpose,'eggs');assert.deepEqual([c.width,c.depth,c.height],[1200,600,1800]);assert.deepEqual(M.validateConfig(cfg),[]);
+  const layout=M.incubatorLayout(c);assert.equal(layout.columns,3);assert.equal(layout.stackHeight,720);
+  assert.deepEqual(layout.boxes.filter(b=>b.column===1).map(b=>[b.row,b.x,b.y,b.height]),[[0,360,0,240],[2,360,240,240]]);
+  assert.ok(layout.boxes.every(b=>b.z===0));
+});
+
+test('incubator resizing retains stable identities by explicit level ID and normalizes shared box shape',()=>{
+  const c=M.createIncubator(),before=structuredClone(c),first=c.levels[0],second=c.levels[1];
+  const resized=M.resizeIncubator(c,[{id:second.id,count:2},{id:first.id,count:4}],{boxWidth:280,boxDepth:500,boxHeight:220});
+  assert.deepEqual(c,before);assert.deepEqual(resized.levels[0].slots[0],second.slots[0]);assert.deepEqual(resized.levels[1].slots[0],first.slots[0]);
+  assert.notEqual(resized.levels[1].slots[3].id,first.slots[0].id);assert.ok(resized.levels.every(l=>l.height===220&&l.boxWidth===280&&l.boxDepth===500));
+  const copied=M.cloneCabinet(c);assert.equal(copied.type,'incubator');assert.equal(copied.purpose,'brumation');assert.equal(copied.schedule,null);assert.deepEqual(copied.slotSchedules,{});assert.notEqual(copied.levels[0].slots[0].box_id,first.slots[0].box_id);
+});
+
+test('incubator validation rejects unsupported type, purpose, nonuniform boxes, overflow and feeding schedules',()=>{
+  const cfg=M.defaultConfig(),c=M.createIncubator();cfg.cabinets=[c];
+  c.type='unknown';assert.ok(M.validateConfig(cfg).some(e=>e.includes('类型')));c.type='incubator';c.purpose='unknown';assert.ok(M.validateConfig(cfg).some(e=>e.includes('用途')));c.purpose='eggs';
+  c.levels[1].boxWidth=300;assert.ok(M.validateConfig(cfg).some(e=>e.includes('统一盒型')));c.levels[1].boxWidth=360;
+  c.height=1100;assert.ok(M.validateConfig(cfg).some(e=>e.includes('超出孵化箱')));c.height=1800;
+  c.schedule=fixture().cabinet.schedule;assert.ok(M.validateConfig(cfg).some(e=>e.includes('不支持喂食')));
+  c.schedule=null;c.slotSchedules[c.levels[0].slots[0].id]=null;assert.ok(M.validateConfig(cfg).some(e=>e.includes('不支持喂食')));
+});
+
+test('brumation suppresses recurrence and excludes frozen pending from feed supplies without deleting actual history',()=>{
+  const f=fixture();f.cabinet.type='incubator';f.cabinet.purpose='brumation';
+  const s=M.effectiveSchedule(f.config,f.slot.id);assert.equal(s.suspended,true);assert.equal(s.schedule,null);assert.equal(s.rawSchedule.mode,'weekly');
+  assert.deepEqual(M.generateTasks(...f.args),[]);
+  const frozen={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:'2026-10-12T10:00:00Z',due_at:'2026-10-12T10:00:00Z',quantity:2,mouse_min_g:7,mouse_max_g:11};
+  const tasks=M.generateTasks(f.config,f.assignments,f.snakes,f.measurements,[],{...f.args[5],now:'2026-10-15',plannedTasks:[frozen]});
+  assert.equal(tasks[0].status,'suspended');assert.equal(M.summarize(tasks).pendingCount,0);assert.equal(M.summarize(tasks).completedCount,0);assert.equal(M.summarize(tasks).suspendedCount,1);assert.deepEqual(M.summarize(tasks).groups,[]);
+  const actual=M.generateTasks(f.config,f.assignments,f.snakes,f.measurements,[{...frozen,id:'actual',result:'fed'}],{...f.args[5],now:'2026-10-15',plannedTasks:[frozen]});assert.equal(actual[0].status,'completed');
+});
+
+test('incubator move preview forbids eggs and carry, pauses winter tasks and resumes destination recurrence',()=>{
+  const f=fixture(),winter=M.createIncubator({x:2600,purpose:'brumation'});f.config.cabinets.push(winter);
+  const snapshot={config:f.config,assignments:f.assignments,records:[],planned_tasks:[]},target=winter.levels[0].slots[0].id,options={from:'2026-10-12',to:'2026-10-18',now:'2026-10-12T00:00:00Z'};
+  const request={snakeId:'A',targetSlotId:target,scheduleMode:'inherit'};
+  winter.purpose='eggs';assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('蛋盒')));winter.purpose='brumation';
+  assert.ok(M.previewMove(snapshot,{...request,scheduleMode:'carry'},f.snakes,f.measurements,options).errors.some(e=>e.includes('不能携带')));
+  const moved=M.previewMove(snapshot,request,f.snakes,f.measurements,options);assert.deepEqual(moved.errors,[]);assert.equal(moved.afterTasks.length,0);assert.equal(moved.affected[0].afterScheduleInfo.suspended,true);assert.ok(moved.warnings.some(w=>w.includes('暂停喂食')));
+  const returned=M.previewMove({...snapshot,assignments:moved.assignments},{snakeId:'A',targetSlotId:f.slot.id},f.snakes,f.measurements,options);assert.deepEqual(returned.errors,[]);assert.equal(returned.afterTasks.length,2);assert.equal(returned.affected[0].afterScheduleInfo.suspended,false);
+});
+
+test('entering brumation requires resolving confirmed batch including already offered meals',()=>{
+  const f=fixture(),winter=M.createIncubator({x:2600});f.config.cabinets.push(winter);
+  const item={snake_id:'A',planned_at:'2026-10-16T10:00:00Z',batch_id:'b',batch_item_id:'i'},snapshot={config:f.config,assignments:f.assignments,records:[],planned_tasks:[item]},request={snakeId:'A',targetSlotId:winter.levels[0].slots[0].id},options={from:'2026-10-12',to:'2026-10-18',now:'2026-10-12'};
+  assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('备料批次')));
+  snapshot.records=[{...item,result:'offered'}];assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('备料批次')));
+  snapshot.records[0].result='skipped';assert.deepEqual(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors,[]);
+});
+
+test('feeding overview searches beyond current week and respects completed meals and timezone date',()=>{
+  const f=fixture();f.cabinet.schedule={mode:'interval',start:'2026-11-02',time:'18:00',interval:30,quantity:1};
+  const now='2026-10-18T16:30:00Z',view=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now});
+  assert.equal(view.today,'2026-10-19');assert.equal(view.nextTask.date,'2026-11-02');assert.equal(view.nextByCabinet[f.cabinet.id].snakeId,'A');assert.equal(view.nextBySnake.A.date,'2026-11-02');assert.deepEqual(view.todayTasks,[]);assert.deepEqual(view.overdueTasks,[]);
+  const record={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:view.nextTask.plannedAt,result:'fed',mouse_min_g:7,mouse_max_g:11,quantity:1};
+  assert.equal(M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[record],{now}).nextTask.date,'2026-12-02');
+  assert.equal(M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now,lookaheadDays:7}).nextTask,null);assert.throws(()=>M.feedingOverview(f.config,f.assignments,f.snakes,[],[],{now,lookaheadDays:367}),/366/);
+});
+
+test('feeding overview reports persisted overdue and today unknown counts without reconstructing past recurrence',()=>{
+  const f=fixture(),now='2026-10-14T00:00:00Z';f.cabinet.schedule.quantity=null;
+  const empty=M.feedingOverview(f.config,f.assignments,f.snakes,[],[],{now});assert.equal(empty.overdueTasks.length,0);assert.equal(empty.unknownTasks.length,1);assert.equal(empty.todaySummary.unknownCount,1);
+  const persisted={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:'2026-10-12T10:00:00Z',due_at:'2026-10-12T10:00:00Z',mouse_min_g:7,mouse_max_g:11,quantity:2};
+  const view=M.feedingOverview(f.config,f.assignments,f.snakes,[],[],{now,plannedTasks:[persisted]});assert.equal(view.overdueTasks.length,1);assert.equal(view.overdueTasks[0].quantity,2);
+  assert.equal(M.feedingOverview(f.config,f.assignments,f.snakes,[],[{...persisted,result:'fed'}],{now,plannedTasks:[persisted]}).overdueTasks.length,0);
+});
+
+test('offered meals remain overdue across dates without snapshots and are not duplicated by frozen plans',()=>{
+  const f=fixture(),now='2026-10-14T12:00:00Z',base={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,mouse_min_g:7,mouse_max_g:11,quantity:2};
+  const prior={...base,id:'prior',result:'offered',planned_at:'2026-10-12T10:00:00Z',due_at:'2026-10-12T10:00:00Z',occurred_at:'2026-10-12T10:30:00Z'},today={...base,id:'today',result:'offered',planned_at:'2026-10-14T11:30:00Z',due_at:'2026-10-14T11:30:00Z',occurred_at:'2026-10-14T11:45:00Z'};
+  const alone=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[prior,today],{now});
+  assert.deepEqual(alone.overdueTasks.map(t=>t.recordId),['prior','today']);assert.ok(alone.overdueTasks.every(t=>t.status==='offered'));
+  const planned=[prior,today].map(({result,id,occurred_at,...task})=>task),duplicated=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[prior,today],{now,plannedTasks:planned});
+  assert.equal(duplicated.overdueTasks.length,2);assert.equal(new Set(duplicated.overdueTasks.map(t=>t.id)).size,2);
+  const done=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[{...prior,result:'fed'},today],{now,plannedTasks:planned});
+  assert.deepEqual(done.overdueTasks.map(t=>t.recordId),['today']);assert.equal(done.todaySummary.pendingCount,0);
+});
+
 function fixture() {
   const config=M.defaultConfig(),cabinet=M.createCabinet();
   cabinet.schedule={mode:'weekly',weekdays:[1,3],times:{'1':'18:00','3':'19:30'},time:'18:00',start:'2026-10-01',end:null,interval:7,quantity:2,paused:false};

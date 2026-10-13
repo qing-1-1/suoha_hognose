@@ -8,9 +8,9 @@
     const slotName=id=>id?titleOfSlot(id):'待定位';
     function labelValues(slotId) {
       const snake=snakes().find(s=>s.id===assignments().find(a=>a.slot_id===slotId)?.snake_id),w=snake?M.latestWeight(snake.id,measurements()):null;
-      const mouse=w?M.matchMouse(w.weight,config().rules):null;
+      const winter=slotInfo(slotId)?.c.type==='incubator',mouse=w&&!winter?M.matchMouse(w.weight,config().rules):null;
       const task=state.tasks.filter(t=>t.snakeId===snake?.id&&t.status==='pending').sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];
-      return {id:snake?.id||'空盒',sex:({M:'公',F:'母',U:'性别待确认'})[snake?.sex]||'—',gene:snake?.gene_text||'—',weight:w?`${w.weight}g`:'待称重',mouse:task?task.mouseMin==null?'鼠重待确认':`${task.mouseMin}–${task.mouseMax}g`:mouse?`${mouse.mouseMin}–${mouse.mouseMax}g`:'鼠重待确认',next:task?`${task.date} ${task.time}`:'暂无计划',note:config().slotNotes?.[slotId]||''};
+      return {id:snake?.id||'空盒',sex:({M:'公',F:'母',U:'性别待确认'})[snake?.sex]||'—',gene:snake?.gene_text||'—',weight:w?`${w.weight}g`:'待称重',mouse:winter?'冬化暂停喂食':task?task.mouseMin==null?'鼠重待确认':`${task.mouseMin}–${task.mouseMax}g`:mouse?`${mouse.mouseMin}–${mouse.mouseMax}g`:'鼠重待确认',next:winter?'移出后恢复排期':task?`${task.date} ${task.time}`:'暂无计划',note:config().slotNotes?.[slotId]||''};
     }
     function labelDetail(slotId) {
       const info=slotInfo(slotId),template=info?.c.labelTemplate||config().labelTemplate;
@@ -21,7 +21,7 @@
     function openLabels(targetId=null) {
       const cfg=config(),target=cabinet(targetId),template=copy(target?.labelTemplate||cfg.labelTemplate||L.defaultTemplate());
       const scopeOptions=[['','房间默认'],...cfg.cabinets.map(c=>[c.id,c.name])];
-      showDialog('盒面标签模板',`${select('模板作用范围','scope',scopeOptions,targetId||'')}<p class="rw-muted">每行可自由排序和添加文字。可用字段：{{id}} 编号、{{sex}} 性别、{{gene}} 基因、{{weight}} 体重、{{mouse}} 鼠重、{{next}} 下次喂食、{{note}} 格位备注。内容按文字显示。</p><div class="rw-form-grid">${field('模板名称','name',template.name,'text','required maxlength="80"')}${field('字号 px','fontSize',template.fontSize,'number','min="12" max="20" required')}${select('文字对齐','align',[['left','左对齐'],['center','居中'],['right','右对齐']],template.align)}</div>${textArea('模板内容（每行一条，最多 6 行）','lines',template.lines.join('\n'),'rows="6" required')}<label class="rw-check"><input type="checkbox" name="inherit" ${target&&!target.labelTemplate?'checked':''}>当前柜恢复继承房间模板</label><h3>实时预览</h3><div data-label-preview></div>`,async form=>{
+      showDialog('盒面标签模板',`${select('模板作用范围','scope',scopeOptions,targetId||'')}<p class="rw-muted">每行可自由排序和添加文字。可用字段：{{id}} 编号、{{sex}} 性别、{{gene}} 基因、{{weight}} 体重、{{mouse}} 鼠重、{{next}} 下次喂食、{{note}} 格位备注。内容按文字显示。</p><div class="rw-form-grid">${field('模板名称','name',template.name,'text','required maxlength="80"')}${field('字号 px','fontSize',template.fontSize,'number','min="10" max="20" step="1" required')}${select('文字对齐','align',[['left','左对齐'],['center','居中'],['right','右对齐']],template.align)}</div>${textArea('模板内容（每行一条，最多 6 行）','lines',template.lines.join('\n'),'rows="6" required')}<label class="rw-check"><input type="checkbox" name="inherit" ${target&&!target.labelTemplate?'checked':''}>当前柜恢复继承房间模板</label><h3>实时预览</h3><div data-label-preview></div>`,async form=>{
         const v=Object.fromEntries(new FormData(form)),next=copy(config());
         const template=readTemplate(form),validation=L.validateTemplate(template);
         if(!validation.valid)throw Error(validation.errors.join('；'));
@@ -56,7 +56,7 @@
     }
     function openMove(snakeId,sourceSlot=null,wholeBox=false) {
       const a=assignments().find(a=>a.snake_id===snakeId),source=sourceSlot||a?.slot_id;
-      const options=[['','移出至待定位'],...state.snapshot.config.cabinets.flatMap(c=>c.levels.flatMap(l=>l.slots.filter(s=>s.id!==source&&ctx.slotReady(s.id)).map(s=>[s.id,`${titleOfSlot(s.id)} · ${assignments().find(a=>a.slot_id===s.id)?.snake_id||'空盒'}`])))];
+      const options=[['','移出至待定位'],...state.snapshot.config.cabinets.filter(c=>!(c.type==='incubator'&&(wholeBox||c.purpose==='eggs'))).flatMap(c=>c.levels.flatMap(l=>l.slots.filter(s=>s.id!==source&&ctx.slotReady(s.id)).map(s=>[s.id,`${titleOfSlot(s.id)} · ${assignments().find(a=>a.slot_id===s.id)?.snake_id||'空盒'}`])))];
       showDialog(wholeBox?'整盒移动':`安排 ${snakeId}`,`<p>当前位置：${esc(slotName(source))}</p><p class="rw-muted">可直接入住已有格位。新建或结构已变更的格位应用布局后才会列入。</p><div class="rw-form-grid">${select('目标格位','target',wholeBox?options.filter(x=>x[0]):options,'')}${select('到达后的排期','scheduleMode',[['inherit','采用目标格计划'],['carry','将原计划带到目标格']],'inherit')}</div><label class="rw-check"><input type="checkbox" name="swap">目标有蛇时交换位置</label><h3>排期变化预览</h3><div data-move-preview aria-live="polite"></div>`,async form=>{
         const preview=compute(form);if(preview.errors.length)throw Error(preview.errors.join('；'));
         const v=Object.fromEntries(new FormData(form));
@@ -105,9 +105,9 @@
       const batch=(state.snapshot.batches||[]).find(b=>b.id===id);if(!batch)return;
       const groups=new Map();for(const item of batch.items){const key=`${item.mouse_min_g}–${item.mouse_max_g}g`;groups.set(key,(groups.get(key)||0)+item.quantity);}
       showDialog(batch.name,`<p>${esc(batchProgress(batch))}</p><p class="rw-muted">已确认鼠重与数量保留当时快照。位置变化只影响导航；实际投喂与备料不同须填写原因。</p><div class="rw-summary-groups">${[...groups].map(([range,qty])=>`<div class="rw-summary-row"><span>${range}</span><b>${qty} 只</b></div>`).join('')}</div><div class="rw-task-list">${batch.items.map(item=>{const a=assignments().find(a=>a.snake_id===item.snake_id);return `<article class="rw-task"><div><b>${esc(item.snake_id)}</b><p>${esc(slotName(a?.slot_id))} · ${item.mouse_min_g}–${item.mouse_max_g}g × ${item.quantity}</p><p>${({fed:'已进食',offered:'已投喂，待确认',refused:'拒食',skipped:'跳过'})[item.record?.result]||'待处理'}</p></div><button type="button" class="rw-btn" data-batch-item="${esc(item.id)}">${item.record?'查看／更正':'记录结果'}</button></article>`;}).join('')}</div>`,null,'',root=>root.querySelectorAll('[data-batch-item]').forEach(button=>button.onclick=()=>{
-        const item=batch.items.find(i=>i.id===button.dataset.batchItem),day=M.localDate(item.due_at,config().timezone);
-        const task=M.generateTasks(config(),assignments(),snakes(),measurements(),records(),{from:day,to:day,plannedTasks:state.snapshot.planned_tasks||[]}).find(t=>t.snakeId===item.snake_id&&new Date(t.plannedAt).getTime()===new Date(item.planned_at).getTime());
-        if(task)ctx.openFeed(task);else toast('此批次任务暂无法读取，请刷新后重试。',true);
+        const item=batch.items.find(i=>i.id===button.dataset.batchItem),tasks=batch.items.map(i=>{const day=M.localDate(i.due_at||i.planned_at,config().timezone);return M.generateTasks(config(),assignments(),snakes(),measurements(),records(),{from:day,to:day,plannedTasks:state.snapshot.planned_tasks||[]}).find(t=>t.snakeId===i.snake_id&&new Date(t.plannedAt).getTime()===new Date(i.planned_at).getTime());}).filter(Boolean);
+        const task=tasks.find(t=>t.snakeId===item.snake_id&&new Date(t.plannedAt).getTime()===new Date(item.planned_at).getTime());
+        if(task){ctx.startTour(tasks,task.id);ctx.openFeed(task);}else toast('此批次任务暂无法读取，请刷新后重试。',true);
       }));
     }
     return {openLabels,openNote,labelDetail,openMove,openRules,openBatches};

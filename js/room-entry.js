@@ -2,7 +2,7 @@
 (() => {
   let pending;
   const host = document.getElementById('workspaceRoom');
-  const files = ['room-model', 'room-data', 'room-labels', 'room-scene', 'room-extras', 'room-workspace'];
+  const files = ['room-model', 'room-data', 'room-labels', 'room-scene', 'room-extras', 'room-workflows', 'room-workspace'];
   function script(name) {
     return new Promise((resolve, reject) => {
       const el = document.createElement('script'); el.src = `/js/${name}.js`;
@@ -21,7 +21,7 @@
         const el = document.createElement('link'); el.rel = 'stylesheet'; el.href = '/assets/room-workspace.css'; el.dataset.roomStyle = ''; document.head.append(el);
         const forms = document.createElement('link'); forms.rel = 'stylesheet'; forms.href = '/assets/room-controls.css'; document.head.append(forms);
       }
-      const globals = ['SuohaRoomModel', 'SuohaRoomData', 'SuohaRoomLabels', 'SuohaRoomScene', 'SuohaRoomExtras', 'SuohaRoomWorkspace'];
+      const globals = ['SuohaRoomModel', 'SuohaRoomData', 'SuohaRoomLabels', 'SuohaRoomScene', 'SuohaRoomExtras', 'SuohaRoomWorkflows', 'SuohaRoomWorkspace'];
       for (let i = 0; i < files.length; i++) if (!window[globals[i]]) await script(files[i]);
       if (state.page === 'room' && currentUser) window.SuohaRoomWorkspace.render();
     })().catch(error => {

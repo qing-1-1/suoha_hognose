@@ -21,7 +21,9 @@ async function boot(page,{missing=false,anonymous=false}={}){
   await page.route('**/cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'text/javascript',body:`
     window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(initialFixture())};
     const fixture=window.roomFixture,user=fixture.user;
-    fixture.snapshot.planned_tasks||=[];fixture.snapshot.batches||=[];
+    fixture.snapshot.planned_tasks||=[];fixture.snapshot.batches||=[];fixture.snapshot.incubations||=[];
+    fixture.snapshot.breeding_plans||=[{id:'plan-1',year:2026,female_snake_id:'ROOM-A',male_snake_id:'ROOM-B',review_status:'approved'}];
+    fixture.snapshot.clutches||=[{id:'clutch-1',plan_id:'plan-1',clutch_code:'C-2026-01',status:'incubating',egg_count:8,remaining_eggs:8,female_snake_id:'ROOM-A',male_snake_id:'ROOM-B'}];
     fixture.snapshot.rule_versions||=[{id:'version-1',version:1,name:'初始鼠重',rules:structuredClone(fixture.snapshot.config.rules)}];
     fixture.snapshot.active_rule_version_id||='version-1';
     const persist=()=>sessionStorage.setItem('room-test-db',JSON.stringify(fixture));
@@ -35,6 +37,23 @@ async function boot(page,{missing=false,anonymous=false}={}){
         const snap=fixture.snapshot;
         if(name!=='room_snapshot'&&args.p_revision!==snap.revision)return {data:null,error:{message:'Room revision conflict'}};
         if(name==='room_save_layout')snap.config=structuredClone(args.p_config);
+        if(name==='room_assign_batch'){
+          const items=args.p_items;
+          if(new Set(items.map(x=>x.snake_id)).size!==items.length||new Set(items.map(x=>x.slot_id)).size!==items.length||items.some(x=>snap.assignments.some(a=>a.snake_id===x.snake_id||a.slot_id===x.slot_id)))return {data:null,error:{message:'批量入住位置冲突'}};
+          snap.assignments.push(...items.map(x=>({...x,assigned_at:new Date().toISOString()})));
+        }
+        if(name==='room_save_incubation'){
+          const p=args.p_payload,clutch=snap.clutches.find(c=>String(c.id)===String(p.clutch_id)&&String(c.plan_id)===String(p.plan_id));
+          const others=snap.incubations.filter(e=>e.slot_id!==p.slot_id&&String(e.clutch_id)===String(p.clutch_id)).reduce((n,e)=>n+e.egg_count,0);
+          if(!clutch||p.egg_count+others>clutch.egg_count)return {data:null,error:{message:'窝次关联无效或分配蛋数超出余量'}};
+          snap.incubations=snap.incubations.filter(e=>e.slot_id!==p.slot_id);snap.incubations.push({...p,female_snake_id:clutch.female_snake_id,male_snake_id:clutch.male_snake_id,clutch_code:clutch.clutch_code});
+          clutch.remaining_eggs=clutch.egg_count-others-p.egg_count;
+          (snap.incubation_history||=[]).push({id:crypto.randomUUID(),action:'save',target_slot:p.slot_id,payload:structuredClone(p),occurred_at:new Date().toISOString()});
+        }
+        if(name==='room_move_incubation'){
+          const old=snap.incubations.find(e=>e.slot_id===args.p_source);if(old){old.slot_id=args.p_target;(snap.incubation_history||=[]).push({id:crypto.randomUUID(),action:'move',source_slot:args.p_source,target_slot:args.p_target,payload:structuredClone(old),occurred_at:new Date().toISOString()});}
+        }
+        if(name==='room_clear_incubation')snap.incubations=snap.incubations.filter(e=>e.slot_id!==args.p_slot);
         if(name==='room_sync_plans'){
           const key=t=>t.snake_id+':'+new Date(t.planned_at).toISOString(),incoming=new Map(args.p_tasks.map(t=>[key(t),t]));
           snap.planned_tasks=snap.planned_tasks.filter(t=>t.batch_id||new Date(t.due_at)<=new Date()||incoming.has(key(t)));
@@ -78,6 +97,169 @@ async function boot(page,{missing=false,anonymous=false}={}){
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('daily next feeding survives week navigation and searchable slot detail switches without a modal backdrop',async({page})=>{
+  const errors=await boot(page),header=room(page).locator('.rw-feed-overview');
+  const next=await header.locator('span').nth(1).textContent();
+  await room(page).getByRole('button',{name:'下一周',exact:true}).click();
+  await expect(header.locator('span').nth(1)).toHaveText(next);
+  await room(page).getByLabel('搜索蛇只或柜名').fill('ROOM-A');
+  await room(page).getByRole('button',{name:'定位',exact:true}).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await expect(modal(page)).toContainText('白化');
+  await modal(page).getByRole('button',{name:'下一盒',exact:true}).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await modal(page).getByLabel('搜索可入住蛇只').fill('原色');
+  await expect(modal(page).locator('[name=snake] option')).toHaveCount(2);
+  await expect(modal(page).locator('[name=snake]')).toContainText('10g');
+  await modal(page).getByLabel('选择蛇只',{exact:true}).selectOption('ROOM-C');
+  await modal(page).getByRole('button',{name:'放入蛇只',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  expect(await page.evaluate(()=>roomFixture.snapshot.assignments.find(a=>a.snake_id==='ROOM-C').slot_id)).toBe('slot-0-0-1');
+  expect(errors).toEqual([]);
+});
+
+test('phase one daily work supports searchable batch occupancy, live schedule preview and continuous feeding',async({page})=>{
+  const errors=await boot(page);
+  await room(page).getByRole('button',{name:'未入住蛇',exact:true}).click();
+  await modal(page).getByRole('button',{name:'批量入住',exact:true}).click();
+  await modal(page).getByLabel('搜索批量入住蛇只').fill('原色');
+  await modal(page).locator('[name=pick][value="ROOM-C"]').check();
+  await modal(page).getByLabel('目标盒子 · ROOM-C',{exact:true}).selectOption('slot-0-0-1');
+  await expect(modal(page).locator('[data-assignment-preview]')).toContainText('ROOM-C → 银柜 A');
+  await modal(page).getByRole('button',{name:'确认批量入住',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'喂食计划',exact:true}).click();
+  await expect(modal(page).getByLabel('间隔天数',{exact:true})).toBeHidden();
+  await modal(page).getByLabel('重复方式',{exact:true}).selectOption('interval');
+  await expect(modal(page).getByLabel('间隔天数',{exact:true})).toBeVisible();
+  await expect(modal(page).locator('.rw-week-fields')).toBeHidden();
+  await modal(page).getByLabel('起始日期',{exact:true}).fill('2026-10-15');
+  await modal(page).getByLabel('间隔天数',{exact:true}).fill('7');
+  await modal(page).getByLabel('每次老鼠只数（待确认可留空）').fill('1');
+  await expect(modal(page).locator('[data-schedule-preview]')).toContainText('ROOM-C');
+  await modal(page).getByRole('button',{name:'保存喂食计划',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'待喂／确认 3',exact:true}).click();
+  await expect(modal(page)).toContainText('ROOM-C');
+  await modal(page).getByRole('button',{name:'记录结果',exact:true}).first().click();
+  await modal(page).getByLabel('结果',{exact:true}).selectOption('offered');
+  await modal(page).getByLabel('本次只数',{exact:true}).fill('2');
+  await modal(page).getByLabel('备注／人工覆盖原因',{exact:true}).fill('本次按实际投喂登记');
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await expect(modal(page).locator('.rw-tour-progress')).toContainText('2 / 3');
+  await modal(page).getByRole('button',{name:'上一条',exact:true}).click();
+  await expect(modal(page).getByLabel('结果',{exact:true})).toHaveValue('offered');
+  await expect(modal(page).getByLabel('本次只数',{exact:true})).toHaveValue('2');
+  await modal(page).getByLabel('结果',{exact:true}).selectOption('fed');
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await expect(modal(page).getByRole('heading',{name:'本轮巡柜完成'})).toBeVisible();
+  expect(await page.evaluate(()=>roomFixture.snapshot.records.length)).toBe(3);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(room(page).getByRole('button',{name:'待喂／确认 0',exact:true})).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('incubator build, winter occupancy and plan-linked eggs persist through box transfer',async({page},info)=>{
+  const errors=await boot(page);
+  await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
+  await room(page).getByRole('button',{name:'添加孵化箱',exact:true}).click();
+  await modal(page).getByLabel('箱名',{exact:true}).fill('冬化一号');
+  await modal(page).getByLabel('层数',{exact:true}).fill('2');
+  await modal(page).getByLabel('第 1 层盒数（从下往上）',{exact:true}).fill('2');
+  await modal(page).getByLabel('第 2 层盒数（从下往上）',{exact:true}).fill('1');
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();
+  await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const winter=await page.evaluate(()=>roomFixture.snapshot.config.cabinets.find(c=>c.name==='冬化一号'));
+  await room(page).getByRole('button',{name:'未入住蛇',exact:true}).click();
+  await modal(page).getByRole('button',{name:'选择盒子',exact:true}).click();
+  await modal(page).getByLabel('目标格位',{exact:true}).selectOption(winter.levels[0].slots[0].id);
+  await expect(modal(page).locator('[data-move-preview]')).toContainText('冬化');
+  await modal(page).getByRole('button',{name:'保存位置',exact:true}).click();
+  await room(page).locator(`[data-summary-cabinet="${winter.id}"]`).getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await expect(room(page).getByRole('button',{name:'喂食计划',exact:true})).toHaveCount(0);
+  await expect(room(page).locator('.rw-incubator-shell').first()).toBeVisible();
+  await room(page).locator(`.rw-slot-hit[data-slot="${winter.levels[0].slots[0].id}"]`).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await expect(modal(page)).toContainText('冬化期间暂停常规喂食');
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
+  await room(page).getByRole('button',{name:'添加孵化箱',exact:true}).click();
+  await modal(page).getByLabel('箱名',{exact:true}).fill('孵蛋一号');
+  await modal(page).getByLabel('用途',{exact:true}).selectOption('eggs');
+  await modal(page).getByLabel('层数',{exact:true}).fill('2');
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();
+  await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const egg=await page.evaluate(()=>roomFixture.snapshot.config.cabinets.find(c=>c.name==='孵蛋一号'));
+  await room(page).locator(`[data-summary-cabinet="${egg.id}"]`).getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const source=egg.levels[0].slots[0].id,target=egg.levels[0].slots[1].id;
+  await room(page).locator(`.rw-slot-hit[data-slot="${source}"]`).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await modal(page).getByLabel('繁育计划',{exact:true}).selectOption('plan-1');
+  await expect(modal(page).locator('[data-egg-parents]')).toContainText('ROOM-A');
+  await expect(modal(page).locator('[data-egg-parents]')).toContainText('ROOM-B');
+  await modal(page).getByLabel('对应窝次',{exact:true}).selectOption('clutch-1');
+  await modal(page).getByLabel('本盒蛋数',{exact:true}).fill('5');
+  await modal(page).getByRole('button',{name:'放入蛇蛋',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).locator(`.rw-slot-hit[data-slot="${source}"]`).click();
+  await expect(modal(page).getByLabel('繁育计划',{exact:true})).toBeDisabled();
+  await modal(page).getByRole('button',{name:'转移孵化盒',exact:true}).click();
+  await modal(page).getByLabel('目标孵化盒',{exact:true}).selectOption(target);
+  await modal(page).getByRole('button',{name:'确认转移',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  expect(await page.evaluate(()=>roomFixture.snapshot.incubations[0].slot_id)).toBe(target);
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.screenshot({path:`artifacts/room-incubator-workflow-${info.project.name}.png`,fullPage:true});
+  await room(page).locator('.rw-scene-host').evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
+  await page.screenshot({path:`artifacts/room-incubator-viewport-${info.project.name}.png`});
+  await room(page).getByRole('button',{name:'历史记录',exact:true}).click();
+  await modal(page).getByLabel('记录类型',{exact:true}).selectOption('incubation');
+  await expect(modal(page)).toContainText('孵蛋分配');
+  await expect(modal(page)).toContainText('孵化盒转移');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(2);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await page.reload();
+  expect(await page.evaluate(()=>roomFixture.snapshot.incubations[0].egg_count)).toBe(5);
+  expect(await page.evaluate(()=>roomFixture.snapshot.assignments.find(a=>a.snake_id==='ROOM-C').slot_id)).toBe(winter.levels[0].slots[0].id);
+  expect(errors).toEqual([]);
+});
+
+test('room defaults to perspective and dense cabinets open with two lines at 10px minimum',async({page})=>{
+  const errors=await boot(page);
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','perspective');
+  await page.evaluate(()=>{
+    const c=roomFixture.snapshot.config.cabinets[0],base=structuredClone(c.levels[0]);c.height=1700;
+    c.levels=Array.from({length:8},(_,i)=>({...structuredClone(base),id:'dense-level-'+i,height:200,boxHeight:150,slots:base.slots.map((s,j)=>i===0?s:{id:`dense-${i}-${j}`,box_id:`dense-box-${i}-${j}`})}));
+    sessionStorage.setItem('room-test-db',JSON.stringify(roomFixture));
+  });
+  await page.reload();
+  await room(page).getByRole('button',{name:'标签',exact:true}).click();
+  await expect(modal(page).getByLabel('字号 px')).toHaveAttribute('min','10');
+  await modal(page).getByLabel('字号 px').fill('10');
+  await modal(page).getByRole('button',{name:'保存标签模板',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await page.reload();
+  expect(await page.evaluate(()=>roomFixture.snapshot.config.labelTemplate.fontSize)).toBe(10);
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const slot=room(page).locator('.rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(slot.locator('.rw-label-line')).toHaveCount(2);
+  expect(await slot.locator('.rw-label-line').first().evaluate(el=>parseFloat(el.getAttribute('font-size'))*el.getScreenCTM().a)).toBeGreaterThanOrEqual(9.99);
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','perspective');
+  await room(page).getByRole('button',{name:'俯视',exact:true}).click();
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','plan');
+  expect(errors).toEqual([]);
+});
 
 test('cabinet box ID sits above two information lines without overlapping day labels',async({page},info)=>{
   const errors=await boot(page);
@@ -356,6 +538,7 @@ test('perspective uses actual wall height without fixtures and supports manual c
 
 test('all four cabinet orientations keep their names inside the room',async({page},info)=>{
   const errors=await boot(page);
+  await room(page).getByRole('button',{name:'俯视',exact:true}).click();
   for(const rotation of [0,90,180,270]){
     if(rotation){await room(page).getByRole('button',{name:'旋转 银柜 A 90°',exact:true}).click();}
     const label=room(page).locator('.rw-scene-world [data-label-cabinet="rack-a"]');
@@ -415,7 +598,7 @@ test('building keeps slot actions, saves rotation before assignment and returns 
   await expect(room(page).locator('[data-summary-cabinet="rack-a"]')).toContainText('朝向 90°');
   expect(errors).toEqual([]);
 });
-async function openRack(page,id='rack-a'){await room(page).locator(`[data-rw="cabinet"][data-cabinet="${id}"]`).click();await expect(room(page).locator('.rw-summary-top')).toContainText(id==='rack-a'?'银柜 A':'银柜 B');}
+async function openRack(page,id='rack-a'){await room(page).locator(`[data-rw="cabinet"][data-cabinet="${id}"]`).click();await expect(room(page).locator('.rw-summary-top')).toContainText(id==='rack-a'?'银柜 A':'银柜 B');const menu=room(page).getByRole('button',{name:'柜体设置',exact:true});if(await menu.isVisible()&&!await room(page).getByRole('button',{name:'柜体配置',exact:true}).isVisible())await menu.click();}
 async function closeModal(page){await modal(page).getByRole('button',{name:'关闭',exact:true}).last().click();}
 
 test('private room renders multi-date colored surfaces and retains date scope across smooth cabinet navigation',async({page},info)=>{
