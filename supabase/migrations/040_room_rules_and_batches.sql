@@ -204,7 +204,7 @@ end $$;
 -- Its historical item supplies the record location without fabricating occupancy.
 create or replace function public.room_record_feeding(p_revision integer,p_payload jsonb,p_request uuid) returns jsonb
 language plpgsql security definer set search_path=public as $$
-declare m uuid; happened timestamptz; planned timestamptz; due timestamptz; tz text; qty integer; low_g numeric; high_g numeric; status_text text; locked_item public.room_preparation_items;
+declare m public.snake_measurements.id%type; happened timestamptz; planned timestamptz; due timestamptz; tz text; qty integer; low_g numeric; high_g numeric; status_text text; locked_item public.room_preparation_items;
 begin
  if not public.room_begin_write(p_revision,p_request,jsonb_build_object('op','feeding','payload',p_payload)) then return public.room_snapshot(); end if;
  if coalesce(p_payload->>'result','') not in ('offered','fed','refused','skipped') then raise exception 'Invalid feeding result'; end if;

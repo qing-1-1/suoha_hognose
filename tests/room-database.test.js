@@ -60,7 +60,7 @@ test('room transactions enforce permissions, geometry, revision, stable boxes an
       create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
       create function public.can_edit_app() returns boolean language sql security definer as $$select exists(select 1 from public.profiles where id=auth.uid() and active and role in ('editor','admin'))$$;
       create table public.snakes(id text primary key,status text);
-      create table public.snake_measurements(id uuid primary key default gen_random_uuid(),snake_id text,record_kind text,measured_at date,feeding_status text,condition_note text);
+      create table public.snake_measurements(id bigint generated always as identity primary key,snake_id text not null references public.snakes(id),record_kind text not null default 'measurement' check(record_kind in ('measurement','feeding','shedding','observation')),measured_at date not null default current_date,feeding_status text,condition_note text);
       grant select,insert,update,delete on public.snake_measurements to authenticated;
       insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');insert into profiles values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin',true);
       insert into snakes values('A','active'),('B','active'),('X','sold');grant usage on schema public,auth to anon,authenticated;`);
@@ -94,11 +94,12 @@ test('room transactions enforce permissions, geometry, revision, stable boxes an
     assert.equal((await record(payload,5,feedRequest)).revision,6);
     state=await record({...payload,result:'fed'},6);assert.equal(state.records.length,1);assert.equal(state.records[0].result,'fed');
     const managedMeasurement=state.records[0].measurement_id;
+    assert.ok(Number.isSafeInteger(managedMeasurement));
     await assert.rejects(db.query("update snake_measurements set feeding_status='修改事实' where id=$1",[managedMeasurement]),/该喂食记录由爬房管理/);
     await assert.rejects(db.query("update snake_measurements set record_kind='measurement' where id=$1",[managedMeasurement]),/该喂食记录由爬房管理/);
     await assert.rejects(db.query('delete from snake_measurements where id=$1',[managedMeasurement]),/该喂食记录由爬房管理/);
     await assert.rejects(db.query('insert into room_measurement_write_guards values(txid_current(),pg_backend_pid(),$1)',[managedMeasurement]),/permission denied/);
-    const ordinary=randomUUID();await db.query("insert into snake_measurements(id,snake_id,record_kind,measured_at,condition_note) values($1,'A','observation','2026-01-01','普通观察')",[ordinary]);
+    const ordinary=(await db.query("insert into snake_measurements(snake_id,record_kind,measured_at,condition_note) values('A','observation','2026-01-01','普通观察') returning id")).rows[0].id;
     await db.query("update snake_measurements set condition_note='普通观察可以正常修改' where id=$1",[ordinary]);
     await db.query('delete from snake_measurements where id=$1',[ordinary]);
     await assert.rejects(record({...payload,slot_id:'s1'},7),/location changed/);
@@ -163,7 +164,7 @@ test('040 keeps immutable rule versions and confirmed preparation while validati
    create table auth.users(id uuid primary key);create table profiles(id uuid primary key,role text,active boolean);
    create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
    create function can_edit_app() returns boolean language sql security definer as $$select exists(select 1 from profiles where id=auth.uid() and active and role in ('admin','editor'))$$;
-   create table snakes(id text primary key,status text);create table snake_measurements(id uuid primary key default gen_random_uuid(),snake_id text,record_kind text,measured_at date,feeding_status text,condition_note text);
+   create table snakes(id text primary key,status text);create table snake_measurements(id bigint generated always as identity primary key,snake_id text not null references public.snakes(id),record_kind text not null default 'measurement' check(record_kind in ('measurement','feeding','shedding','observation')),measured_at date not null default current_date,feeding_status text,condition_note text);
    grant usage on schema public,auth to anon,authenticated;
    insert into auth.users values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');insert into profiles values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin',true);
    insert into snakes values('A','active'),('B','active');`);

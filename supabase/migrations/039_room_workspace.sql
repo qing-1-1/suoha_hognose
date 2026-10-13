@@ -20,7 +20,7 @@ create table public.room_feeding_records (
  slot_id text not null, cabinet_id text not null, planned_at timestamptz not null, due_at timestamptz not null,
  result text not null check(result in ('offered','fed','refused','skipped')),
  mouse_min_g numeric, mouse_max_g numeric, quantity integer not null check(quantity between 0 and 100),
- occurred_at timestamptz not null, measurement_id uuid references public.snake_measurements(id) on delete restrict,
+ occurred_at timestamptz not null, measurement_id bigint references public.snake_measurements(id) on delete restrict,
  notes text not null default '', actor_id uuid not null references auth.users(id),
  unique(snake_id,planned_at),
  check(mouse_min_g>0 and mouse_max_g>=mouse_min_g or mouse_min_g is null and mouse_max_g is null),
@@ -40,7 +40,7 @@ create table public.room_plan_snapshots (
 -- A transaction-scoped capability accessible only to the owner of the room RPC.
 -- Unlike a session GUC, an authenticated client cannot manufacture this guard.
 create table public.room_measurement_write_guards (
- transaction_id bigint not null,backend_id integer not null,measurement_id uuid not null,
+ transaction_id bigint not null,backend_id integer not null,measurement_id bigint not null,
  primary key(transaction_id,backend_id,measurement_id)
 );
 alter table public.room_workspace enable row level security;
@@ -294,7 +294,7 @@ end $$;
 
 create function public.room_record_feeding(p_revision integer,p_payload jsonb,p_request uuid) returns jsonb
 language plpgsql security definer set search_path=public as $$
-declare m uuid; happened timestamptz; planned timestamptz; due timestamptz; tz text; qty integer; low_g numeric; high_g numeric; status_text text;
+declare m public.snake_measurements.id%type; happened timestamptz; planned timestamptz; due timestamptz; tz text; qty integer; low_g numeric; high_g numeric; status_text text;
 begin
  if not public.room_begin_write(p_revision,p_request,jsonb_build_object('op','feeding','payload',p_payload)) then return public.room_snapshot(); end if;
  if coalesce(p_payload->>'result','') not in ('offered','fed','refused','skipped') then raise exception 'Invalid feeding result'; end if;
