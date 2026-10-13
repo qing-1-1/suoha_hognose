@@ -7,6 +7,8 @@
 | 需求 | [需求.md](requirements/需求.md) | 原始升级路线、业务边界与验收方向 |
 | 需求 | [需求.docx](requirements/需求.docx) | 用户提供的原始问题和修改清单 |
 | 设计 | [视觉升级与功能优化实施方案](design/视觉升级与功能优化实施方案.md) | 当前实施清单；第 11 节记录本轮交付与待办 |
+| 设计 | [爬房搭建模块设计方案](design/爬房搭建模块设计方案.md) | 银色爬柜建模、柜格排期、周计划高亮、逐柜备料；孵化柜列入二期 |
+| 验收 | [爬房工作台实现与验收](design/爬房工作台实现与验收.md) | 当前功能、操作入口、039／040 迁移、本地验证与实现边界 |
 | 设计 | [DESIGN.md](design/DESIGN.md) | 早期设计参考，主要用于理解工作台原有视觉体系 |
 | 架构 | [ARCHITECTURE.md](architecture/ARCHITECTURE.md) | 前后台模块、数据读取和运行边界 |
 | 架构 | [Context.md](architecture/Context.md) | 历史项目上下文、遗传模型与业务约束 |
@@ -20,6 +22,8 @@
 先看根目录 README，再看实施方案第 11 节；原始需求与历史上下文用于理解业务，不应把旧章节里的“无需 SQL”当作当前发布结论。当前数据库增量为 [026](../supabase/migrations/026_public_media_selection.sql)、[027](../supabase/migrations/027_growth_and_batch_registration.sql)，需在已有迁移之后依次执行，代码不会自动应用到生产。
 
 文档中的 `assets/`、`js/`、`supabase/`、`artifacts/` 等代码路径，均以仓库根目录为基准；可点击的文档链接使用相对路径。
+
+爬房工作台另外依赖 [039_room_workspace.sql](../supabase/migrations/039_room_workspace.sql) 和 [040_room_rules_and_batches.sql](../supabase/migrations/040_room_rules_and_batches.sql)，应在已有项目迁移之后执行；上文 026、027 为此前阶段的增量记录，并非当前全部迁移清单。具体见[爬房发布与验收说明](design/爬房工作台实现与验收.md)。
 
 ## 素材与临时文件
 
