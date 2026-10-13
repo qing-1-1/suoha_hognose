@@ -112,11 +112,11 @@
     host.querySelector('[data-rw-header]').innerHTML=`<div><p class="eyebrow">ROOM STUDIO / 爬房工作台</p><h1>${esc(c&&state.view==='cabinet'?c.name:cfg.name||'我的爬房')}</h1><p class="rw-muted">${cfg.cabinets.length} 个爬柜 · ${assignments().length} 条已定位 · ${slots.length} 个格位 <span data-rw-status></span></p><div class="rw-feed-overview"><span>本次查看：${esc(rangeLabel())}</span><span>下次待喂：${nextTask?esc(nextTask.date+' '+nextTask.time):'当前周暂无'}</span><span>最近记录：${lastRecord?esc(new Date(lastRecord.occurred_at).toLocaleString('zh-CN',{timeZone:cfg.timezone})): '暂无'}</span></div></div><div class="rw-actions">${btn('房间设置','room-settings')}${btn('鼠重规则','rules')}${btn('标签','labels')}${btn('备料批次','batches')}${btn('刷新','refresh')}</div>`;
     host.querySelector('[data-rw-message]').innerHTML=state.error?`<div class="rw-alert" role="alert">${esc(state.error)} ${btn('重新读取','refresh')}</div>`:!state.loaded?'<p class="rw-empty" role="status">正在连接实际爬房资料…</p>':state.snapshot.revision===0?'<div class="rw-notice">这是待校准的单间参考尺寸。添加爬柜并应用布局后保存到工作台。</div>':'';
     paintWeek();
-    host.querySelector('[data-rw-toolbar]').innerHTML=`<div class="rw-actions">${state.view==='cabinet'?btn('← 房间总览','back'):''}${btn('俯视','view-plan',`aria-pressed="${state.view==='plan'}"`)}${btn('立体','view-perspective',`aria-pressed="${state.view==='perspective'}"`)}${btn('适应','fit')}${btn('−','zoom-out','aria-label="缩小房间"')}${btn('+','zoom-in','aria-label="放大房间"')}</div><div class="rw-actions">${btn(state.build?'退出搭建':'搭建房间','build',`aria-pressed="${state.build}"`)}${state.build?btn('添加爬柜','add-cabinet')+btn('撤销','undo',state.undo.length?'':'disabled')+btn('重做','redo',state.redo.length?'':'disabled'):''}${state.draft?btn('应用布局','apply',state.busy?'disabled':'',true):''}${c&&state.view==='cabinet'?btn('柜体配置','edit-cabinet')+btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}"`)+btn('复制柜体结构','clone-cabinet')+deleteCabinetButton(c)+btn('喂食计划','schedule',`data-cabinet="${esc(c.id)}"`,true):btn('喂食计划','schedule','',true)}${btn('未入住蛇','unassigned')}</div>`;
+    host.querySelector('[data-rw-toolbar]').innerHTML=`<div class="rw-actions">${state.view==='cabinet'?btn('← 房间总览','back'):''}${btn('俯视','view-plan',`aria-pressed="${state.view==='plan'}"`)}${btn('立体','view-perspective',`aria-pressed="${state.view==='perspective'}"`)}${btn('适应','fit')}${btn('−','zoom-out','aria-label="缩小房间"')}${btn('+','zoom-in','aria-label="放大房间"')}</div><div class="rw-actions">${btn(state.build?'退出搭建':'搭建房间','build',`aria-pressed="${state.build}"`)}${state.build?btn('添加爬柜','add-cabinet')+btn('撤销','undo',state.undo.length?'':'disabled')+btn('重做','redo',state.redo.length?'':'disabled'):''}${state.draft?btn('应用布局','apply',state.busy?'disabled':'',true):''}${c&&state.view==='cabinet'?btn('柜体配置','edit-cabinet')+btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}"`)+btn('复制柜体结构','clone-cabinet')+deleteCabinetButton(c)+btn('喂食计划','schedule',`data-cabinet="${esc(c.id)}"`,true):btn('喂食计划','schedule','',true)}${btn('未入住蛇','unassigned')}${btn('历史记录','history')}</div>`;
     host.querySelector('[data-rw-top-summary]').innerHTML=state.view==='cabinet'&&c?summary(c,true):'';
     const all=M.summarize(state.tasks,state.selected.length?state.selected:null,state.view==='cabinet'?state.cabinetId:null);
     host.querySelector('[data-rw-aside]').innerHTML=`<form class="rw-search-row" data-room-search><input type="search" name="query" aria-label="搜索蛇只或柜名" placeholder="蛇只编号、基因、柜名"><button class="rw-btn" type="submit">定位</button></form><div class="rw-aside-heading"><span class="eyebrow">FEEDING / 备料</span><h2>${state.view==='cabinet'?'当前柜操作':'各柜备料'}</h2><p>${esc(rangeLabel())} · 待备料</p><small>计划 ${all.taskCount} 次 · 待处理 ${all.pendingCount} 次 · 待确认 ${all.unknownCount} 项</small></div>${state.view==='cabinet'&&c?`<div class="rw-summary"><h3>${esc(c.name)}</h3><p class="rw-muted">点击盒子查看档案、分配蛇只或记录喂食。</p>${btn('配置本柜计划','schedule',`data-cabinet="${esc(c.id)}"`)}${btn('逐项巡柜','feeding-list')}</div>`:cfg.cabinets.map(c=>summary(c,false)).join('')||`<div class="rw-empty">先搭建第一座爬柜，逐层添加盒子，再安排现有蛇只。${btn('添加爬柜','add-cabinet','',true)}</div>`}<div class="rw-aside-footer">日期色表示喂食日，✓ 表示已处理。鼠重与数量以当前已确认计划为准。</div>`;
-    host.querySelector('[data-rw-caption]').innerHTML=state.view==='cabinet'?'点击空盒分配蛇只 · 点击有蛇格位查看档案、排期和喂食记录。':state.build?'在俯视或立体画布拖动柜体摆放，使用「旋转 90°」调整方向。尺寸单位：mm。':`${state.view==='plan'?'俯视平面':'空间浏览 · 拖动旋转视角'} · 滚轮／双指缩放 · 点击柜体展开 ${btn('位置与喂食记录','history')}`;
+    host.querySelector('[data-rw-caption]').innerHTML=state.view==='cabinet'?'点击空盒分配蛇只 · 点击有蛇格位查看档案、排期和喂食记录。':state.build?'在俯视或立体画布拖动柜体摆放，使用「旋转 90°」调整方向。尺寸单位：mm。':`${state.view==='plan'?'俯视平面':'空间浏览 · 拖动旋转视角'} · 滚轮／双指缩放 · 点击柜体展开`;
     paintScene();paintStatus();
     if(focusedDate)host.querySelector(`[data-rw-date="${CSS.escape(focusedDate)}"]`)?.focus({preventScroll:true});
     else if(focusedControl&&!dialog.open)host.querySelector(focusedControl)?.focus({preventScroll:true});
@@ -219,7 +219,57 @@
   }
   function localInputNow(value) {const date=value?new Date(value):new Date();const parts=new Intl.DateTimeFormat('en-CA',{timeZone:config().timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;}
   function openWeigh(id) {showDialog(`称重 · ${id}`,`<div class="rw-form-grid">${field('实际称重日期','date',dateNow(),'date',`required max="${dateNow()}"`)}${field('蛇体重 g','weight','','number','required min="0.01" step="0.01"')}</div>`,async form=>{const v=formValues(form),r=await sb.from('snake_measurements').insert({snake_id:id,measured_at:v.date,weight_g:+v.weight,record_kind:'measurement'});if(r.error)throw r.error;await window.SuohaWorkspace.load(true);paint();},'保存测量');}
-  function openHistory() {const rows=state.snapshot?.moves||state.snapshot?.history||[];showDialog('位置与喂食记录',`<h3>位置变更</h3>${rows.map(r=>`<p>${esc(r.created_at||r.occurred_at)} · ${esc(r.snake_id||r.kind||r.action||'位置变更')} · ${esc(r.from_slot_id||r.source_slot||'待定位')} → ${esc(r.to_slot_id||r.target_slot||'待定位')}</p>`).join('')||'<p class="rw-muted">暂无已加载的位置变更。</p>'}<h3>喂食</h3>${records().slice().reverse().map(r=>`<p>${esc(r.snake_id)} · ${esc(r.occurred_at)} · ${({fed:'确认进食',offered:'已投喂',refused:'拒食',skipped:'跳过'})[r.result]||esc(r.result)}</p>`).join('')||'<p class="rw-muted">暂无记录。</p>'}`,null);}
+  function openHistory() {
+    showDialog('历史记录',
+      '<div class="rw-history"><p>查看全部位置变更与喂食记录，不受总览日期选择限制。喂食记录显示每次计划的最新结果。</p><div class="rw-history-filters">'+
+      field('搜索蛇编号／位置／备注','historySearch','','search')+
+      select('记录类型','historyType',[['','全部记录'],['move','位置变更'],['feeding','喂食记录']],'')+
+      select('爬柜','historyCabinet',[['','全部爬柜']],'')+
+      select('喂食结果','historyResult',[['','全部结果'],['offered','已投喂'],['fed','确认进食'],['refused','拒食'],['skipped','跳过']],'')+
+      field('开始日期','historyFrom','','date')+field('结束日期','historyTo','','date')+
+      select('时间排序','historySort',[['desc','最新在前'],['asc','最早在前']],'desc')+
+      '<div class="rw-history-tools"><button type="button" class="rw-btn" data-history-reset>重置筛选</button><button type="button" class="rw-btn" data-history-refresh>刷新记录</button></div></div><p data-history-status role="status">正在读取历史记录…</p><div data-history-list></div><nav class="rw-history-pages" aria-label="历史记录分页"><button type="button" class="rw-btn" data-history-prev>上一页</button><span data-history-page></span><button type="button" class="rw-btn" data-history-next>下一页</button></nav></div>',null,'',root=>{
+        const panel=root.querySelector('.rw-history'),form=root.querySelector('form'),list=panel.querySelector('[data-history-list]'),status=panel.querySelector('[data-history-status]');
+        const prev=panel.querySelector('[data-history-prev]'),next=panel.querySelector('[data-history-next]'),refresh=panel.querySelector('[data-history-refresh]');
+        const value=name=>form.elements[name].value;
+        let rows=[],page=1,loading=false;
+        const size=20,results={offered:'已投喂',fed:'确认进食',refused:'拒食',skipped:'跳过'};
+        function render(){
+          if(loading)return;
+          const query=value('historySearch').trim().toLowerCase(),from=value('historyFrom'),to=value('historyTo');
+          if(from&&to&&from>to){status.textContent='开始日期不能晚于结束日期。';list.innerHTML='';prev.disabled=next.disabled=true;panel.querySelector('[data-history-page]').textContent='';return;}
+          const matches=rows.filter(r=>(!value('historyType')||r.kind===value('historyType'))&&(!value('historyResult')||(r.kind==='feeding'&&r.result===value('historyResult')))&&(!value('historyCabinet')||r.cabinets.includes(value('historyCabinet')))&&(!from||r.date>=from)&&(!to||r.date<=to)&&(!query||r.search.includes(query)))
+            .sort((a,b)=>(value('historySort')==='asc'?1:-1)*(a.time-b.time||a.order-b.order));
+          const pages=Math.max(1,Math.ceil(matches.length/size));page=Math.min(page,pages);
+          status.textContent='共 '+matches.length+' 条记录'+(matches.length?' · 当前 '+((page-1)*size+1)+'–'+Math.min(page*size,matches.length)+' 条':'');
+          list.innerHTML=matches.slice((page-1)*size,page*size).map(r=>'<article class="rw-history-card"><header><strong>'+esc(r.snake_id||'未知蛇只')+'</strong><span class="rw-history-kind">'+esc(r.kind==='move'?'位置变更':results[r.result]||r.result)+'</span><time>'+esc(r.displayTime)+'</time></header><p>'+esc(r.location)+'</p>'+(r.kind==='feeding'?'<p>鼠重 '+esc(r.mouse_min_g??'—')+'–'+esc(r.mouse_max_g??'—')+' g · 数量 '+esc(r.quantity??'待确认')+' 只</p><details><summary>查看详情</summary><dl><dt>原计划时间</dt><dd>'+esc(r.plannedDisplay)+'</dd><dt>执行计划时间</dt><dd>'+esc(r.dueDisplay)+'</dd><dt>备注</dt><dd>'+esc(r.notes||'无')+'</dd><dt>记录编号</dt><dd>'+esc(r.id||'—')+'</dd></dl></details>':'<details><summary>查看详情</summary><p>记录编号：'+esc(r.id||'—')+'</p><p>原格位：'+esc(r.source||'未入住')+'<br>目标格位：'+esc(r.target||'未入住')+'</p></details>')+'</article>').join('')||'<p class="rw-empty">没有符合条件的历史记录。</p>';
+          prev.disabled=page<=1;next.disabled=page>=pages;panel.querySelector('[data-history-page]').textContent=page+' / '+pages+' 页';
+        }
+        async function fetchHistory(){
+          loading=true;refresh.disabled=prev.disabled=next.disabled=true;status.textContent='正在读取历史记录…';
+          try{
+            const snapshot=await D.load();if(!panel.isConnected||!root.open)return;
+            const cfg=snapshot.config||M.defaultConfig(),tz=cfg.timezone||'Asia/Shanghai',slots=new Map(),cabinets=new Map();
+            cfg.cabinets.forEach(c=>{cabinets.set(c.id,c.name);c.levels.forEach((l,li)=>l.slots.forEach((slot,si)=>slots.set(slot.id,{cabinet:c.id,label:c.name+' · L'+(li+1)+' / '+(si+1)})));});
+            const place=id=>!id?'未入住':slots.get(id)?.label||'已移除格位（'+id+'）';
+            const format=v=>v&&!Number.isNaN(Date.parse(v))?new Intl.DateTimeFormat('zh-CN',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date(v)):'未记录';
+            rows=[...(snapshot.moves||snapshot.history||[]).map(r=>({...r,kind:'move',source:r.from_slot_id||r.source_slot||r.from_slot,target:r.to_slot_id||r.target_slot||r.to_slot})),...(snapshot.records||[]).map(r=>({...r,kind:'feeding'}))].map((r,order)=>{
+              const stamp=r.occurred_at||r.created_at,time=Date.parse(stamp),ids=r.kind==='move'?[slots.get(r.source)?.cabinet,slots.get(r.target)?.cabinet]:[r.cabinet_id||slots.get(r.slot_id)?.cabinet];
+              ids.filter(Boolean).forEach(id=>{if(!cabinets.has(id))cabinets.set(id,'已移除爬柜（'+id+'）');});
+              const location=r.kind==='move'?place(r.source)+' → '+place(r.target):place(r.slot_id);
+              return {...r,order,time:Number.isNaN(time)?0:time,date:Number.isNaN(time)?'':M.localDate(new Date(time),tz),displayTime:format(stamp),plannedDisplay:format(r.planned_at),dueDisplay:format(r.due_at||r.planned_at),cabinets:ids.filter(Boolean),location,search:[r.snake_id,location,r.source,r.target,r.slot_id,r.notes].join(' ').toLowerCase()};
+            });
+            const chosen=value('historyCabinet');form.elements.historyCabinet.innerHTML='<option value="">全部爬柜</option>'+[...cabinets].map(([id,name])=>'<option value="'+esc(id)+'">'+esc(name)+'</option>').join('');form.elements.historyCabinet.value=cabinets.has(chosen)?chosen:'';
+            loading=false;render();
+          }catch(e){if(panel.isConnected){list.innerHTML='';status.textContent='读取失败：'+e.message+'。请点击刷新记录重试。';panel.querySelector('[data-history-page]').textContent='';}}
+          finally{loading=false;refresh.disabled=false;}
+        }
+        panel.querySelectorAll('input,select').forEach(input=>input.addEventListener('input',()=>{page=1;render();}));
+        prev.onclick=()=>{page--;render();};next.onclick=()=>{page++;render();};
+        panel.querySelector('[data-history-reset]').onclick=()=>{panel.querySelectorAll('input,select').forEach(input=>input.value=input.name==='historySort'?'desc':'');page=1;render();};
+        refresh.onclick=fetchHistory;fetchHistory();
+      });
+  }
   async function action(b) {
     const a=b.dataset.rw;
     if(a==='refresh')return load(true);

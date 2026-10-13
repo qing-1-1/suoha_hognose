@@ -79,6 +79,76 @@ async function boot(page,{missing=false,anonymous=false}={}){
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
 
+test('cabinet box ID sits above two information lines without overlapping day labels',async({page},info)=>{
+  const errors=await boot(page);
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const slot=room(page).locator('.rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(slot.locator('.rw-box-id')).toHaveText('ROOM-A');
+  await expect(slot.locator('.rw-label-line')).toHaveCount(2);
+  await expect(slot.locator('.rw-label-line').first()).toContainText('♀');
+  await expect(slot.locator('.rw-label-line').last()).toContainText('4–6g');
+  expect(await slot.evaluate(el=>{
+    const id=el.querySelector('.rw-box-id').getBBox(),body=[...el.querySelectorAll('.rw-label-line')].map(n=>n.getBBox()),face=el.querySelector('.rw-box-face').getBBox(),day=el.querySelector('.rw-box-days')?.getBBox();
+    return {headerInside:id.y>=face.y,headerAboveBody:id.y+id.height<body[0].y,rowsSeparate:body[0].y+body[0].height<=body[1].y,bodyInside:body[1].y+body[1].height<=face.y+face.height,daysSeparate:!day||id.x+id.width<=day.x};
+  })).toEqual({headerInside:true,headerAboveBody:true,rowsSeparate:true,bodyInside:true,daysSeparate:true});
+  await page.screenshot({path:`artifacts/room-box-labels-${info.project.name}.png`,fullPage:true});
+  await slot.locator('.rw-slot-hit').click();
+  await expect(modal(page)).toContainText('ROOM-A');
+  await expect(modal(page)).toContainText('白化');
+  expect(errors).toEqual([]);
+});
+
+test('history dialog loads all dates, filters, paginates and preserves layout drafts',async({page})=>{
+  const errors=await boot(page);
+  await page.evaluate(()=>{
+    roomFixture.snapshot.moves=Array.from({length:23},(_,i)=>({id:'move-'+i,snake_id:'ROOM-A',source_slot:null,target_slot:'slot-0-0-0',occurred_at:`2026-09-${String(i+1).padStart(2,'0')}T10:00:00Z`}));
+    roomFixture.snapshot.records=[{id:'feed-history',snake_id:'ROOM-B',cabinet_id:'rack-b',slot_id:'slot-1-0-0',result:'fed',mouse_min_g:16,mouse_max_g:20,quantity:2,occurred_at:'2026-10-01T16:30:00Z',planned_at:'2026-10-01T10:00:00Z',notes:'历史备注 <安全文本>'},{id:'removed-history',snake_id:'ROOM-X',cabinet_id:'removed-cab',slot_id:'removed-slot',result:'refused',occurred_at:'2025-01-01T00:00:00Z'}];
+  });
+  const history=room(page).getByRole('button',{name:'历史记录',exact:true});
+  await expect(room(page).locator('[data-rw=unassigned] + [data-rw=history]')).toHaveCount(1);
+  await expect(room(page).locator('[data-rw-caption] button')).toHaveCount(0);
+  await history.click();
+  await expect(modal(page).locator('[data-history-status]')).toContainText('共 25 条记录');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(20);
+  await modal(page).getByRole('button',{name:'下一页',exact:true}).click();
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(5);
+  await expect(modal(page)).toContainText('已移除格位（removed-slot）');
+  await modal(page).getByLabel('记录类型',{exact:true}).selectOption('feeding');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(2);
+  await modal(page).getByLabel('爬柜',{exact:true}).selectOption('rack-b');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await expect(modal(page)).toContainText('16–20 g · 数量 2 只');
+  await modal(page).getByText('查看详情',{exact:true}).click();
+  await expect(modal(page)).toContainText('历史备注 <安全文本>');
+  await modal(page).getByLabel('开始日期',{exact:true}).fill('2026-10-02');
+  await modal(page).getByLabel('结束日期',{exact:true}).fill('2026-10-02');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await modal(page).getByLabel('开始日期',{exact:true}).fill('2026-10-03');
+  await expect(modal(page).locator('[data-history-status]')).toContainText('开始日期不能晚于结束日期');
+  await modal(page).getByRole('button',{name:'重置筛选'}).click();
+  await modal(page).getByLabel('搜索蛇编号／位置／备注').fill('ROOM-X');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await modal(page).getByLabel('喂食结果',{exact:true}).selectOption('fed');
+  await expect(modal(page)).toContainText('没有符合条件的历史记录');
+  await modal(page).getByRole('button',{name:'重置筛选'}).click();
+  await modal(page).getByLabel('时间排序').selectOption('asc');
+  await expect(modal(page).locator('.rw-history-card').first()).toContainText('ROOM-X');
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(history).toBeFocused();
+  await room(page).getByRole('button',{name:'旋转 银柜 A 90°',exact:true}).click();
+  const before=await page.evaluate(()=>roomFixture.snapshot.revision);
+  await history.click();
+  await expect(modal(page).locator('[data-history-status]')).toContainText('共 25 条记录');
+  await modal(page).getByRole('button',{name:'刷新记录'}).click();
+  await expect(modal(page).getByRole('button',{name:'刷新记录'})).toBeEnabled();
+  expect(await page.evaluate(()=>roomFixture.snapshot.revision)).toBe(before);
+  expect(await modal(page).evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(room(page).getByRole('button',{name:'应用布局',exact:true})).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('business settings and snake occupancy save independently while an unapplied layout remains intact',async({page})=>{
   const errors=await boot(page);
   await room(page).getByRole('button',{name:'旋转 银柜 A 90°',exact:true}).click();
@@ -151,7 +221,15 @@ test('perspective automatically shows grids facing the viewer for opposite cabin
   await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','1');
   await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','-1');
   for(let i=0;i<3;i++){
-    for(const id of ['rack-a','rack-b'])await expect(scene.locator(`[data-cabinet="${id}"] .rw-box-face`)).toHaveCount(5);
+    for(const id of ['rack-a','rack-b']){
+      const rack=scene.locator(`[data-cabinet="${id}"]`);
+      await expect(rack.locator('.rw-box-face')).toHaveCount(5);
+      await expect(rack.locator('.rw-cabinet-back')).toHaveAttribute('fill-opacity','1');
+      expect(await rack.evaluate(el=>{
+        const back=el.querySelector('.rw-cabinet-back'),grid=el.querySelector('.rw-cabinet-grid');
+        return !!(back.compareDocumentPosition(grid)&Node.DOCUMENT_POSITION_FOLLOWING)&&getComputedStyle(back).fill!=='none'&&back.getBBox().height>0;
+      })).toBe(true);
+    }
     await svg.scrollIntoViewIfNeeded();const box=await svg.boundingBox(),x=box.x+box.width-30,y=box.y+25;
     await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-180,y,{steps:12});await page.mouse.up();
   }
@@ -161,6 +239,11 @@ test('perspective automatically shows grids facing the viewer for opposite cabin
   expect(await page.evaluate(()=>roomFixture.snapshot.config.cabinets.map(c=>c.rotation))).toEqual([0,180]);
   await expect(room(page).getByRole('button',{name:'应用布局',exact:true})).toHaveCount(0);
   await page.screenshot({path:`artifacts/room-outward-grids-${info.project.name}.png`,fullPage:true});
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await expect(svg.locator('.rw-cabinet-back')).toHaveAttribute('fill-opacity','1');
+  await expect(scene.locator('.rw-slot-hit')).toHaveCount(5);
+  await page.screenshot({path:`artifacts/room-opaque-back-${info.project.name}.png`,fullPage:true});
   expect(errors).toEqual([]);
 });
 
