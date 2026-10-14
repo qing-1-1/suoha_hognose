@@ -46,6 +46,15 @@ test('manual sales, unlisting, return and resale preserve history with transacti
   assert.equal(snapshot.assignments.length,0);assert.ok(snapshot.moves.some(m=>m.snake_id==='A'&&m.source_slot==='s1'&&m.target_slot===null));
   assert.equal((await db.query('select count(*) n from purchase_inquiries')).rows[0].n,0,'manual sale must not fabricate an order');
   assert.equal((await db.query('select count(*) n from listing_inventory_events')).rows[0].n,1);
+  // Replay the full migration with real sale data present, including policy/function setup.
+  const eventsBefore=(await db.query('select * from listing_inventory_events order by id')).rows;
+  const saleBefore=(await db.query('select id,published,sale_status,updated_at from specimen_listings order by id')).rows;
+  await db.exec('reset role');
+  for(let retry=0;retry<2;retry++)await db.exec(fs.readFileSync('supabase/migrations/047_manual_listing_sales.sql','utf8'));
+  await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select * from listing_inventory_events order by id')).rows,eventsBefore);
+  assert.deepEqual((await db.query('select id,published,sale_status,updated_at from specimen_listings order by id')).rows,saleBefore);
+  assert.deepEqual((await call('sell',id,key)).rows[0].data,result);
   assert.equal((await db.query('select public_catalog() data')).rows[0].data.items.find(i=>i.snake_id==='A').sale_status,'sold');
   await assert.rejects(call('sell',id,randomUUID(),await version(id)),/已上架/);
   await db.query("select return_sold_animals(array['A'],'退回',$1)",[randomUUID()]);

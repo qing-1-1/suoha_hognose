@@ -1,6 +1,6 @@
--- Apply after 046. Manual sale/unlisting history; no existing animals are changed.
+-- Apply after 046. Safe to rerun; existing history and animals are preserved.
 begin;
-create table public.listing_inventory_events (
+create table if not exists public.listing_inventory_events (
  id uuid primary key default gen_random_uuid(), request_id uuid not null unique, actor_id uuid not null references auth.users(id),
  listing_id uuid not null references public.specimen_listings(id),
  snake_id text not null references public.snakes(id),
@@ -12,13 +12,14 @@ create table public.listing_inventory_events (
  check((action='sell' and sold_on is not null) or (action='unlist' and sold_on is null and amount is null)),
  check(returned_at is null or action='sell')
 );
-create unique index one_current_manual_sale on public.listing_inventory_events(snake_id) where action='sell' and returned_at is null;
+create unique index if not exists one_current_manual_sale on public.listing_inventory_events(snake_id) where action='sell' and returned_at is null;
 alter table public.listing_inventory_events enable row level security;
 revoke all on public.listing_inventory_events from public,anon,authenticated;
 grant select on public.listing_inventory_events to authenticated;
+drop policy if exists listing_events_staff on public.listing_inventory_events;
 create policy listing_events_staff on public.listing_inventory_events for select to authenticated using(public.can_edit_app());
 
-create function public.manage_listing_inventory(p_listing uuid,p_action text,p_request uuid,p_expected_updated_at timestamptz,
+create or replace function public.manage_listing_inventory(p_listing uuid,p_action text,p_request uuid,p_expected_updated_at timestamptz,
  p_sold_on date default null,p_amount numeric default null,p_customer_note text default '',p_note text default '') returns jsonb
 language plpgsql security definer set search_path=public as $$
 declare l public.specimen_listings; s public.snakes; prior public.listing_inventory_events;
