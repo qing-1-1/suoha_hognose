@@ -9,6 +9,7 @@
   let salesQuery='',salesStatus='',salesSource='',salesFrom='',salesTo='',recordQuery='',recordFrom='',recordTo='',recordKind='',salesTarget='',recordTarget='',publishingTarget='',publishingMissing=false;
   let loading=null,generation=0,recordTab='events',salesFilter='open',publishingQuery='',lastFocus=null;
   let publishingTab='listings';
+  model.listingEvents=[];tableMap.listingEvents='listing_inventory_events';
   const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
   const date=value=>value?new Date(value).toLocaleDateString('zh-CN'):'—';
   const currency=(amount,code='CNY')=>amount==null?'询价':new Intl.NumberFormat('zh-CN',{style:'currency',currency:code}).format(amount);
@@ -43,7 +44,7 @@
     })().catch(()=>{model.errors.listings='读取失败，请刷新重试';render();}).finally(()=>{if(own===generation)loading=null;});
     return loading;
   }
-  function warning(keys=['listings']){const broken=keys.filter(k=>model.errors[k]);return broken.length?`<div class="ws-alert">此功能暂不可用：${broken.map(k=>escape(({listings:'公开档案',media:'照片',inquiries:'购买意向',events:'配种记录',clutches:'窝次',measurements:'成长记录',activity:'销售历史',transfers:'留种记录'})[k]||'业务数据')).join('、')}。保留上次成功结果，请刷新重试。<details><summary>技术详情</summary>${broken.map(k=>escape(tableMap[k]+': '+model.errors[k])).join('<br>')}</details>${button('重新读取','reload')}</div>`:'';}
+  function warning(keys=['listings']){const broken=keys.filter(k=>model.errors[k]);return broken.length?`<div class="ws-alert">此功能暂不可用：${broken.map(k=>escape(({listings:'公开档案',media:'照片',inquiries:'购买意向',events:'配种记录',clutches:'窝次',measurements:'成长记录',activity:'销售历史',transfers:'留种记录',listingEvents:'人工成交与下架历史'})[k]||'业务数据')).join('、')}。保留上次成功结果，请刷新重试。<details><summary>技术详情</summary>${broken.map(k=>escape(tableMap[k]+': '+model.errors[k])).join('<br>')}</details>${button('重新读取','reload')}</div>`:'';}
   function render(){
     if(!currentUser||!currentProfile?.active)return;
     const focused=document.activeElement,scope=focused?.closest('.page.active'),preserve=scope&&focused.matches('input:not([type=file]),textarea,select')?{id:focused.id,name:focused.name,value:focused.value,start:focused.selectionStart,end:focused.selectionEnd}:null;
@@ -99,7 +100,7 @@
   function renderSold(sold){
     const rows=sold.filter(s=>[s.id,s.gene_text,model.listings.find(l=>l.snake_id===s.id)?.title].join(' ').toLowerCase().includes(publishingQuery.toLowerCase()));
     const ready=model.loaded&&!model.errors.listings;
-    byId('workspacePublishing').innerHTML=heading('PUBLISHING / SOLD ARCHIVE','公开展示','已售个体集中管理。回库恢复在养并下架原展示，历史成交记录保留。',button('查看种群库','returned-stock'))+publishingTabs(sold)+warning()+`<div class="ws-panel"><div class="ws-toolbar"><input id="publishingSearch" type="search" placeholder="搜索编号、标题或基因" aria-label="搜索已售个体" value="${escape(publishingQuery)}"><span class="ws-note">当前显示 ${rows.length} / ${sold.length} 条</span><button class="ws-action" data-clear-publishing>清除筛选</button><button class="ws-action primary" data-return-all-sold ${!ready||!sold.length?'disabled':''}>全部已售回库（${ready?sold.length:'—'}）</button></div><p class="ws-note">包含种群库、自繁库及未建立公开档案的已售个体。全部回库不受搜索条件限制。</p>${rows.length?`<div class="ws-list">${rows.map(s=>`<div class="ws-list-row" data-sold-animal="${escape(s.id)}"><div><b>${escape(s.id)} · ${escape(s.gene_text||'基因待确认')}</b><small>${escape(model.listings.find(l=>l.snake_id===s.id)?.title||'未建立公开档案')} · ${s.inventory_library==='nursery'?'自繁库':'种群库'} · ${({F:'母 ♀',M:'公 ♂'})[s.sex]||'性别待确认'}</small></div><div class="ws-actions">${button('查看档案','individual',s.id)}<button class="ws-action primary" data-return-sold="${escape(s.id)}">放回种群库</button></div></div>`).join('')}</div>`:empty(!ready?'已售资料暂未完整读取，请稍后或刷新重试。':sold.length?'没有符合搜索条件的已售个体。':'暂无已售个体。已售个体会显示在这里，回库后可在种群库重新上架。')}</div>`;
+    byId('workspacePublishing').innerHTML=heading('PUBLISHING / SOLD ARCHIVE','公开展示','已售个体集中管理。回库恢复在养并下架原展示，历史成交记录保留。',button('查看种群库','returned-stock'))+publishingTabs(sold)+warning()+`<div class="ws-panel"><div class="ws-toolbar"><input id="publishingSearch" type="search" placeholder="搜索编号、标题或基因" aria-label="搜索已售个体" value="${escape(publishingQuery)}"><span class="ws-note">当前显示 ${rows.length} / ${sold.length} 条</span><button class="ws-action" data-clear-publishing>清除筛选</button><button class="ws-action primary" data-return-all-sold ${!ready||!sold.length?'disabled':''}>全部已售回库（${ready?sold.length:'—'}）</button></div><p class="ws-note">包含种群库、自繁库及未建立公开档案的已售个体。全部回库不受搜索条件限制。</p>${rows.length?`<div class="ws-list">${rows.map(s=>`<div class="ws-list-row" data-sold-animal="${escape(s.id)}"><div><b>${escape(s.id)} · ${escape(s.gene_text||'基因待确认')}</b><small>${escape(model.listings.find(l=>l.snake_id===s.id)?.title||'未建立公开档案')} · ${s.inventory_library==='nursery'?'自繁库':'种群库'} · ${({F:'母 ♀',M:'公 ♂'})[s.sex]||'性别待确认'}</small></div><div class="ws-actions">${button('查看档案','individual',s.id)}${model.listings.some(l=>l.snake_id===s.id)?button('销售历史','listing-history',model.listings.find(l=>l.snake_id===s.id).id):''}<button class="ws-action primary" data-return-sold="${escape(s.id)}">放回种群库</button></div></div>`).join('')}</div>`:empty(!ready?'已售资料暂未完整读取，请稍后或刷新重试。':sold.length?'没有符合搜索条件的已售个体。':'暂无已售个体。已售个体会显示在这里，回库后可在种群库重新上架。')}</div>`;
     byId('publishingSearch').addEventListener('input',event=>{publishingQuery=event.target.value;const start=event.target.selectionStart;renderPublishing();byId('publishingSearch').focus();byId('publishingSearch').setSelectionRange(start,start);});
   }
   function renderPublishing(){
@@ -123,8 +124,9 @@
       const reason=!l.published?'先发布再拍卖':l.sale_status!=='available'?'设为在售后可拍卖':l.currency!=='CNY'?'拍卖仅支持人民币':'';
       return (reason?'<button class="ws-action" disabled title="'+reason+'">'+reason+'</button>':button('配置拍卖','configure-auction',l.id))+(info.latest?button('拍卖记录','manage-auction',l.id):'');
     };
+    const inventoryActions=l=>{const active=animal(l.snake_id)?.status==='active';const available=l.published&&active&&!auctionInfo(l).active;return (available&&l.sale_status==='available'?button('标记已售','mark-sold',l.id,true):'')+(available&&['available','display'].includes(l.sale_status)?button('下架','unlist',l.id):'')+button('历史','listing-history',l.id);};
     const rows=model.listings.filter(l=>!l.deleted_at&&(!publishingTarget||String(l.id)===publishingTarget)&&(!publishingMissing||!model.media.some(m=>m.listing_id===l.id&&m.is_public!==false))&&(l.title+' '+l.snake_id).toLowerCase().includes(publishingQuery.toLowerCase()));
-    byId('workspacePublishing').innerHTML=heading('PUBLISHING / PUBLIC ARCHIVE','公开展示','在同一个体上管理公开资料、一口价售卖与拍卖。配置拍卖时自动带入个体；成交后进入意向与销售。',button('新增展示档案','new-listing','',true))+warning()+`<div class="ws-panel"><div class="ws-toolbar"><input id="publishingSearch" placeholder="搜索编号或标题" aria-label="搜索展示档案" value="${escape(publishingQuery)}"><span class="ws-note">${publishingMissing?"待补公开照片 · ":""}${publishingTarget?"提醒指定档案 · ":""}当前显示 ${rows.length} 份配置</span><button class="ws-action" data-clear-publishing>清除筛选</button></div>${rows.length?`<div class="ws-table-wrap"><table class="ws-table"><thead><tr><th>个体</th><th>公开状态</th><th>交易方式 / 价格</th><th>照片</th><th>操作</th></tr></thead><tbody>${rows.map(l=>`<tr><td><b>${escape(l.title)}</b><small>${escape(l.snake_id)} / ${escape(l.slug)}</small></td><td><span class="ws-status">${l.published?'已发布':'草稿'}</span> ${status(l.sale_status)}</td><td>${trade(l)}</td><td>${model.media.filter(m=>m.listing_id===l.id).length} 张</td><td><div class="ws-actions">${button('编辑','edit-listing',l.id)}${auctionActions(l)}${button('照片','photos',l.id)}${button('删除','delete-listing',l.id)}${l.published?`<a class="ws-action" href="/specimens/${encodeURIComponent(l.slug)}" target="_blank" rel="noopener">查看 ↗</a>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:empty('还没有展示档案。点击“新增展示档案”，从现有真实个体中选择并准备资料；默认保存为未发布草稿。')}</div>`;
+    byId('workspacePublishing').innerHTML=heading('PUBLISHING / PUBLIC ARCHIVE','公开展示','管理个体展示、人工成交和拍卖。在售个体可标记已售或下架，历史记录持续保留。',button('新增展示档案','new-listing','',true))+warning()+`<div class="ws-panel"><div class="ws-toolbar"><input id="publishingSearch" placeholder="搜索编号或标题" aria-label="搜索展示档案" value="${escape(publishingQuery)}"><span class="ws-note">${publishingMissing?"待补公开照片 · ":""}${publishingTarget?"提醒指定档案 · ":""}当前显示 ${rows.length} 份配置</span><button class="ws-action" data-clear-publishing>清除筛选</button></div>${rows.length?`<div class="ws-table-wrap"><table class="ws-table"><thead><tr><th>个体</th><th>公开状态</th><th>交易方式 / 价格</th><th>照片</th><th>操作</th></tr></thead><tbody>${rows.map(l=>`<tr><td><b>${escape(l.title)}</b><small>${escape(l.snake_id)} / ${escape(l.slug)}</small></td><td><span class="ws-status">${l.published?'已发布':'草稿'}</span> ${status(l.sale_status)}</td><td>${trade(l)}</td><td>${model.media.filter(m=>m.listing_id===l.id).length} 张</td><td><div class="ws-actions">${inventoryActions(l)}${button('编辑','edit-listing',l.id)}${auctionActions(l)}${button('照片','photos',l.id)}${button('删除','delete-listing',l.id)}${l.published?`<a class="ws-action" href="/specimens/${encodeURIComponent(l.slug)}" target="_blank" rel="noopener">查看 ↗</a>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:empty('还没有展示档案。点击“新增展示档案”，从现有真实个体中选择并准备资料；默认保存为未发布草稿。')}</div>`;
     byId('publishingSearch').addEventListener('input',event=>{publishingQuery=event.target.value;const start=event.target.selectionStart;renderPublishing();byId('publishingSearch').focus();byId('publishingSearch').setSelectionRange(start,start);});
     byId('workspacePublishing').querySelector('.ws-heading').insertAdjacentHTML('afterend',publishingTabs(sold));
     window.SuohaUpgrades?.publishing();
@@ -152,20 +154,40 @@
   }
   async function ensureRecord(key,id){if(!id||model[key].some(r=>String(r.id)===String(id)))return;const result=await sb.from(tableMap[key]).select('*').eq('id',id).maybeSingle();if(result.error||!result.data)throw new Error('记录不存在或暂时无法读取，请刷新');model[key].push(result.data);}
   async function checked(query){const {data,error}=await query;if(error)throw error;return data;}
+  function listingInventoryAction(id,action){
+    const row=model.listings.find(l=>l.id===id);if(!row)return;
+    const selling=action==='sell';let request=crypto.randomUUID(),submitted=null;
+    formDialog(selling?'标记已售 · '+row.snake_id:'下架 · '+row.snake_id,
+      selling?'确认实际售出后，个体进入已售档案。无需付款订单；普通爬柜中的入住会结束，原谱系和喂食记录保留。':'下架后停止公开展示，个体继续在养，照片和历史保留，之后可重新上架。',
+      (selling?input('sold_on','成交日期',today(),'date','required max="'+today()+'"')+input('amount','成交金额（'+row.currency+'，可不填）','','number','min="0" max="9999999999.99" step="0.01"')+area('customer_note','买家备注（可选，仅内部可见）','',500):'')+
+      area('note',selling?'成交备注（可选，仅内部可见）':'下架原因（必填）','',2000),async values=>{
+        const payload={p_listing:id,p_action:action,p_expected_updated_at:row.updated_at,p_sold_on:selling?values.sold_on:null,p_amount:selling&&values.amount!==''?Number(values.amount):null,p_customer_note:selling?values.customer_note.trim():'',p_note:values.note.trim()};
+        const signature=JSON.stringify(payload);if(submitted!==null&&submitted!==signature)request=crypto.randomUUID();submitted=signature;
+        try{await checked(sb.rpc('manage_listing_inventory',{...payload,p_request:request}));}catch(error){throw Error(/schema cache|does not exist|Could not find/i.test(error.message||'')?'请先执行 047 展示管理迁移，再刷新页面重试':error.message||'操作失败');}
+        if(selling){publishingTab='sold';publishingQuery='';publishingTarget='';publishingMissing=false;}
+        await refreshRemote(false);
+      },selling?'确认已售':'确认下架');
+    if(!selling)dialog.querySelector('[name=note]').required=true;
+  }
+  function listingHistory(id){
+    const row=model.listings.find(l=>l.id===id);if(!row)return;
+    const events=model.listingEvents.filter(e=>e.listing_id===id),orders=model.inquiries.filter(i=>i.listing_id===id);
+    openDialog('销售与上下架历史 · '+row.snake_id,'人工成交与原订单分别保留。回库保留成交事实，不自动退款。',warning(['listingEvents','inquiries'])+`<div class="ws-list">${events.map(e=>`<div class="ws-list-row"><div><b>${e.action==='sell'?'人工标记已售':'下架'}</b><small>${date(e.sold_on||e.created_at)}${e.action==='sell'?' · '+(e.amount==null?'成交金额未记录':currency(e.amount,e.currency)):''}${e.returned_at?' · 已回库 '+date(e.returned_at):''}</small><p>${escape(e.note||'无备注')}</p>${e.customer_note?`<p>买家备注：${escape(e.customer_note)}</p>`:''}</div></div>`).join('')}${orders.map(i=>`<div class="ws-list-row"><div><b>${escape(i.reference)} · ${escape(labels[i.status]||i.status)}</b><small>${date(i.created_at)}${i.returned_at?' · 已回库 '+date(i.returned_at):''}</small></div>${button('订单历史','sale-detail',i.id)}</div>`).join('')||(!events.length?empty('暂无销售或下架记录。'):'')}</div>`);
+  }
   function listingForm(id){
     const row=model.listings.find(l=>l.id===id)||{};
     const available=REMOTE_RAW.snakes.filter(s=>s.id===row.snake_id||!model.listings.some(l=>l.snake_id===s.id&&!l.deleted_at));
     if(!available.length)return toast('所有个体已有展示配置，请编辑现有档案。');
     const auction=window.SuohaAuctionAdmin?.forListing(row.id)?.active;
     const locked=!!auction||['reserved','sold'].includes(row.sale_status);
-    formDialog(row.id?'编辑公开档案':'新增展示档案','只发布已确认的资料。售价独立于购入成本；售出和预留状态通过销售流程维护。',
+    formDialog(row.id?'编辑公开档案':'新增展示档案','只发布已确认的资料。售价独立于购入成本；售出请在展示管理点击“标记已售”，预留订单在意向与销售中处理。',
       select('library_filter','从哪个库选择','<option value="all">全部个体</option><option value="stock">种群库</option><option value="nursery">自繁库</option>')+select('snake_id','真实个体',options(available,s=>s.id,s=>`${s.inventory_library==='nursery'?'[自繁库]':'[种群库]'} ${s.id} · ${{F:'母 ♀',M:'公 ♂',U:'未知'}[s.sex]||'未知'} · ${s.birth_date||'出生待补'} · ${s.gene_text}`,row.snake_id))+`<div class="ws-animal-preview full" id="listingAnimalPreview" aria-live="polite"></div>`+
       input('slug','公开网址标识',row.slug||'specimen-'+available[0].id.toLowerCase().replace(/[^a-z0-9-]/g,'-'),'text','required pattern="[a-z0-9][a-z0-9-]{0,79}" maxlength="80"')+
       input('title','公开标题',row.title||available[0].gene_text,'text','required maxlength="150"')+
       select('birth_precision','出生时间公开精度',options(['unknown','year','month','day'],x=>x,x=>({unknown:'不公开 / 未确认',year:'只知道年份',month:'精确到月份',day:'已确认具体日期'})[x],row.birth_precision||'month'))+
       input('asking_price','公开售价（留空为询价）',row.asking_price??'','number','min="0" step="0.01"')+
       select('currency','币种',options(['CNY','USD','EUR','GBP','JPY'],x=>x,x=>x,row.currency||'CNY'))+
-      (auction?`<p class="ws-note full">此个体正在拍卖，售价、币种、销售状态与发布状态已锁定。请从公开展示中的“管理拍卖”查看或取消场次。</p>`:locked?`<p class="ws-note full">销售状态：${labels[row.sale_status]}。请通过意向与销售处理。</p>`:select('sale_status','销售状态',options(['display','available'],x=>x,x=>labels[x],row.sale_status||'display')))+
+      (auction?`<p class="ws-note full">此个体正在拍卖，售价、币种、销售状态与发布状态已锁定。请从公开展示中的“管理拍卖”查看或取消场次。</p>`:locked?`<p class="ws-note full">销售状态：${labels[row.sale_status]}。已售回库在“已售”标签操作；预留订单在意向与销售处理。</p>`:select('sale_status','销售状态',options(['display','available'],x=>x,x=>labels[x],row.sale_status||'display')))+
       area('description','公开描述',row.description)+area('husbandry_summary','公开个体情况（注明测量日期，勿填写内部备注）',row.husbandry_summary,1000)+area('pedigree_summary','已确认且允许公开的谱系说明',row.pedigree_summary,1000)+
       `<label class="check"><input name="featured" type="checkbox" ${row.featured?'checked':''}>作为精选优先展示</label><label class="check"><input name="published" type="checkbox" ${row.published?'checked':''}>公开发布（未勾选为私有草稿）</label>`,
       async(values,form)=>{const data={snake_id:row.snake_id||values.snake_id,slug:values.slug.trim(),title:values.title.trim(),description:values.description,husbandry_summary:values.husbandry_summary,pedigree_summary:values.pedigree_summary,birth_precision:values.birth_precision,asking_price:auction?row.asking_price:values.asking_price===''?null:Number(values.asking_price),currency:auction?row.currency:values.currency,sale_status:locked?row.sale_status:values.sale_status,published:auction?row.published:form.elements.published.checked,featured:form.elements.featured.checked};const existing=row.id?row:model.listings.find(l=>l.snake_id===data.snake_id&&l.deleted_at);if(existing?.deleted_at)data.deleted_at=null;await checked(existing?sb.from('specimen_listings').update(data).eq('id',existing.id):sb.from('specimen_listings').insert(data));});
@@ -234,6 +256,9 @@
       else setPage(action);return;
     }
     if(!canWrite())return toast('当前账号没有写权限',true);
+    if(action==='mark-sold')return listingInventoryAction(id,'sell');
+    if(action==='unlist')return listingInventoryAction(id,'unlist');
+    if(action==='listing-history')return listingHistory(id);
     if(action==='new-listing'||action==='edit-listing')listingForm(id);
     else if(action==='configure-auction')await window.SuohaAuctionAdmin.createForListing(id);
     else if(action==='manage-auction')await window.SuohaAuctionAdmin.manageListing(id);

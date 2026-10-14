@@ -1,15 +1,16 @@
 const {test,expect}=require('@playwright/test');
 const listing='11111111-1111-4111-8111-111111111111',orderId='22222222-2222-4222-8222-222222222222';
-test('purchase prompts login and resumes confirmation without reserving early',async({page})=>{
+test('direct purchase stays hidden before and after buyer login; inquiries remain available',async({page})=>{
  let logged=false,purchases=0;
  const item={id:listing,slug:'login-test',title:'登录测试个体',sale_status:'available',asking_price:1000,currency:'CNY',photos:[],genes:[]};
  await page.route('**/.netlify/functions/public-catalog*',r=>r.fulfill({json:{items:[item],page:1,total:1,series:[]}}));
  await page.route('**/.netlify/functions/manual-payment*',r=>{if(r.request().method()==='POST')purchases++;return r.fulfill({status:logged?200:401,json:logged?{orders:[],channels:[]}:{error:'请先登录买家账号'}});});
  await page.route('**/.netlify/functions/auction-api*',r=>{if(r.request().postDataJSON()?.action==='login')logged=true;return r.fulfill({json:{username:logged?'buyer1':'',items:[]}});});
- await page.goto('/specimens/login-test');await expect(page.locator('.purchase-login-hint')).toContainText('登录后可购买');
- await page.getByRole('button',{name:'登录后购买 · ¥1000.00',exact:true}).click();
+ await page.goto('/specimens/login-test');await expect(page.locator('#openInquiry')).toBeVisible();await expect(page.getByRole('button',{name:/登录后购买|立即购买|确认订单并付款/})).toHaveCount(0);
+ await page.locator('.buyer-account').click();
  const auth=page.locator('#buyerDialog');await auth.getByLabel('账号',{exact:true}).fill('buyer1');await auth.getByLabel('密码',{exact:true}).fill('password12345');await auth.getByRole('button',{name:'登录',exact:true}).click();
- await expect(page.locator('.payment-dialog').getByRole('button',{name:'确认订单并付款'})).toBeVisible();expect(purchases).toBe(0);await expect(auth).not.toBeVisible();
+ await expect(page.locator('.buyer-account')).toContainText('buyer1');await auth.locator('[data-buyer-close]').click();
+ await expect(page.getByRole('button',{name:/登录后购买|立即购买|确认订单并付款/})).toHaveCount(0);expect(purchases).toBe(0);await expect(page.locator('#openInquiry')).toBeVisible();
 });
 test.beforeEach(async({page})=>{await page.route('**/fonts.googleapis.com/**',r=>r.abort());await page.route('**/fonts.gstatic.com/**',r=>r.abort());});
 test('real local Chinese OCR loads models and extracts a test payment amount',async({page})=>{
@@ -23,13 +24,14 @@ test('real local Chinese OCR loads models and extracts a test payment amount',as
  });
  expect(result.fields.amount).toBe('1050.00');expect(result.text).toContain('1050');expect(result.confidence).toBeGreaterThan(40);
 });
-for(const mode of ['manual','screenshot'])test('fixed-price checkout '+mode+' submits evidence without marking paid',async({page})=>{
+for(const mode of ['manual','screenshot'])test('existing order '+mode+' submits evidence without marking paid',async({page})=>{
  const item={id:listing,slug:'payment-test',title:'测试个体',snake_id:'S1',sale_status:'available',asking_price:1050,currency:'CNY',photos:[],genes:[]};
  const order={id:orderId,title:item.title,reference:'TEST-ONLY-001',amount:1050,status:'reserved',currency:'CNY',reserved_until:new Date(Date.now()+7200000).toISOString(),receipts:[]};let submission;
  const png=await require('sharp')({create:{width:100,height:100,channels:3,background:'#fff'}}).png().toBuffer();const pixel='data:image/png;base64,'+png.toString('base64');
  await page.route('**/.netlify/functions/public-catalog*',r=>r.fulfill({json:{items:[item],page:1,total:1,series:[]}}));
  await page.route('**/.netlify/functions/manual-payment*',async r=>{const b=r.request().postDataJSON();if(b?.action==='purchase')return r.fulfill({json:{id:orderId}});if(b?.action==='receipt'){submission=b;order.receipts=[{id:b.request_id,status:'pending',fields:b.fields}];return r.fulfill({json:{id:b.request_id,status:'submitted'}});}return r.fulfill({json:{orders:[order],channels:[{id:'wechat_transfer',label:'加微信转账',payee:'测试收款人',instructions:'请备注订单号',wechat_id:'shop_test',url:null},{id:'wechat',label:'微信',payee:'测试收款人',instructions:'测试用收款配置',url:pixel}]}});});
- await page.goto('/specimens/payment-test');await page.getByRole('button',{name:'立即购买 · ¥1050.00',exact:true}).click();await page.getByRole('button',{name:'确认订单并付款'}).click();
+ await page.route('**/.netlify/functions/auction-api*',r=>r.fulfill({json:{username:'buyer1',items:[]}}));
+ await page.goto('/specimens/payment-test');await page.locator('.buyer-account').click();await page.locator('#buyerDialog [data-payment-order]').click();
  const modal=page.locator('.payment-dialog');await expect(modal).toContainText('测试收款人');await expect(modal).toContainText('shop_test');await expect(modal).toContainText('支付详情');await expect(modal.locator('.payment-qr')).toHaveCount(0);await modal.locator('[name=channel]').selectOption('wechat');await expect(modal.locator('.payment-qr')).toBeVisible();await modal.locator('[name=channel]').selectOption('wechat_transfer');
  // Real engine is tested above; this test isolates the evidence-submission interaction.
  await modal.locator('.payment-examples summary').click();
