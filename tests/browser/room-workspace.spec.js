@@ -393,7 +393,7 @@ test('new cabinet feeding schedules can be drafted before its slots are saved',a
   expect(errors).toEqual([]);
 });
 
-test('perspective automatically shows grids facing the viewer for opposite cabinet directions',async({page},info)=>{
+test('perspective starts outward and retains opaque rear panels when orbiting behind cabinets',async({page},info)=>{
   const errors=await boot(page);
   await page.evaluate(()=>{roomFixture.snapshot.config.cabinets[1].rotation=180;sessionStorage.setItem('room-test-db',JSON.stringify(roomFixture));});
   await page.reload();
@@ -409,14 +409,14 @@ test('perspective automatically shows grids facing the viewer for opposite cabin
       await expect(rack.locator('.rw-cabinet-back')).toHaveAttribute('fill-opacity','1');
       expect(await rack.evaluate(el=>{
         const back=el.querySelector('.rw-cabinet-back'),grid=el.querySelector('.rw-cabinet-grid');
-        return !!(back.compareDocumentPosition(grid)&Node.DOCUMENT_POSITION_FOLLOWING)&&getComputedStyle(back).fill!=='none'&&back.getBBox().height>0;
+        const behind=grid.getAttribute('visibility')==='hidden';return !!(back.compareDocumentPosition(grid)&(behind?Node.DOCUMENT_POSITION_PRECEDING:Node.DOCUMENT_POSITION_FOLLOWING))&&getComputedStyle(back).fill!=='none'&&back.getBBox().height>0;
       })).toBe(true);
     }
     await svg.scrollIntoViewIfNeeded();const box=await svg.boundingBox(),x=box.x+box.width-30,y=box.y+25;
     await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-180,y,{steps:12});await page.mouse.up();
   }
-  await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','-1');
-  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','1');
+  await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('visibility','hidden');
+  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('visibility','hidden');
   for(const id of ['rack-a','rack-b'])await expect(scene.locator(`[data-cabinet="${id}"] .rw-box-face`)).toHaveCount(5);
   expect(await page.evaluate(()=>roomFixture.snapshot.config.cabinets.map(c=>c.rotation))).toEqual([0,180]);
   await expect(room(page).getByRole('button',{name:'应用布局',exact:true})).toHaveCount(0);

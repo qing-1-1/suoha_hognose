@@ -8,7 +8,7 @@
     const slotName=id=>id?titleOfSlot(id):'待定位';
     function labelValues(slotId) {
       const snake=snakes().find(s=>s.id===assignments().find(a=>a.slot_id===slotId)?.snake_id),w=snake?M.latestWeight(snake.id,measurements()):null;
-      const winter=slotInfo(slotId)?.c.type==='incubator',mouse=w&&!winter?M.matchMouse(w.weight,config().rules):null;
+      const winter=slotInfo(slotId)?.c.type==='incubator',mouse=w&&!winter?M.matchMouse(w.weight,config().rules,snake?.sex):null;
       const task=state.tasks.filter(t=>t.snakeId===snake?.id&&t.status==='pending').sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];
       return {id:snake?.id||'空盒',sex:({M:'公',F:'母',U:'性别待确认'})[snake?.sex]||'—',gene:snake?.gene_text||'—',weight:w?`${w.weight}g`:'待称重',mouse:winter?'冬化暂停喂食':task?task.mouseMin==null?'鼠重待确认':`${task.mouseMin}–${task.mouseMax}g`:mouse?`${mouse.mouseMin}–${mouse.mouseMax}g`:'鼠重待确认',next:winter?'移出后恢复排期':task?`${task.date} ${task.time}`:'暂无计划',note:config().slotNotes?.[slotId]||''};
     }

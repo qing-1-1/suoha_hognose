@@ -248,10 +248,12 @@
     }
     return [...new Set(errors)];
   }
-  function matchMouse(weight,rules) {
+  function matchMouse(weight,rules,sex) {
     if (!positive(weight)) return null;
     const matches=(rules||[]).filter(rule=>Number(weight)>Number(rule.min) && (rule.max===null || Number(weight)<=Number(rule.max)));
-    return matches.length===1 && positive(matches[0].mouseMin) && positive(matches[0].mouseMax) && matches[0].mouseMax>=matches[0].mouseMin ? clone(matches[0]) : null;
+    const result=matches.length===1 && positive(matches[0].mouseMin) && positive(matches[0].mouseMax) && matches[0].mouseMax>=matches[0].mouseMin ? clone(matches[0]) : null;
+    if(result&&sex==='M'&&(result.mouseMin>6||result.mouseMax>8))Object.assign(result,{mouseMin:6,mouseMax:8});
+    return result;
   }
   function latestWeight(snakeId,measurements) {
     const record=(measurements||[]).filter(row=>row.snake_id===snakeId && positive(row.weight_g) && !Number.isNaN(Date.parse(row.measured_at))).sort((a,b)=>Date.parse(b.measured_at)-Date.parse(a.measured_at) || String(b.id).localeCompare(String(a.id)))[0];
@@ -276,7 +278,7 @@
         const assignment=assignmentMap.get(slot.id); if (!assignment) continue;
         const schedule=Object.prototype.hasOwnProperty.call(cabinet.slotSchedules||{},slot.id) ? cabinet.slotSchedules[slot.id] : cabinet.schedule;
         if (!schedule || schedule.paused || !validDate(schedule.start)) continue;
-        const measured=latestWeight(assignment.snake_id,measurements), mouse=matchMouse(measured?.weight,config.rules);
+        const measured=latestWeight(assignment.snake_id,measurements), mouse=matchMouse(measured?.weight,config.rules,snakes.find(s=>s.id===assignment.snake_id)?.sex);
         const candidateDates=new Set();for(let d=from;d<=to;d=addDays(d,1))candidateDates.add(d);
         for(const entry of config.taskOverrides||[]) if(entry.snakeId===assignment.snake_id&&entry.overrideAt&&localDate(entry.overrideAt,config.timezone)>=from&&localDate(entry.overrideAt,config.timezone)<=to)candidateDates.add(localDate(entry.plannedAt,config.timezone));
         for (const originalDate of candidateDates) {
@@ -321,6 +323,7 @@
       const measured=latestWeight(stored.snake_id,measurements),status=stored.result?({fed:'completed',eaten:'completed',completed:'completed',offered:'offered',skipped:'skipped',refused:'refused',cancelled:'cancelled'}[stored.result]||'pending'):!locked&&override?.cancelled?'cancelled':'pending';
       const needsReview=!!locked&&!stored.result&&(!existing||['mouseMin','mouseMax','quantity','dueAt'].some((k,i)=>existing[k]!==[stored.mouse_min_g,stored.mouse_max_g,stored.quantity,dueAt][i])||locked.slot_id!==slotId);
       const task={...existing,id:`${stored.snake_id}:${plannedAt}`,snakeId:stored.snake_id,slotId,cabinetId:historical?stored.cabinet_id:rack?.id||null,date,time,plannedAt,dueAt,originalPlannedAt:plannedAt,weight:measured?.weight??null,measurementId:stored.measurement_id||measured?.measurementId||null,measuredAt:measured?.measuredAt||null,mouseMin:stored.mouse_min_g??null,mouseMax:stored.mouse_max_g??null,quantity:stored.quantity??null,status,warnings:[...(stored.warnings||[])],recordId:stored.result?stored.id:null,frozen:!stored.result,locked:!!locked,batchId:locked?.batch_id||null,batchItemId:locked?.batch_item_id||null,needsReview:needsReview||existing?.needsReview||false,snapshotSlotId:locked?.slot_id||stored.slot_id,snapshotCabinetId:locked?.cabinet_id||stored.cabinet_id};
+      if(!stored.result&&!locked&&snakes.find(s=>s.id===stored.snake_id)?.sex==='M'&&(task.mouseMin>6||task.mouseMax>8)){task.mouseMin=6;task.mouseMax=8;}
       task.needsLocation=!historical&&!placement;task.ruleVersionId=stored.rule_version_id||locked?.rule_version_id||existing?.ruleVersionId||null;
       if(!stored.result&&rack?.type==='incubator'){task.status='suspended';task.suspended=true;task.warnings.push('冬化期间暂停喂食');if(task.locked)task.needsReview=true;}
       if(index>=0)tasks[index]=task;else tasks.push(task);

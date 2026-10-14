@@ -206,19 +206,20 @@
         out+=line(q(-w/2+20,d/2-3),q(w/2-20,d/2-3),'stroke="#466b56" stroke-width="19"');
       } else {
         // Close the rear of the cabinet before drawing the sides, top and boxes.
-        const faceSide=Math.cos(this.orbit.yaw+angle)>=0?1:-1;
+        const faceSide=Math.cos(Math.PI/4+angle)>=0?1:-1,backVisible=Math.cos(this.orbit.yaw+angle)*faceSide<0;
         const front=(x,z,h=0)=>q(x*faceSide,z*faceSide,h);
-        out+=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,height),front(-w/2,-d/2,height)],'class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#869792" stroke-width="7"');
+        const back=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,height),front(-w/2,-d/2,height)],'class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#869792" stroke-width="7"');
+        if(!backVisible)out+=back;
         if(Math.sin(this.orbit.yaw+angle)<0)out+=poly([q(-w/2,-d/2),q(-w/2,d/2),q(-w/2,d/2,height),q(-w/2,-d/2,height)],'fill="#a6b2ae" stroke="#869792" stroke-width="7"');
         if(Math.sin(this.orbit.yaw+angle)>=0)out+=poly([q(w/2,-d/2),q(w/2,d/2),q(w/2,d/2,height),q(w/2,-d/2,height)],'fill="#bbc6c2" stroke="#869792" stroke-width="7"');
         out+=poly([q(-w/2,-d/2,height),q(w/2,-d/2,height),q(w/2,d/2,height),q(-w/2,d/2,height)],'fill="#e4e9df" stroke="#96a59d" stroke-width="10"');
-        // A management overview always exposes the grid on the viewer-facing long side.
+        // Keep the default outward face fixed while the camera orbits.
         // This is a display choice; saved cabinet rotation and footprint stay unchanged.
-        out+=`<g class="rw-cabinet-grid" data-display-side="${faceSide}">`;
+        out+=`<g class="rw-cabinet-grid" data-display-side="${faceSide}" ${backVisible?'visibility="hidden"':''}>`;
         let bottom=0;
         levels.forEach(l=>{const h=num(l.height,150);(l.slots||[]).forEach((s,i,arr)=>{const x=-w/2+25+i*(w-50)/arr.length,bw=(w-50)/arr.length-12,f=this.face(s.id);out+=poly([front(x,d/2,bottom+10),front(x+bw,d/2,bottom+10),front(x+bw,d/2,bottom+h-17),front(x,d/2,bottom+h-17)],`class="rw-box-face${f.pulse}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="5"`);out+=line(front(x+bw*.32,d/2+1,bottom+h*.64),front(x+bw*.68,d/2+1,bottom+h*.64),'stroke="#7d9189" stroke-width="9"');});out+=line(front(-w/2,d/2,bottom),front(w/2,d/2,bottom),`stroke="url(#${this.uid}-metal)" stroke-width="24"`);bottom+=h;});
         [-w/2,w/2].forEach(x=>{out+=line(front(x,d/2,30),front(x,d/2,height),'stroke="#e5e9e4" stroke-width="30"');const foot=front(x,d/2,0);out+=`<circle cx="${foot[0]}" cy="${foot[1]}" r="30" fill="#66766e"/>`;});
-        out+='</g>';
+        out+='</g>';if(backVisible)out+=back;
       }
       return out+'</g>';
     }
@@ -265,7 +266,7 @@
           const fields=this.state.labels||{},show=key=>Array.isArray(fields)?fields.includes(key):fields[key]!==false;
           const sex=snake?.sex==='male'||snake?.sex==='M'?'♂':snake?.sex==='female'||snake?.sex==='F'?'♀':snake?.sex||'';
           const weight=eggs?null:global.SuohaRoomModel?.latestWeight(snake?.id,this.state.measurements||[])?.weight??tasks[0]?.weight;
-          if(!incubator&&!mouseTask&&weight!=null){const rule=global.SuohaRoomModel?.matchMouse(weight,this.state.config.rules||[]);if(rule)mouse=`${rule.mouseMin}–${rule.mouseMax}g`;}
+          if(!incubator&&!mouseTask&&weight!=null){const rule=global.SuohaRoomModel?.matchMouse(weight,this.state.config.rules||[],snake?.sex);if(rule)mouse=`${rule.mouseMin}–${rule.mouseMax}g`;}
           const gene=snake?.gene_text||snake?.gene_description||snake?.genetics||snake?.morph||snake?.genes||'';
           const details=[show('sex')?sex:'',show('weight')&&weight!=null?`${weight}g`:'',show('gene')&&typeof gene==='string'?gene:''].filter(Boolean).join(' · ');
           const nextTask=pending[0];let nextText=nextTask?`${nextTask.date} ${nextTask.time||''}`:'';

@@ -5,6 +5,20 @@ function room(){
   levels:[0,1].map(n=>({id:id+'l'+n,height:250,count:2,boxWidth:250,boxDepth:400,boxHeight:200,slots:[1,2].map(i=>({id:id+'s'+(n*2+i),box_id:id+'b'+(n*2+i)}))}))});
  return{version:1,name:'房间',width:5000,depth:4000,height:3000,timezone:'Asia/Shanghai',labels:['id','weight'],rules:[{id:'r1',min:0,max:10,mouseMin:1,mouseMax:2},{id:'r2',min:10,max:null,mouseMin:2,mouseMax:3}],cabinets:[cabinet('rack',500,'rack'),cabinet('winter',1800,'incubator','brumation'),cabinet('eggs',3000,'incubator','eggs')]};
 }
+
+test('scheduled male recommendations use 6–8g maximum and match frontend while females retain weight rules',async()=>{
+ const db=await setup();try{
+  await db.exec("reset role;update snakes set sex=case when id='A' then 'M' else 'F' end where id in ('A','B');update snake_measurements set weight_g=250;set role authenticated");
+  const M=require('../js/room-model.js'),cfg=room(),today=M.localDate(new Date(),cfg.timezone);cfg.rules[1].mouseMin=20;cfg.rules[1].mouseMax=24;
+  cfg.cabinets[0].schedule={mode:'interval',interval:1,start:today,time:'18:00',quantity:1};
+  let state=(await db.query('select room_save_layout($1,$2,$3) data',[0,cfg,randomUUID()])).rows[0].data;
+  state=(await db.query('select room_assign_batch($1,$2,$3) data',[state.revision,[{snake_id:'A',slot_id:'racks1'},{snake_id:'B',slot_id:'racks2'}],randomUUID()])).rows[0].data;
+  await db.exec('reset role;set role service_role');await db.query('select room_generate_plans()');await db.exec('reset role;set role authenticated');
+  state=(await db.query('select room_snapshot() data')).rows[0].data;
+  assert.ok(state.planned_tasks.some(t=>t.snake_id==='A'));assert.ok(state.planned_tasks.filter(t=>t.snake_id==='A').every(t=>t.mouse_min_g===6&&t.mouse_max_g===8));
+  assert.ok(state.planned_tasks.filter(t=>t.snake_id==='B').every(t=>t.mouse_min_g===20&&t.mouse_max_g===24));
+ }finally{await db.close();}
+});
 async function setup(){
  const db=new PGlite();
  await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;
@@ -23,7 +37,7 @@ async function setup(){
  insert into breeding_events values(1,1,'F','M',current_date-30,'successful'),(2,2,'F','M',current_date-30,'successful'),(3,3,'F','M',current_date-30,'successful');
  insert into clutches values(1,'CL-1',1,'F','M',current_date-2,10,8,0,'incubating',current_date+45),(2,'CL-2',2,'F','M',current_date-2,10,8,0,'incubating',null),(3,'CL-3',3,'F','M',current_date-2,10,8,0,'incubating',null);
  insert into snake_measurements(snake_id,record_kind,measured_at,weight_g) values('A','measurement',current_date,23),('B','measurement',current_date,9);`);
- for(const f of ['039_room_workspace.sql','040_room_rules_and_batches.sql','041_room_label_font_size.sql','042_room_incubators.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
+ for(const f of ['039_room_workspace.sql','040_room_rules_and_batches.sql','041_room_label_font_size.sql','042_room_incubators.sql','043_male_feeding_cap.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await db.exec("set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';set role authenticated");return db;
 }
 test('incubator allocations enforce approved lineage, capacity, purpose, transactions and complete history',async()=>{

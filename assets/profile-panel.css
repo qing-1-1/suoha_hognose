@@ -1,0 +1,9 @@
+.main.has-profile{margin-right:340px}#drawer{scroll-margin-top:80px}
+#drawer{width:320px;top:76px;bottom:16px;right:12px;padding:0 18px 20px;overflow:auto;border:1px solid #d6dfce;border-radius:10px;background:#fafbf6;box-sizing:border-box}
+#drawer:not(.open){display:none}
+#drawer.open{transform:none;visibility:visible;pointer-events:auto}
+.profile-panel-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;background:#fafbf6;border-bottom:1px solid #d6dfce;margin-bottom:16px}
+#drawerClose{position:static;width:auto;min-height:40px;height:auto;padding:8px 12px;border-radius:6px;color:#304830;background:#e7eedd;font-size:13px;flex:none}
+#drawer h2{margin-top:20px;font-size:21px;overflow-wrap:anywhere}
+#drawer .drawerFacts{gap:8px}#drawer .drawerFact{padding:10px}#drawer .drawerActions{flex-wrap:wrap}
+@media(max-width:760px){.main.has-profile{margin-right:0}#drawer.open{position:relative;inset:auto;width:calc(100% - 32px);max-height:52dvh;margin:16px;z-index:1}.profile-panel-head{padding:8px 0}}

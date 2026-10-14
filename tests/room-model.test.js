@@ -3,6 +3,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../js/room-model.js');
 
+test('male automatic mouse range caps at 6–8g without changing lighter animals or female rules',()=>{
+ const rules=M.defaultConfig().rules;
+ for(const weight of [80,120,160,200,500])assert.deepEqual([M.matchMouse(weight,rules,'M').mouseMin,M.matchMouse(weight,rules,'M').mouseMax],[6,8]);
+ assert.equal(M.matchMouse(500,rules,'F').mouseMax,24);assert.equal(M.matchMouse(500,rules,'U').mouseMax,24);
+ assert.equal(M.matchMouse(10,rules,'M').mouseMax,2);assert.equal(M.matchMouse(null,rules,'M'),null);
+});
+
+test('male cap updates unconfirmed old recommendations but preserves actual and locked quantities',()=>{
+ const f=fixture();f.snakes[0].sex='M';const stored={id:'old',snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:'2020-10-12T10:00:00Z',due_at:'2020-10-12T10:00:00Z',mouse_min_g:20,mouse_max_g:24,quantity:1};
+ f.args[5]={from:'2020-10-12',to:'2020-10-12',plannedTasks:[stored]};
+ assert.equal(M.generateTasks(...f.args)[0].mouseMax,8);
+ stored.batch_item_id='locked';assert.equal(M.generateTasks(...f.args)[0].mouseMax,24);
+ delete stored.batch_item_id;f.args[4]=[{...stored,result:'fed'}];assert.equal(M.generateTasks(...f.args)[0].mouseMax,24);
+});
+
 test('incubator default and sparse column stacks have no floating boxes or physical shelf gaps',()=>{
   const c=M.createIncubator({levels:[{count:3},{count:1},{count:3}],purpose:'eggs'}),cfg=M.defaultConfig();cfg.cabinets=[c];
   assert.equal(c.type,'incubator');assert.equal(c.purpose,'eggs');assert.deepEqual([c.width,c.depth,c.height],[1200,600,1800]);assert.deepEqual(M.validateConfig(cfg),[]);
