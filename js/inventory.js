@@ -11,8 +11,6 @@
 
   });
   function decorate(){
-    const toolbar=document.getElementById('popSearch')?.closest('.toolbar');
-    if(toolbar){let action=toolbar.querySelector('[data-return-all-sold]');if(!action){action=document.createElement('button');action.type='button';action.className='ws-action';action.dataset.returnAllSold='';toolbar.append(action);}const count=REMOTE_RAW.snakes.filter(s=>s.status==='sold'||sales?.get(s.id)==='sold').length;action.textContent=`全部已售回库（${count}）`;action.hidden=!canWrite()||count===0;}
     document.querySelectorAll('#popRows [data-s]').forEach(row=>{const animal=snakeById[row.dataset.s];row.querySelector('.inventory-badge')?.remove();if(animal)row.cells[5].insertAdjacentHTML('beforeend',badge(animal));});
     const individual=document.querySelector('#workspaceIndividual .ws-heading');
     if(individual){
@@ -33,7 +31,7 @@
       if(error)throw Error(/schema cache|does not exist|Could not find/i.test(error.message||'')?'请先执行 046 已售回库迁移，再刷新页面重试':error.message||'回库失败');
       if(!data||!Array.isArray(data.returned_ids))throw Error('回库结果暂未确认，请使用相同原因重试');
       document.getElementById('drawer').classList.remove('open');
-      await refreshRemote(false);await load();
+      await refreshRemote(false);await window.SuohaWorkspace.load(true);await load();
       if(state.page==='population'){state.lifecycle='active';state.library='stock';state.q=state.series=state.sex='';['popSearch','popSeries','popSex'].forEach(id=>document.getElementById(id).value='');document.getElementById('popLifecycle').value='active';document.getElementById('popLibrary').value='stock';renderRows();}
       render();toast(`已将 ${data.returned_ids.length} 条个体放回种群库，历史销售记录保留`);
     }});
@@ -53,7 +51,7 @@
   const previousRender=window.SuohaWorkspace.render;window.SuohaWorkspace.render=function(){previousRender();render();};
   const previousDrawer=openDrawer;openDrawer=function(s){previousDrawer(s);document.getElementById('drawerContent').insertAdjacentHTML('afterbegin',`<div class="inventory-status"><span class="ws-pill">${library(s)}</span>${badge(s)}${transferButton(s)}</div>`);};
   document.addEventListener('click',async e=>{
-    const returned=e.target.closest('[data-return-sold],[data-return-all-sold]');if(returned){returnSold(returned.hasAttribute('data-return-all-sold')?REMOTE_RAW.snakes.filter(s=>s.status==='sold'||sales?.get(s.id)==='sold').map(s=>s.id):[returned.dataset.returnSold]);return;}
+    const returned=e.target.closest('[data-return-sold],[data-return-all-sold]');if(returned){if(returned.disabled)return;returnSold(returned.hasAttribute('data-return-all-sold')?window.SuohaWorkspace.soldAnimals().map(s=>s.id):[returned.dataset.returnSold]);return;}
     const remove=e.target.closest('[data-nursery-delete]');if(remove){
       if(!canWrite())return;
       const id=remove.dataset.nurseryDelete;

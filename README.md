@@ -2,7 +2,7 @@
 
 公开个体档案与私有繁育工作台。原生 HTML/CSS/JavaScript + Netlify Functions + Supabase，不需要前端框架。
 
-**已售回库修复（2026-10-14）：** 先在已有迁移至 045 的数据库执行 [046](supabase/migrations/046_return_sold_animals.sql)，再部署前端。种群库支持“全部已售回库”，个体档案支持单条回库；填写原因后恢复在养、原展示下架，成交和收款历史保留，可再次上架。SQL 不会自动回库。操作与验收见 [已售回库修复](docs/design/已售回库修复.md)。
+**已售回库修复（2026-10-14）：** 先在已有迁移至 045 的数据库执行 [046](supabase/migrations/046_return_sold_animals.sql)，再部署前端。在“公开展示 → 已售”中单条或全部回种群库；已售标签在数量为 0 时仍显示。填写原因后恢复在养、原展示下架，成交和收款历史保留，可再次上架。SQL 不会自动回库，本轮标签调整无需新增 SQL。操作与验收见 [已售回库修复](docs/design/已售回库修复.md)。
 
 商店顶部提供「登录 / 注册」入口，登录后显示账号及订单入口。买家账号保存在 `auction_buyers`，密码使用带随机盐的 scrypt 哈希；`auction_sessions` 保存会话令牌的哈希，浏览器使用有效期 7 天的 HttpOnly、SameSite=Strict Cookie（线上另有 Secure）。买家账号与后台 Supabase Auth 管理员账号相互独立。
 
