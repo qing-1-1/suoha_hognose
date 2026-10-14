@@ -3,6 +3,28 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../js/room-model.js');
 
+test('live daily preparation recalculates latest weight, counts quantities across cabinets and preserves confirmed history',()=>{
+  const config=M.defaultConfig(),snakes=[{id:'F',sex:'F'},{id:'M',sex:'M'},{id:'U',sex:'U'}];
+  const measurements=[{id:1,snake_id:'F',weight_g:10,measured_at:'2026-10-01'},{id:2,snake_id:'F',weight_g:160,measured_at:'2026-10-14'},{id:3,snake_id:'M',weight_g:300,measured_at:'2026-10-14'}];
+  const base={date:'2026-10-15',plannedAt:'2026-10-15T10:00:00Z',status:'pending',mouseMin:1,mouseMax:2,quantity:1};
+  const tasks=[{...base,snakeId:'F',cabinetId:'A',frozen:true},{...base,snakeId:'M',cabinetId:'B',quantity:2},{...base,snakeId:'U',cabinetId:'B'},{...base,snakeId:'F',plannedAt:'2026-10-15T11:00:00Z',locked:true,quantity:3},{...base,snakeId:'M',plannedAt:'2026-10-15T12:00:00Z',status:'completed'},{...base,snakeId:'winter',status:'suspended'},{...base,snakeId:'F',date:'2026-10-16',plannedAt:'2026-10-16T10:00:00Z'}];
+  const before=structuredClone(tasks),preview=M.preparationTasks(tasks,config,snakes,measurements),sum=M.summarize(preview,['2026-10-15']);
+  assert.deepEqual(sum.groups.map(g=>[g.mouseMin,g.mouseMax,g.quantity]),[[1,2,3],[6,8,2],[16,20,1]]);
+  assert.equal(sum.unknownCount,1);assert.equal(sum.completedCount,1);assert.equal(sum.suspendedCount,1);
+  assert.equal(M.summarize(preview,['2026-10-15'],'A').groups[0].quantity,1);
+  assert.deepEqual(tasks,before);assert.deepEqual(preview[3],tasks[3]);assert.deepEqual(preview[4],tasks[4]);
+  const colors=config.rules.map(r=>M.mouseColor(r.mouseMin,r.mouseMax,config.rules));
+  assert.equal(new Set(colors.map(c=>c.ink)).size,new Set(config.rules.map(r=>r.mouseMin+':'+r.mouseMax)).size);
+});
+
+test('current weight selection excludes future records and sorts bigint IDs numerically on the same day',()=>{
+ const rows=[{id:'9',snake_id:'A',weight_g:10,measured_at:'2020-01-01'},{id:'10',snake_id:'A',weight_g:45,measured_at:'2020-01-01'},{id:'11',snake_id:'A',weight_g:500,measured_at:'2099-01-01'}];
+ assert.equal(M.latestWeight('A',rows,'2026-10-14').weight,45);
+ assert.equal(M.latestWeight('A',rows,'2019-12-31'),null);
+ const [task]=M.preparationTasks([{snakeId:'A',status:'pending',mouseMin:20,mouseMax:24}],M.defaultConfig(),[{id:'A',sex:'F'}],rows);
+ assert.equal(task.mouseMin,4);assert.equal(task.mouseMax,6);
+});
+
 test('male automatic mouse range caps at 6–8g without changing lighter animals or female rules',()=>{
  const rules=M.defaultConfig().rules;
  for(const weight of [80,120,160,200,500])assert.deepEqual([M.matchMouse(weight,rules,'M').mouseMin,M.matchMouse(weight,rules,'M').mouseMax],[6,8]);

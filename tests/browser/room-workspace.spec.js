@@ -14,12 +14,12 @@ function initialFixture(){
   const user={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'1442399241@qq.com'};
   return {user,profiles:[{...user,display_name:'suohama',role:'admin',active:true}],snakes:[['ROOM-A','F','白化',45],['ROOM-B','M','雪花',160],['ROOM-C','U','原色',10]].map(([id,sex,gene_text])=>({id,sex,gene_text,series:'测试系列',status:'active',inventory_library:'stock',birth_date:'2025-01-01'})),snake_measurements:[['ROOM-A',45],['ROOM-B',160],['ROOM-C',10]].map(([snake_id,weight_g],i)=>({id:'weight-'+i,snake_id,weight_g,record_kind:'measurement',measured_at:'2026-10-01'})),specimen_listings:[],specimen_media:[],inventory_transfers:[],calls:[],snapshot:{revision:1,config,assignments:[{slot_id:'slot-0-0-0',snake_id:'ROOM-A',assigned_at:'2026-10-01T00:00:00Z'},{slot_id:'slot-1-0-0',snake_id:'ROOM-B',assigned_at:'2026-10-01T00:00:00Z'}],records:[],moves:[]}};
 }
-async function boot(page,{missing=false,anonymous=false}={}){
+async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={}){
   const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('room browser error:',e.message);});
   await page.clock.setFixedTime(new Date(fixedNow));
   await page.route('**/fonts.googleapis.com/**',r=>r.abort());
   await page.route('**/cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'text/javascript',body:`
-    window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(initialFixture())};
+    window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(data)};
     const fixture=window.roomFixture,user=fixture.user;
     fixture.snapshot.planned_tasks||=[];fixture.snapshot.batches||=[];fixture.snapshot.incubations||=[];
     fixture.snapshot.breeding_plans||=[{id:'plan-1',year:2026,female_snake_id:'ROOM-A',male_snake_id:'ROOM-B',review_status:'approved'}];
@@ -66,7 +66,7 @@ async function boot(page,{missing=false,anonymous=false}={}){
         if(name==='room_activate_rule_version'){const version=snap.rule_versions.find(v=>v.id===args.p_version);snap.config.rules=structuredClone(version.rules);snap.active_rule_version_id=version.id;}
         if(name==='room_confirm_batch'){
           const batch={id:crypto.randomUUID(),name:args.p_name,confirmed_at:new Date().toISOString(),room_revision:snap.revision,rule_version_id:snap.active_rule_version_id,items:[]};
-          for(const key of args.p_items){const task=snap.planned_tasks.find(t=>t.snake_id===key.snake_id&&new Date(t.planned_at).getTime()===new Date(key.planned_at).getTime());if(!task||task.batch_id)return {data:null,error:{message:'Task already confirmed or unavailable'}};const item={...structuredClone(task),id:crypto.randomUUID(),batch_id:batch.id,record:null};task.batch_id=batch.id;task.batch_item_id=item.id;batch.items.push(item);}
+          for(const key of args.p_items){const task=snap.planned_tasks.find(t=>t.snake_id===key.snake_id&&new Date(t.planned_at).getTime()===new Date(key.planned_at).getTime());if(!task||task.batch_id)return {data:null,error:{message:'Task already confirmed or unavailable'}};const model=window.SuohaRoomModel,measured=model.latestWeight(task.snake_id,fixture.snake_measurements,model.localDate(Date.now(),snap.config.timezone)),rule=model.matchMouse(measured?.weight,snap.config.rules,fixture.snakes.find(s=>s.id===task.snake_id)?.sex);if(!rule)return {data:null,error:{message:'请补充有效称重'}};task.mouse_min_g=rule.mouseMin;task.mouse_max_g=rule.mouseMax;const item={...structuredClone(task),id:crypto.randomUUID(),batch_id:batch.id,record:null};task.batch_id=batch.id;task.batch_item_id=item.id;batch.items.push(item);}
           snap.batches.push(batch);
         }
         if(name==='room_assign'){
@@ -97,6 +97,55 @@ async function boot(page,{missing=false,anonymous=false}={}){
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('selected-day totals span cabinets and feeding mode has large weight-only labels, sex and distinct colors',async({page})=>{
+  const data=initialFixture();
+  data.snapshot.config.cabinets.forEach(c=>c.schedule.weekdays=[4]);
+  data.snapshot.config.cabinets[1].schedule.quantity=2;
+  data.snake_measurements.push({id:'new-weight',snake_id:'ROOM-A',weight_g:160,measured_at:'2026-10-14'});
+  data.snake_measurements=data.snake_measurements.filter(m=>m.snake_id!=='ROOM-C');
+  data.snapshot.assignments.push({slot_id:'slot-0-0-1',snake_id:'ROOM-C',assigned_at:'2026-10-01T00:00:00Z'});
+  data.snapshot.planned_tasks=[{id:'stale-a',snake_id:'ROOM-A',slot_id:'slot-0-0-0',cabinet_id:'rack-a',planned_at:fixedNow,due_at:fixedNow,mouse_min_g:1,mouse_max_g:2,quantity:1}];
+  const errors=await boot(page,{data});
+  await room(page).locator('[data-rw-date="2026-10-15"]').click();
+  const total=room(page).getByRole('region',{name:'全房备料汇总'});
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total.locator('[data-mouse-range="16-20"]')).toContainText('1 只');
+  await expect(total.locator('[data-mouse-range="6-8"]')).toContainText('2 只');
+  await expect(total).toContainText('1 项待称重');
+  await room(page).getByRole('button',{name:'备料批次',exact:true}).click();
+  await modal(page).getByRole('button',{name:'确认当前范围备料',exact:true}).click();
+  await expect(modal(page)).toContainText('16–20g');
+  await expect(modal(page).locator('[name=tasks]:disabled')).toHaveCount(1);
+  await modal(page).getByRole('button',{name:'锁定并确认备料',exact:true}).click();
+  await expect(modal(page)).not.toBeVisible();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total).toContainText('2 项已确认批次');
+  await room(page).locator('[data-summary-cabinet="rack-a"] [data-rw="cabinet"]').click();
+  await room(page).getByRole('button',{name:'喂食模式',exact:true}).click();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  const box=room(page).locator('.rw-scene-world .rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(box.locator('.rw-box-id')).toHaveText('ROOM-A ♀');
+  await expect(box.locator('.rw-feeding-weight')).toHaveText('16–20 g');
+  await expect(box.locator('.rw-label-line')).toHaveCount(0);
+  const weight=await box.locator('.rw-feeding-weight').evaluate(el=>({size:parseFloat(el.getAttribute('font-size'))*el.getScreenCTM().a,bold:getComputedStyle(el).fontWeight,color:el.getAttribute('fill')}));
+  expect(weight.size).toBeGreaterThan(16);expect(Number(weight.bold)).toBeGreaterThanOrEqual(700);
+  await expect(room(page).locator('.rw-scene-world .rw-feeding-weight').filter({hasText:'待称重'})).toHaveCount(1);
+  await room(page).locator('[data-rw-canvas]').screenshot({path:`artifacts/feeding-mode-${test.info().project.name}.png`,animations:'disabled'});
+  await room(page).getByRole('button',{name:'档案模式',exact:true}).click();
+  await expect(box.locator('.rw-label-line')).not.toHaveCount(0);
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await room(page).locator('[data-summary-cabinet="rack-b"] [data-rw="cabinet"]').click();
+  await room(page).getByRole('button',{name:'喂食模式',exact:true}).click();
+  const male=room(page).locator('.rw-scene-world .rw-model-slot').filter({has:page.locator('[data-slot="slot-1-0-0"]')});
+  await expect(male.locator('.rw-box-id')).toHaveText('ROOM-B ♂');
+  await expect(male.locator('.rw-feeding-weight')).toHaveText('6–8 g');
+  expect(await male.locator('.rw-feeding-weight').getAttribute('fill')).not.toBe(weight.color);
+  await room(page).locator('[data-rw-date="2026-10-15"]').click();
+  await room(page).locator('[data-rw-date="2026-10-16"]').click();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('0 只');
+  expect(errors).toEqual([]);
+});
 
 test('daily next feeding survives week navigation and searchable slot detail switches without a modal backdrop',async({page})=>{
   const errors=await boot(page),header=room(page).locator('.rw-feed-overview');

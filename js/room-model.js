@@ -255,8 +255,9 @@
     if(result&&sex==='M'&&(result.mouseMin>6||result.mouseMax>8))Object.assign(result,{mouseMin:6,mouseMax:8});
     return result;
   }
-  function latestWeight(snakeId,measurements) {
-    const record=(measurements||[]).filter(row=>row.snake_id===snakeId && positive(row.weight_g) && !Number.isNaN(Date.parse(row.measured_at))).sort((a,b)=>Date.parse(b.measured_at)-Date.parse(a.measured_at) || String(b.id).localeCompare(String(a.id)))[0];
+  function latestWeight(snakeId,measurements,through=null) {
+    const idOrder=(a,b)=>/^\d+$/.test(String(a))&&/^\d+$/.test(String(b))?(BigInt(b)>BigInt(a)?1:BigInt(b)<BigInt(a)?-1:0):String(b).localeCompare(String(a));
+    const record=(measurements||[]).filter(row=>row.snake_id===snakeId && positive(row.weight_g) && !Number.isNaN(Date.parse(row.measured_at)) && (!through||String(row.measured_at).slice(0,10)<=through)).sort((a,b)=>Date.parse(b.measured_at)-Date.parse(a.measured_at) || idOrder(a.id,b.id))[0];
     return record ? {weight:Number(record.weight_g),measurementId:record.id,measuredAt:record.measured_at} : null;
   }
   function generateTasks(config,assignments,snakes,measurements,records,{from,to,plannedTasks=[],lockedTasks=[],now=Date.now()}) {
@@ -332,6 +333,24 @@
     for(let i=tasks.length-1;i>=0;i--){const task=tasks[i],locked=reserved.get(task.snakeId+':'+task.date);if(locked&&!task.locked&&task.status==='pending'&&task.plannedAt!==locked.plannedAt){locked.needsReview=true;locked.warnings.push('已锁定批次保留原安排，同日变更新计划未追加');tasks.splice(i,1);}}
     return tasks.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time) || String(a.cabinetId).localeCompare(String(b.cabinetId)) || String(a.slotId).localeCompare(String(b.slotId)));
   }
+  // Live preparation preview: historical records and confirmed batches retain their snapshots.
+  function preparationTasks(tasks,config,snakes,measurements) {
+    const animals=new Map(snakes.map(s=>[s.id,s])),weights=new Map(),through=localDate(Date.now(),config.timezone);
+    return tasks.map(task=>{
+      if(task.status!=='pending'||task.locked)return {...task};
+      if(!weights.has(task.snakeId))weights.set(task.snakeId,latestWeight(task.snakeId,measurements,through));
+      const animal=animals.get(task.snakeId),measured=weights.get(task.snakeId);
+      const rule=matchMouse(measured?.weight,config.rules,animal?.sex);
+      return {...task,weight:measured?.weight??null,mouseMin:rule?.mouseMin??null,mouseMax:rule?.mouseMax??null};
+    });
+  }
+  function mouseColor(min,max,rules=[]) {
+    if(!positive(min)||!positive(max))return {ink:'#58615e',fill:'#edf0ee'};
+    const ranges=[...new Set([...rules.map(r=>`${r.mouseMin}:${r.mouseMax}`),'6:8',`${min}:${max}`])].sort((a,b)=>Number(a.split(':')[0])-Number(b.split(':')[0])||Number(a.split(':')[1])-Number(b.split(':')[1]));
+    const palette=[['#285e8e','#e6f1fc'],['#226747','#e3f2e9'],['#805a14','#fff1cf'],['#a14926','#fbe9dc'],['#74519b','#f0e8fb'],['#9b3f64','#fae5ee'],['#276c73','#dff1f2'],['#635531','#eee9dc']];
+    const index=ranges.indexOf(`${min}:${max}`),pair=palette[index];
+    return pair?{ink:pair[0],fill:pair[1]}:{ink:`hsl(${(index*137.508)%360} 55% 30%)`,fill:`hsl(${(index*137.508)%360} 60% 92%)`};
+  }
   function summarize(tasks,selectedDates=null,cabinetId=null) {
     const dates=selectedDates && selectedDates.size!==undefined ? [...selectedDates] : selectedDates;
     const filtered=tasks.filter(t=>(!dates?.length || dates.includes(t.date)) && (!cabinetId || t.cabinetId===cabinetId));
@@ -358,5 +377,5 @@
     overdueTasks.push(...todayTasks.filter(t=>['pending','offered'].includes(t.status)&&t.dueAt&&Date.parse(t.dueAt)<new Date(now).getTime()));
     return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake};
   }
-  return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,summarize,dayColors,cabinetCorners};
+  return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,preparationTasks,mouseColor,summarize,dayColors,cabinetCorners};
 });

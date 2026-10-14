@@ -70,10 +70,10 @@
     }
     function dailyMarkup(){
       const overview=state.overview;if(!overview)return '';
-      const pending=overview.todayTasks.filter(t=>['pending','offered'].includes(t.status)),overdue=(overview.overdueTasks||[]),unknown=pending.filter(t=>t.mouseMin==null||t.quantity==null);
+      const pending=M.preparationTasks(overview.todayTasks,config(),snakes(),measurements()).filter(t=>['pending','offered'].includes(t.status)),overdue=(overview.overdueTasks||[]),unknown=pending.filter(t=>t.mouseMin==null||t.quantity==null);
       return `<div class="rw-daily" aria-label="本日待办"><span>今日 ${esc(dateNow())}</span>${btn(`待喂／确认 ${pending.length}`,'daily',`data-kind="today"`)}${btn(`逾期待处理 ${overdue.length}`,'daily',`data-kind="overdue"`)}${btn(`规格待确认 ${unknown.length}`,'daily',`data-kind="unknown"`)}${btn(`未入住 ${eligible().length}`,'unassigned')}</div>`;
     }
-    function daily(kind){const ov=state.overview;if(!ov)return;const tasks=(kind==='overdue'?ov.overdueTasks||[]:ov.todayTasks).filter(t=>['pending','offered'].includes(t.status)&&(kind!=='unknown'||t.mouseMin==null||t.quantity==null));state.dailyTasks=tasks;
+    function daily(kind){const ov=state.overview;if(!ov)return;const tasks=M.preparationTasks(kind==='overdue'?ov.overdueTasks||[]:ov.todayTasks,config(),snakes(),measurements()).filter(t=>['pending','offered'].includes(t.status)&&(kind!=='unknown'||t.mouseMin==null||t.quantity==null));state.dailyTasks=tasks;
       showDialog(({today:'今日喂食待办',overdue:'逾期待处理',unknown:'鼠重与数量待确认'})[kind]||'待办',`<p>按实际计划日期查询，与当前查看周无关。逾期仅展示已保存的任务，不推测未记录的历史。</p>${tasks.map(t=>`<article class="rw-task"><div><b>${esc(t.snakeId)}</b><p>${esc(t.date+' '+t.time)} · ${esc(titleOfSlot(t.slotId))}</p><p>${t.mouseMin==null?'鼠重待确认':`${t.mouseMin}–${t.mouseMax}g`} × ${t.quantity??'待确认'}</p></div>${btn('定位盒子','locate-slot',`data-slot="${esc(t.slotId)}"`)}${btn('记录结果','daily-feed',`data-task="${esc(t.id)}"`)}</article>`).join('')||'<p class="rw-empty">该项没有待处理任务。</p>'}`,null);
     }
     function attachSchedulePreview(root,cabinetId,slotId){
