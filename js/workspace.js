@@ -150,20 +150,33 @@
   function formDialog(title,subtitle,fields,onSave,submit='保存'){
     openDialog(title,subtitle,`<form class="ws-form"><div class="ws-form-fields">${fields}</div><p class="ws-form-message" role="status"></p><div class="ws-actions"><button class="ws-action" type="button" data-cancel>取消</button><button class="ws-action primary" type="submit">${submit}</button></div></form>`);
     const form=dialog.querySelector('form');form.addEventListener('input',()=>{dirty=true;if(!busy)form.querySelector('.ws-form-message').textContent='';});form.querySelector('[data-cancel]').onclick=closeDialog;
-    form.onsubmit=async event=>{event.preventDefault();if(busy||!form.reportValidity())return;const button=form.querySelector('[type=submit]');busy=true;button.disabled=true;const message=form.querySelector('.ws-form-message');message.textContent='正在保存…';try{await onSave(Object.fromEntries(new FormData(form)),form);dirty=false;dialog.close();await load(true);toast('已保存');}catch(error){message.textContent=({'All recorded hatchlings are already registered':'本窝已登记数量已达到已孵化数。请更新窝次的实际孵化数量后再入库。'})[error.message]||error.message||String(error);message.scrollIntoView({block:'nearest'});}finally{button.disabled=false;busy=false;}};
+    form.onsubmit=async event=>{event.preventDefault();if(busy||!form.reportValidity())return;const button=form.querySelector('[type=submit]');busy=true;button.disabled=true;const message=form.querySelector('.ws-form-message');message.textContent='正在保存…';try{await onSave(Object.fromEntries(new FormData(form)),form);dirty=false;dialog.close();await load(true);toast('已保存');}catch(error){message.textContent=({'All recorded hatchlings are already registered':'本窝已登记数量已达到已孵化数。请更新窝次的实际孵化数量后再入库。'})[error.message]||error.message||String(error);if(error.diagnostic){const detail=document.createElement('details'),summary=document.createElement('summary'),text=document.createElement('pre');summary.textContent='查看错误详情';text.textContent=error.diagnostic;detail.append(summary,text);message.append(detail);}message.scrollIntoView({block:'nearest'});}finally{button.disabled=false;busy=false;}};
   }
   async function ensureRecord(key,id){if(!id||model[key].some(r=>String(r.id)===String(id)))return;const result=await sb.from(tableMap[key]).select('*').eq('id',id).maybeSingle();if(result.error||!result.data)throw new Error('记录不存在或暂时无法读取，请刷新');model[key].push(result.data);}
   async function checked(query){const {data,error}=await query;if(error)throw error;return data;}
+  function listingActionError(error){
+    const raw=error.message||'操作失败',code=error.code||'';
+    const missing=code==='PGRST202'&&/manage_listing_inventory/.test(raw);
+    const message=missing?'展示管理接口暂时未找到。如果 047 已执行成功，请刷新数据库接口缓存后重试。':raw;
+    const result=new Error(message);
+    result.diagnostic=[code&&`错误码：${code}`,raw,error.details,error.hint].filter(Boolean).join('\n');
+    return result;
+  }
   function listingInventoryAction(id,action){
     const row=model.listings.find(l=>l.id===id);if(!row)return;
-    const selling=action==='sell';let request=crypto.randomUUID(),submitted=null;
+    const selling=action==='sell';let request=crypto.randomUUID(),submitted=null,expectedUpdatedAt=row.updated_at;
     formDialog(selling?'标记已售 · '+row.snake_id:'下架 · '+row.snake_id,
       selling?'确认实际售出后，个体进入已售档案。无需付款订单；普通爬柜中的入住会结束，原谱系和喂食记录保留。':'下架后停止公开展示，个体继续在养，照片和历史保留，之后可重新上架。',
       (selling?input('sold_on','成交日期',today(),'date','required max="'+today()+'"')+input('amount','成交金额（'+row.currency+'，可不填）','','number','min="0" max="9999999999.99" step="0.01"')+area('customer_note','买家备注（可选，仅内部可见）','',500):'')+
       area('note',selling?'成交备注（可选，仅内部可见）':'下架原因（必填）','',2000),async values=>{
-        const payload={p_listing:id,p_action:action,p_expected_updated_at:row.updated_at,p_sold_on:selling?values.sold_on:null,p_amount:selling&&values.amount!==''?Number(values.amount):null,p_customer_note:selling?values.customer_note.trim():'',p_note:values.note.trim()};
+        if(!expectedUpdatedAt){
+          const fresh=await checked(sb.from('specimen_listings').select('updated_at').eq('id',id).maybeSingle());
+          expectedUpdatedAt=fresh?.updated_at;
+          if(!expectedUpdatedAt)throw Error('未能读取展示档案的更新时间，请关闭弹窗并刷新档案后重试。');
+        }
+        const payload={p_listing:id,p_action:action,p_expected_updated_at:expectedUpdatedAt,p_sold_on:selling?values.sold_on:null,p_amount:selling&&values.amount!==''?Number(values.amount):null,p_customer_note:selling?values.customer_note.trim():'',p_note:values.note.trim()};
         const signature=JSON.stringify(payload);if(submitted!==null&&submitted!==signature)request=crypto.randomUUID();submitted=signature;
-        try{await checked(sb.rpc('manage_listing_inventory',{...payload,p_request:request}));}catch(error){throw Error(/schema cache|does not exist|Could not find/i.test(error.message||'')?'请先执行 047 展示管理迁移，再刷新页面重试':error.message||'操作失败');}
+        try{await checked(sb.rpc('manage_listing_inventory',{...payload,p_request:request}));}catch(error){throw listingActionError(error);}
         if(selling){publishingTab='sold';publishingQuery='';publishingTarget='';publishingMissing=false;}
         await refreshRemote(false);
       },selling?'确认已售':'确认下架');

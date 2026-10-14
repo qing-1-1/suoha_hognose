@@ -6,13 +6,15 @@ test('all sold animals return across libraries, retry safely, and can be listed 
  const user={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'1442399241@qq.com'};
  const animal={sex:'F',series:'测试系列',gene_text:'原始基因',birth_date:'2024-01-01',inventory_library:'stock',origin:'purchased'};
  window.returnFixture={profiles:[{...user,display_name:'suohama',role:'admin',active:true}],snakes:[{...animal,id:'SOLD01',status:'sold'},{...animal,id:'SOLD02',status:'sold',origin:'produced',inventory_library:'nursery'},{...animal,id:'STALE01',status:'active'},{...animal,id:'ACTIVE01',status:'active'}],specimen_listings:[{id:'listing-1',snake_id:'SOLD01',slug:'sold01',title:'原个体',sale_status:'sold',published:true,currency:'CNY'},{id:'listing-3',snake_id:'STALE01',slug:'stale01',title:'残留销售标记',sale_status:'sold',published:true,currency:'CNY'}],calls:[],requests:{},interrupt:true};
+ returnFixture.specimen_listings.forEach(l=>l.updated_at='2026-10-14T00:00:00Z');
+ returnFixture.managementErrors=[];
  returnFixture.purchase_inquiries=[{id:'sale-1',listing_id:'listing-1',reference:'SALE-OLD',status:'completed',customer_name:'历史客户',contact:'私有联系方式',created_at:'2026-10-01'}];returnFixture.sales_activity=[];
  returnFixture.listing_inventory_events=[];returnFixture.managementCalls=[];returnFixture.managementRequests={};returnFixture.managementInterrupt=true;
  window.supabase={createClient:()=>({auth:{onAuthStateChange(){},getSession:async()=>({data:{session:{user,access_token:'test'}}})},
  from(table){let filters=[],mode='',values,range=null,cached;return {select(){return this},order(){return this},limit(){return this},range(a,b){range=[a,b];return this},eq(k,v){filters.push([k,v]);return this},insert(v){mode='insert';values=v;return this},update(v){mode='update';values=v;return this},execute(){if(cached)return cached;const list=returnFixture[table]||[],match=r=>filters.every(([k,v])=>r[k]===v);let selected=list.filter(match);if(mode==='insert'){selected=[{id:crypto.randomUUID(),...values}];(returnFixture[table]??=[]).push(...selected);}if(mode==='update')selected.forEach(r=>Object.assign(r,values));const count=selected.length;if(range)selected=selected.slice(range[0],range[1]+1);return cached={data:structuredClone(selected),count,error:null};},maybeSingle(){const r=this.execute();return Promise.resolve({...r,data:r.data[0]||null});},single(){return this.maybeSingle();},then(resolve,reject){return Promise.resolve(this.execute()).then(resolve,reject)}};},
  rpc:async(name,args)=>{if(name==='inventory_sale_states')return {data:returnFixture.snakes.map(s=>({snake_id:s.id,sale_state:s.status==='sold'?'sold':returnFixture.specimen_listings.find(l=>l.snake_id===s.id)?.sale_status==='sold'?'sold':'normal'})),error:null};
  if(name==='return_sold_animals'){returnFixture.calls.push(args);if(returnFixture.requests[args.p_request])return {data:returnFixture.requests[args.p_request],error:null};for(const id of args.p_ids){Object.assign(returnFixture.snakes.find(s=>s.id===id),{status:'active',inventory_library:'stock'});const l=returnFixture.specimen_listings.find(l=>l.snake_id===id);if(l)Object.assign(l,{sale_status:'display',published:false});for(const e of returnFixture.listing_inventory_events.filter(e=>e.snake_id===id&&e.action==='sell'&&!e.returned_at))e.returned_at='2026-10-14';}returnFixture.purchase_inquiries[0].returned_at='2026-10-14';returnFixture.sales_activity.push({id:1,inquiry_id:'sale-1',action:'returned_to_stock',note:args.p_reason,created_at:'2026-10-14'});const data={returned_ids:args.p_ids,count:args.p_ids.length};returnFixture.requests[args.p_request]=data;if(returnFixture.interrupt){returnFixture.interrupt=false;return {error:{message:'模拟响应中断，请重试'}};}return {data,error:null};}
- if(name==='manage_listing_inventory'){returnFixture.managementCalls.push(args);if(returnFixture.managementRequests[args.p_request])return {data:returnFixture.managementRequests[args.p_request],error:null};const l=returnFixture.specimen_listings.find(l=>l.id===args.p_listing);const selling=args.p_action==='sell';l.sale_status=selling?'sold':'display';if(!selling)l.published=false;returnFixture.snakes.find(s=>s.id===l.snake_id).status=selling?'sold':'active';returnFixture.listing_inventory_events.push({request_id:args.p_request,listing_id:l.id,snake_id:l.snake_id,action:args.p_action,sold_on:args.p_sold_on,amount:args.p_amount,currency:l.currency,customer_note:args.p_customer_note,note:args.p_note,created_at:'2026-10-14'});const data={snake_id:l.snake_id,action:args.p_action,request_id:args.p_request};returnFixture.managementRequests[args.p_request]=data;if(selling&&returnFixture.managementInterrupt){returnFixture.managementInterrupt=false;return {error:{message:'模拟成交响应中断'}};}return {data,error:null};}
+ if(name==='manage_listing_inventory'){returnFixture.managementCalls.push(args);if(returnFixture.managementErrors.length)return {data:null,error:returnFixture.managementErrors.shift()};if(!args.p_expected_updated_at)return {data:null,error:{code:'PGRST202',message:'Could not find the function public.manage_listing_inventory without p_expected_updated_at'}};if(returnFixture.managementRequests[args.p_request])return {data:returnFixture.managementRequests[args.p_request],error:null};const l=returnFixture.specimen_listings.find(l=>l.id===args.p_listing);const selling=args.p_action==='sell';l.sale_status=selling?'sold':'display';if(!selling)l.published=false;returnFixture.snakes.find(s=>s.id===l.snake_id).status=selling?'sold':'active';returnFixture.listing_inventory_events.push({request_id:args.p_request,listing_id:l.id,snake_id:l.snake_id,action:args.p_action,sold_on:args.p_sold_on,amount:args.p_amount,currency:l.currency,customer_note:args.p_customer_note,note:args.p_note,created_at:'2026-10-14'});const data={snake_id:l.snake_id,action:args.p_action,request_id:args.p_request};returnFixture.managementRequests[args.p_request]=data;if(selling&&returnFixture.managementInterrupt){returnFixture.managementInterrupt=false;return {error:{message:'模拟成交响应中断'}};}return {data,error:null};}
  return {data:[],error:null};},storage:{from(){return {createSignedUrl:async()=>({data:null})}}}
  })};` }));
  await page.goto('/admin#population');await expect(page.locator('#authGate')).toBeHidden();
@@ -57,6 +59,8 @@ test('all sold animals return across libraries, retry safely, and can be listed 
  expect(await page.evaluate(()=>returnFixture.snakes.every(s=>s.status==='active'&&s.inventory_library==='stock'))).toBe(true);
  expect(await page.evaluate(()=>returnFixture.specimen_listings.every(l=>!l.published&&l.sale_status==='display'))).toBe(true);
  await page.locator('#popRows [data-s="SOLD01"]').click();await expect(profile.locator('[data-return-sold]')).toHaveCount(0);
+ await expect(profile.locator('.inventory-status [data-nursery-publish]')).toHaveCount(0);
+ await expect(profile.locator('.drawerActions [data-nursery-publish]')).toHaveCount(1);
  await profile.getByRole('button',{name:'上架',exact:true}).click();
  const dialog=page.locator('#workspaceDialog');await expect(dialog).toBeVisible();await expect(dialog.locator('[name="sale_status"]')).toHaveValue('available');
  await expect(dialog.locator('[name="published"]')).toBeChecked();
@@ -76,6 +80,22 @@ test('all sold animals return across libraries, retry safely, and can be listed 
  expect(await page.evaluate(()=>returnFixture.snakes.find(s=>s.id==='SOLD01').status)).toBe('active');
  await row.getByRole('button',{name:'编辑',exact:true}).click();await dialog.locator('[name=sale_status]').selectOption('available');await dialog.locator('[name=published]').check();await dialog.locator('button[type=submit]').click();await expect(dialog).toBeHidden();
  await row.getByRole('button',{name:'标记已售',exact:true}).click();await dialog.getByLabel('成交金额（CNY，可不填）').fill('880');await dialog.getByLabel('买家备注（可选，仅内部可见）').fill('线下客户，仅内部保存');await dialog.getByLabel('成交备注（可选，仅内部可见）').fill('线下交付完成');
+ const amountBox=await dialog.locator('[name=amount]').boundingBox(),dateBox=await dialog.locator('[name=sold_on]').boundingBox();
+ expect(Math.abs(amountBox.height-dateBox.height)).toBeLessThan(2);
+ if(page.viewportSize().width>600)expect(Math.abs(amountBox.y-dateBox.y)).toBeLessThan(2);
+ await page.evaluate(()=>returnFixture.managementErrors.push({code:'PGRST202',message:'Could not find the function public.manage_listing_inventory in the schema cache',hint:'Check the function arguments'},{code:'42703',message:'column source_slot does not exist',details:'dependent database function failed'}));
+ await dialog.getByRole('button',{name:'确认已售',exact:true}).click();
+ await expect(dialog).toContainText('如果 047 已执行成功');
+ await dialog.getByText('查看错误详情',{exact:true}).click();
+ await expect(dialog.locator('pre')).toContainText('PGRST202');
+ await dialog.getByRole('button',{name:'确认已售',exact:true}).click();
+ await expect(dialog).toContainText('column source_slot does not exist');
+ await expect(dialog).not.toContainText('请先执行 047');
+ await dialog.getByText('查看错误详情',{exact:true}).click();
+ await expect(dialog.locator('pre')).toContainText('42703');
+ await expect(dialog.locator('[name=amount]')).toHaveValue('880');
+ await page.screenshot({path:'artifacts/manual-sale-error-'+test.info().project.name+'.png'});
+ await dialog.locator('[name=amount]').fill('880');
  await page.screenshot({path:'artifacts/manual-sale-'+test.info().project.name+'.png'});
  await dialog.getByRole('button',{name:'确认已售',exact:true}).click();await expect(dialog).toContainText('模拟成交响应中断');await dialog.getByRole('button',{name:'确认已售',exact:true}).click();await expect(dialog).toBeHidden();
  expect(await page.evaluate(()=>new Set(returnFixture.managementCalls.filter(c=>c.p_action==='sell').map(c=>c.p_request)).size)).toBe(1);
