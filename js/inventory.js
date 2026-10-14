@@ -3,7 +3,7 @@
   let sales=null,epoch=0,search='',filter='active';
   const library=s=>s.inventory_library==='nursery'?'自繁库':'种群库';
   const lifecycle=s=>({active:'在养',sold:'已售',retired:'退役',deceased:'死亡',planned:'计划'})[s.status]||'待确认';
-  const sale=s=>sales?.get(s.id)|| (s.status==='sold'?'sold':sales?'normal':'unknown');
+  const sale=s=>s.status==='sold'?'sold':sales?.get(s.id)||(sales?'normal':'unknown');
   const badge=s=>`<span class="inventory-badge ${sale(s)}">${({normal:'正常',available:'待出售',reserved:'已预留',sold:'已售',unknown:'销售状态待同步'})[sale(s)]}</span>`;
   document.querySelectorAll('.sidebar,.mobileNav').forEach(nav=>{
     const stock=nav.querySelector('[data-page="population"]');if(!stock)return;
@@ -11,6 +11,8 @@
 
   });
   function decorate(){
+    const toolbar=document.getElementById('popSearch')?.closest('.toolbar');
+    if(toolbar){let action=toolbar.querySelector('[data-return-all-sold]');if(!action){action=document.createElement('button');action.type='button';action.className='ws-action';action.dataset.returnAllSold='';toolbar.append(action);}const count=REMOTE_RAW.snakes.filter(s=>s.status==='sold'||sales?.get(s.id)==='sold').length;action.textContent=`全部已售回库（${count}）`;action.hidden=!canWrite()||count===0;}
     document.querySelectorAll('#popRows [data-s]').forEach(row=>{const animal=snakeById[row.dataset.s];row.querySelector('.inventory-badge')?.remove();if(animal)row.cells[5].insertAdjacentHTML('beforeend',badge(animal));});
     const individual=document.querySelector('#workspaceIndividual .ws-heading');
     if(individual){
@@ -19,7 +21,23 @@
       if(s){const block=document.createElement('div');block.className='inventory-status';block.innerHTML=`<span class="ws-pill">${library(s)}</span>${badge(s)}${transferButton(s)}`;individual.after(block);}
     }
   }
-  function transferButton(s){const homebred=s.origin==='produced'||s.inventory_library==='nursery';const retained=homebred&&s.inventory_library!=='nursery';return `${retained?'<span class="inventory-badge retained">已留存 · 种群同步</span>':''}${canWrite()&&s.status==='active'?`${homebred&&!retained?`<button class="ws-action primary" data-transfer="${esc(s.id)}" data-target="stock">留存</button>`:''}<button class="ws-action" data-nursery-publish="${esc(s.id)}">上架</button>`:''}`;}
+  function transferButton(s){if(canWrite()&&sale(s)==='sold')return `<button class="ws-action primary" data-return-sold="${esc(s.id)}">放回种群库</button>`;const homebred=s.origin==='produced'||s.inventory_library==='nursery';const retained=homebred&&s.inventory_library!=='nursery';return `${retained?'<span class="inventory-badge retained">已留存 · 种群同步</span>':''}${canWrite()&&s.status==='active'?`${homebred&&!retained?`<button class="ws-action primary" data-transfer="${esc(s.id)}" data-target="stock">留存</button>`:''}<button class="ws-action" data-nursery-publish="${esc(s.id)}">上架</button>`:''}`;}
+
+  function returnSold(ids){
+    if(!canWrite()||!ids.length)return;
+    let request=crypto.randomUUID(),submitted=null;
+    openWorkflowModal({title:ids.length===1?'放回种群库？':`将 ${ids.length} 条已售个体放回种群库？`,sub:`个体：${ids.slice(0,12).join('、')}${ids.length>12?`等 ${ids.length} 条`:''}。回库后恢复在养并加入种群库，公开展示先下架；原成交、收款和谱系记录保留。若仍有未结束交易、拍卖或待核实付款，整批不会执行。`,fields:[{name:'reason',label:'回库原因',required:true,placeholder:'例如：状态误标、退回或重新留种'}],submit:'确认回库',onSubmit:async values=>{
+      const reason=values.reason.trim();if(!reason||reason.length>2000)throw Error('请填写回库原因（最多 2000 字）');
+      if(submitted!==null&&submitted!==reason)request=crypto.randomUUID();submitted=reason;
+      const {data,error}=await sb.rpc('return_sold_animals',{p_ids:ids,p_reason:reason,p_request:request});
+      if(error)throw Error(/schema cache|does not exist|Could not find/i.test(error.message||'')?'请先执行 046 已售回库迁移，再刷新页面重试':error.message||'回库失败');
+      if(!data||!Array.isArray(data.returned_ids))throw Error('回库结果暂未确认，请使用相同原因重试');
+      document.getElementById('drawer').classList.remove('open');
+      await refreshRemote(false);await load();
+      if(state.page==='population'){state.lifecycle='active';state.library='stock';state.q=state.series=state.sex='';['popSearch','popSeries','popSex'].forEach(id=>document.getElementById(id).value='');document.getElementById('popLifecycle').value='active';document.getElementById('popLibrary').value='stock';renderRows();}
+      render();toast(`已将 ${data.returned_ids.length} 条个体放回种群库，历史销售记录保留`);
+    }});
+  }
 
   function render(){
     decorate();if(state.page!=='nursery')return;
@@ -35,6 +53,7 @@
   const previousRender=window.SuohaWorkspace.render;window.SuohaWorkspace.render=function(){previousRender();render();};
   const previousDrawer=openDrawer;openDrawer=function(s){previousDrawer(s);document.getElementById('drawerContent').insertAdjacentHTML('afterbegin',`<div class="inventory-status"><span class="ws-pill">${library(s)}</span>${badge(s)}${transferButton(s)}</div>`);};
   document.addEventListener('click',async e=>{
+    const returned=e.target.closest('[data-return-sold],[data-return-all-sold]');if(returned){returnSold(returned.hasAttribute('data-return-all-sold')?REMOTE_RAW.snakes.filter(s=>s.status==='sold'||sales?.get(s.id)==='sold').map(s=>s.id):[returned.dataset.returnSold]);return;}
     const remove=e.target.closest('[data-nursery-delete]');if(remove){
       if(!canWrite())return;
       const id=remove.dataset.nurseryDelete;
