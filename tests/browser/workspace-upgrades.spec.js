@@ -16,7 +16,7 @@ test('cards, clutch groups, retry-safe batch registration and private growth rec
  await page.locator('#popRows [data-s="MOTHER"]').click();
  const profile=page.getByRole('complementary',{name:'简略档案'});
  await expect(profile.getByRole('button',{name:'关闭简略档案'})).toBeInViewport();
- const layout=await page.evaluate(()=>{const panel=document.getElementById('drawer').getBoundingClientRect(),main=document.querySelector('.main').getBoundingClientRect(),content=document.querySelector('.main .content').getBoundingClientRect();return innerWidth>760?main.right<=panel.left:content.top>=panel.bottom;});expect(layout).toBe(true);
+ const layout=await page.evaluate(()=>{const panel=document.getElementById('drawer').getBoundingClientRect(),header=document.querySelector('.topbar').getBoundingClientRect(),content=document.querySelector('.main .content').getBoundingClientRect();return innerWidth>760?Math.abs(content.right-panel.left)<1&&Math.abs(header.right-panel.right)<1&&Math.abs(header.bottom-panel.top)<1&&getComputedStyle(document.querySelector('.content')).paddingRight==='0px':content.top>=panel.bottom;});expect(layout).toBe(true);
  await page.screenshot({path:`artifacts/profile-panel-${test.info().project.name}.png`});
  await profile.getByRole('button',{name:'关闭简略档案'}).click();await expect(profile).toBeHidden();
  await expect(page.locator('.main')).not.toHaveClass(/has-profile/);

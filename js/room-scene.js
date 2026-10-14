@@ -203,18 +203,18 @@
         // The full layer map is visible in plan, so lower shelf feeding remains legible.
         const rowH=Math.min(52,(d-60)/Math.max(1,levels.length)),gridZ=-rowH*levels.length/2;
         levels.forEach((l,li)=>(l.slots||[]).forEach((s,si,arr)=>{const f=this.face(s.id),x=-w/2+25+si*(w-50)/arr.length,z=gridZ+(levels.length-1-li)*rowH;out+=poly([q(x,z),q(x+(w-50)/arr.length-10,z),q(x+(w-50)/arr.length-10,z+rowH-9),q(x,z+rowH-9)],`class="rw-box-face${f.pulse}" data-plan-slot="${escape(s.id)}" fill="${f.dates.length?f.fill:'#f2f4ed'}" stroke="${f.stroke}" stroke-width="4"`);}));
-        out+=line(q(-w/2+20,d/2-3),q(w/2-20,d/2-3),'stroke="#466b56" stroke-width="19"');
+        out+=line(q(-w/2+20,d/2-3),q(w/2-20,d/2-3),'class="rw-cabinet-front-marker" stroke="#466b56" stroke-width="19"');
       } else {
         // Close the rear of the cabinet before drawing the sides, top and boxes.
-        const faceSide=Math.cos(Math.PI/4+angle)>=0?1:-1,backVisible=Math.cos(this.orbit.yaw+angle)*faceSide<0;
+        const faceSide=1,backVisible=Math.cos(this.orbit.yaw+angle)<0;
         const front=(x,z,h=0)=>q(x*faceSide,z*faceSide,h);
         const back=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,height),front(-w/2,-d/2,height)],'class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#869792" stroke-width="7"');
         if(!backVisible)out+=back;
         if(Math.sin(this.orbit.yaw+angle)<0)out+=poly([q(-w/2,-d/2),q(-w/2,d/2),q(-w/2,d/2,height),q(-w/2,-d/2,height)],'fill="#a6b2ae" stroke="#869792" stroke-width="7"');
         if(Math.sin(this.orbit.yaw+angle)>=0)out+=poly([q(w/2,-d/2),q(w/2,d/2),q(w/2,d/2,height),q(w/2,-d/2,height)],'fill="#bbc6c2" stroke="#869792" stroke-width="7"');
         out+=poly([q(-w/2,-d/2,height),q(w/2,-d/2,height),q(w/2,d/2,height),q(-w/2,d/2,height)],'fill="#e4e9df" stroke="#96a59d" stroke-width="10"');
-        // Keep the default outward face fixed while the camera orbits.
-        // This is a display choice; saved cabinet rotation and footprint stay unchanged.
+        // Local +Z is always the front, matching the plan marker and saved rotation.
+        // Orbiting only changes visibility, never the cabinet's physical orientation.
         out+=`<g class="rw-cabinet-grid" data-display-side="${faceSide}" ${backVisible?'visibility="hidden"':''}>`;
         let bottom=0;
         levels.forEach(l=>{const h=num(l.height,150);(l.slots||[]).forEach((s,i,arr)=>{const x=-w/2+25+i*(w-50)/arr.length,bw=(w-50)/arr.length-12,f=this.face(s.id);out+=poly([front(x,d/2,bottom+10),front(x+bw,d/2,bottom+10),front(x+bw,d/2,bottom+h-17),front(x,d/2,bottom+h-17)],`class="rw-box-face${f.pulse}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="5"`);out+=line(front(x+bw*.32,d/2+1,bottom+h*.64),front(x+bw*.68,d/2+1,bottom+h*.64),'stroke="#7d9189" stroke-width="9"');});out+=line(front(-w/2,d/2,bottom),front(w/2,d/2,bottom),`stroke="url(#${this.uid}-metal)" stroke-width="24"`);bottom+=h;});
@@ -226,21 +226,22 @@
     roomIncubator(c,p,iso) {
       const w=num(c.width),d=num(c.depth),h=num(c.height),angle=num(c.rotation)*Math.PI/180,eggs=c.purpose==='eggs',layout=global.SuohaRoomModel.incubatorLayout(c);
       const q=(x,z,y=0)=>p(num(c.x)+x*Math.cos(angle)-z*Math.sin(angle),num(c.z)+x*Math.sin(angle)+z*Math.cos(angle),y);
-      const side=Math.cos(this.orbit.yaw+angle)>=0?1:-1,front=(x,z,y=0)=>q(x*side,z*side,y),slots=(c.levels||[]).flatMap(l=>l.slots||[]);
+      const backVisible=Math.cos(this.orbit.yaw+angle)<0,front=q,slots=(c.levels||[]).flatMap(l=>l.slots||[]);
       let out=`<g data-cabinet="${escape(c.id)}" data-cabinet-type="incubator" class="rw-model-cabinet rw-incubator-model" role="button" tabindex="0" aria-label="${escape(c.name)}，${eggs?'蛋孵化':'冬化'}箱，${this.occupancy(c)}/${slots.length} 盒，点击展开"><title>${escape(c.name)} · ${eggs?'蛋盒独立记录':'蛇只冬化'} · 内部无隔板</title>`;
       if(!iso){
         out+=poly([q(-w/2,-d/2),q(w/2,-d/2),q(w/2,d/2),q(-w/2,d/2)],'class="rw-incubator-shell" fill="#ece8db" stroke="#aaa99a" stroke-width="25"');
         const rows=c.levels||[],rowH=Math.min(65,(d-90)/Math.max(1,rows.length));rows.forEach((l,li)=>(l.slots||[]).forEach((s,i,arr)=>{const f=this.face(s.id),x=-w/2+30+i*(w-60)/arr.length,z=-(rows.length*rowH)/2+(rows.length-1-li)*rowH,bw=(w-60)/arr.length-10;out+=poly([q(x,z),q(x+bw,z),q(x+bw,z+rowH-9),q(x,z+rowH-9)],`class="rw-box-face${f.pulse}" data-plan-slot="${escape(s.id)}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="5"`);}));
         out+=line(q(-w*.2,d/2-8),q(w*.2,d/2-8),'stroke="#8b968b" stroke-width="18"');
       } else {
-        out+=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,h),front(-w/2,-d/2,h)],'class="rw-incubator-back" fill="#e1dece" fill-opacity="1" stroke="#a4aa9e" stroke-width="15"');
+        const back=poly([front(-w/2,-d/2),front(w/2,-d/2),front(w/2,-d/2,h),front(-w/2,-d/2,h)],'class="rw-incubator-back" fill="#e1dece" fill-opacity="1" stroke="#a4aa9e" stroke-width="15"');
+        if(!backVisible)out+=back;
         const visibleX=Math.sin(this.orbit.yaw+angle)>=0?w/2:-w/2;out+=poly([q(visibleX,-d/2),q(visibleX,d/2),q(visibleX,d/2,h),q(visibleX,-d/2,h)],'class="rw-incubator-shell" fill="#cfcec0" stroke="#a4aa9e" stroke-width="15"');
         out+=poly([q(-w/2,-d/2,h),q(w/2,-d/2,h),q(w/2,d/2,h),q(-w/2,d/2,h)],'class="rw-incubator-shell" fill="#f3f0e5" stroke="#a4aa9e" stroke-width="15"');
-        out+=`<g class="rw-incubator-stack" data-stack-height="${layout.stackHeight}">`;
+        out+=`<g class="rw-incubator-stack" data-stack-height="${layout.stackHeight}" ${backVisible?'visibility="hidden"':''}>`;
         layout.boxes.forEach(b=>{const x=b.x-w/2,z=d/2-b.z,y=b.y,f=this.face(b.slotId);out+=poly([front(x,z,y),front(x+b.width,z,y),front(x+b.width,z,y+b.height),front(x,z,y+b.height)],`class="rw-box-face${f.pulse}" data-room-slot="${escape(b.slotId)}" data-stack-y="${y}" fill="${f.fill}" stroke="${f.stroke}" stroke-width="4"`);out+=line(front(x+8,z+1,y+b.height-6),front(x+b.width-8,z+1,y+b.height-6),'stroke="#f9faf4" stroke-width="7"');const mark=front(x+b.width/2,z+2,y+b.height*.5);if(eggs&&this.incubation(b.slotId))out+=`<text x="${mark[0]}" y="${mark[1]}" text-anchor="middle" font-size="${Math.min(50,b.height*.28)}" fill="#697058">${num(this.incubation(b.slotId).egg_count)} 枚</text>`;});
-        out+='</g>';
         [-w/2,w/2].forEach(x=>{out+=line(front(x,d/2,0),front(x,d/2,h),'stroke="#f2f0e6" stroke-width="25"');});
         out+=line(front(-w/2,d/2,0),front(w/2,d/2,0),'stroke="#b0b4a7" stroke-width="18"');
+        out+='</g>';if(backVisible)out+=back;
       }
       return out+'</g>';
     }
