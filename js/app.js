@@ -184,7 +184,17 @@ function productionFor(year){
   const counted=plans.filter(x=>x.count);
   return {f:matureSnakes.filter(s=>s.sex==="F").length,m:matureSnakes.filter(s=>s.sex==="M").length,planned:rowsPlannedClutches(year),planCount:acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(year)).length,coverage:new Set(acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(year)&&matureSnakes.some(s=>s.sex==="F"&&s.id===p.female_snake_id)).map(p=>p.female_snake_id)).size,plans,counted};
 }
+function renderUnplannedAnimals(year){
+  const planned=new Set(acceptedPlanRows().filter(p=>Number(p.plan_year)===Number(year)).flatMap(p=>[p.female_snake_id,p.male_snake_id]).filter(Boolean));
+  const unplanned=stockAnimals().filter(s=>s.status==="active"&&Number.isFinite(mature(s))&&mature(s)>0&&mature(s)<=year&&!planned.has(s.id));
+  const females=unplanned.filter(s=>s.sex==="F").length,males=unplanned.filter(s=>s.sex==="M").length;
+  const host=$("#unplannedAnimals");
+  host.innerHTML=`<p class="unplannedSummary">${year} 年已成熟、未列入计划：<strong>${unplanned.length} 条</strong><span>母 ${females} · 公 ${males}</span></p>`+
+    (unplanned.length?`<div class="unplannedList">${unplanned.map(s=>`<button type="button" class="unplannedAnimal" data-unplanned-snake="${esc(s.id)}">${s.sex==="F"?"♀":s.sex==="M"?"♂":"◇"} ${esc(s.id)} · ${esc(s.gene)}</button>`).join("")}</div>`:'<p class="unplannedEmpty">该年份没有已成熟且未安排的在养个体。</p>');
+  host.querySelectorAll("[data-unplanned-snake]").forEach(button=>button.onclick=()=>openDrawer(snakeById[button.dataset.unplannedSnake]));
+}
 function renderProduction(){const p=productionFor(state.year), projects=[...new Set(p.counted.map(x=>x.project).filter(Boolean))];$("#prodHero").innerHTML=`<div class="planLabel">Selected planning year · live Supabase data</div><div class="planYear">${state.year}</div><div class="planFocus">已配置 ${p.planCount} 项计划 · ${p.planned} 个计划窝次</div><div class="planText">容量、计划及项目名称均来自当前数据库；未配置的内容不再使用本地模拟值。</div><div class="capacity"><div class="cap"><label>在养成熟母蛇</label><strong>${p.f} ♀</strong></div><div class="cap"><label>在养成熟公蛇</label><strong>${p.m} ♂</strong></div><div class="cap"><label>计划条数</label><strong>${p.planCount}</strong></div><div class="cap"><label>成熟母蛇覆盖率</label><strong>${p.f?Math.round(p.coverage/p.f*100):0}%</strong></div></div><div class="heroPlanPreview" id="heroPlanPreview"></div>`;renderAnnualPlan();
+ renderUnplannedAnimals(state.year);
  const pipe=[];Object.values(DATA.routes).forEach(r=>r.nodes.filter(n=>n.kind==="offspring").forEach(n=>pipe.push({year:n.year,name:n.label,route:r.name})));pipe.sort((a,b)=>a.year-b.year);$("#pipeline").innerHTML=pipe.slice(0,7).map(x=>`<div class="pipe"><div class="pipeYear">${x.year}</div><div><b>${esc(x.name)}</b><span>${esc(x.route)}</span></div><div class="pipeState">${x.year<=state.year?"计划已到期 · 待核实":"计划目标"}</div></div>`).join("")||'<div class="miniCard"><p>暂无路线节点。</p></div>';drawProd();
  const grouped={};p.plans.forEach(x=>{const k=x.project||"未命名项目";grouped[k]=(grouped[k]||0)+1});const total=Math.max(1,p.plans.length);$("#quota").innerHTML=`<div class="bars">${Object.entries(grouped).map(([k,v])=>`<div class="barRow"><label>${esc(k)}</label><div class="barTrack"><i style="width:${v/total*100}%"></i></div><span>${v} 项</span></div>`).join("")||'<div class="miniCard"><p>本年度暂无计划。</p></div>'}</div>`;
  const byPriority=x=>p.plans.filter(i=>i.priority===x).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无";$("#checklist").innerHTML=`<div class="miniCard"><h4>A · 高优先</h4><p>${byPriority("A")}</p></div><div class="miniCard"><h4>B · 次优先</h4><p>${byPriority("B")}</p></div><div class="miniCard"><h4>R / C / G · 备用与条件</h4><p>${p.plans.filter(i=>!["A","B"].includes(i.priority)).map(i=>"• "+esc(i.project||"未命名项目")).join("<br>")||"• 暂无"}</p></div>`;$("#annualFacts").innerHTML=`<div class="factPanel"><b>截至 ${new Date().toLocaleString("zh-CN")} 的固定检查</b><br>活跃且成熟：${p.f} 条母蛇、${p.m} 条公蛇。当前年份已有 ${p.planCount} 项计划、${p.planned} 个计划窝次；计划不等于实际产出。</div>`}
@@ -868,7 +878,6 @@ function snakeFormHtml(row={}){
   </div></details><details class="snake-extra" ${row.id?"open":""}><summary>结构化基因 · 可选补充</summary><div id="geneEditor"></div></details>`;
 }
 function planFormHtml(row={}){
-  const snakeOpts=`<option value="">—</option>`+DATA.snakes.map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id||row.male_snake_id===s.id?"":""}>${s.id} · ${esc(s.gene)}</option>`).join("");
   const selectedScenario=row.scenario_id||defaultScenarioId();
   const scenarioField=AI_LAYER_READY?`<div class="formField full"><label>规划场景</label><select name="scenario_id"><option value="">未归属（兼容旧数据）</option>${REMOTE_RAW.scenarios.map(s=>`<option value="${s.id}" ${String(selectedScenario)===String(s.id)?"selected":""}>${esc(s.name)} · ${esc(s.status)}</option>`).join("")}</select></div>`:"";
   return `<div class="formGrid">
@@ -884,8 +893,9 @@ function planFormHtml(row={}){
     <div class="formField"><label>首页提醒</label><select name="reminders_enabled"><option value="true" ${row.reminders_enabled!==false?'selected':''}>开启</option><option value="false" ${row.reminders_enabled===false?'selected':''}>关闭</option></select></div>
     <p class="smallNote">预计日期由你设置，不代表已发生；实际交配、产蛋、出壳在繁育记录中填写。提醒在登录后的工作概览显示。</p>
     <div class="formField full"><label>计划名称</label><input name="project_name" value="${esc(row.project_name||"")}" required></div>
-    <div class="formField"><label>母蛇</label><select name="female_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="F"&&((s.status==="active"&&s.inventory_library!=="nursery")||s.id===row.female_snake_id)).map(s=>`<option value="${s.id}" ${row.female_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
-    <div class="formField"><label>公蛇</label><select name="male_snake_id"><option value="">—</option>${DATA.snakes.filter(s=>s.sex==="M"&&((s.status==="active"&&s.inventory_library!=="nursery")||s.id===row.male_snake_id)).map(s=>`<option value="${s.id}" ${row.male_snake_id===s.id?"selected":""}>${s.id} · ${esc(s.gene)}</option>`).join("")}</select></div>
+    <div class="formField"><label>母蛇</label><select name="female_snake_id"></select></div>
+    <div class="formField"><label>公蛇</label><select name="male_snake_id"></select></div>
+    <p class="smallNote">仅显示所选年份已成熟、在养的种群库个体；同一年每条母蛇只能用于一项未取消的计划。</p>
     <div class="formField"><label>配对方式</label><input name="mode" value="${esc(row.mode||"")}"></div>
     <div class="formField"><label>计划状态</label><select name="status">${["planned","ready","conditional","completed","cancelled","investment_gap"].map(x=>`<option ${row.status===x?"selected":""}>${x}</option>`).join("")}</select></div>
     <div class="formField"><label>计划窝数</label><input name="planned_clutches" type="number" min="0" value="${row.planned_clutches??1}"></div>
@@ -893,6 +903,22 @@ function planFormHtml(row={}){
     <div class="formField full"><label>计划备注</label><textarea name="notes">${esc(row.notes||"")}</textarea></div>
     <div class="formField full"><label>结案 / 取消原因（结束计划时必填）</label><textarea name="completion_reason">${esc(row.completion_reason||"")}</textarea></div>
   </div>`;
+}
+function planParentEligible(s,year,sex){
+  const maturityYear=mature(s);
+  return s.sex===sex&&s.status==="active"&&s.inventory_library!=="nursery"&&Number.isFinite(maturityYear)&&maturityYear>0&&maturityYear<=year;
+}
+function planFemaleUsed(id,year,planId){
+  return REMOTE_RAW.plans.some(p=>p.female_snake_id===id&&Number(p.plan_year)===year&&p.status!=="cancelled"&&String(p.id)!==String(planId||""));
+}
+function refreshPlanParents(form,planId){
+  const year=Number(form.elements.plan_year.value);
+  for(const [field,sex] of [["female_snake_id","F"],["male_snake_id","M"]]){
+    const select=form.elements[field],selected=select.value;
+    const candidates=DATA.snakes.filter(s=>planParentEligible(s,year,sex)&&(sex!=="F"||!planFemaleUsed(s.id,year,planId)));
+    select.innerHTML='<option value="">—</option>'+candidates.map(s=>`<option value="${esc(s.id)}">${esc(s.id)} · ${esc(s.gene)}</option>`).join("");
+    select.value=candidates.some(s=>s.id===selected)?selected:"";
+  }
 }
 function investmentFormHtml(row={}){
   let criteria=Array.isArray(row.criteria)?row.criteria.join("\n"):"";
@@ -967,7 +993,12 @@ function openPlanForm(id=null){
   editContext={table:"annual_breeding_plans",id:id||null};
   $("#editModalTitle").textContent=id?`编辑年度计划 #${id}`:"新增年度计划";
   $("#editModalSub").textContent="设置亲本、预期日期与计划目标；实际配种和窝次另行记录。";
-  $("#editFormFields").innerHTML=planFormHtml(row);$("#editMessage").textContent="";openModal("editModal");
+  $("#editFormFields").innerHTML=planFormHtml(row);$("#editMessage").textContent="";
+  const form=$("#editForm");refreshPlanParents(form,id);
+  form.elements.female_snake_id.value=row.female_snake_id||"";
+  form.elements.male_snake_id.value=row.male_snake_id||"";
+  form.elements.plan_year.addEventListener("input",()=>refreshPlanParents(form,id));
+  openModal("editModal");
 }
 function openInvestmentForm(id=null){
   if(!canWrite())return toast("当前账号没有写权限",true);
@@ -1027,6 +1058,16 @@ async function saveEdit(){
     ["plan_year","planned_clutches","reminder_days"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     o.reminders_enabled=o.reminders_enabled==="true";
     if("scenario_id" in o)o.scenario_id=o.scenario_id?Number(o.scenario_id):null;
+    if(!Number.isInteger(o.plan_year)||o.plan_year<2020||o.plan_year>2200)throw new Error("请选择有效的计划年份。");
+    for(const [id,sex,label] of [[o.female_snake_id,"F","母蛇"],[o.male_snake_id,"M","公蛇"]]){
+      if(id&&!DATA.snakes.some(s=>s.id===id&&planParentEligible(s,o.plan_year,sex)))throw new Error(`${label}不属于 ${o.plan_year} 年已成熟的在养种群库个体，请重新选择。`);
+    }
+    if(o.status!=="cancelled"&&o.female_snake_id){
+      if(planFemaleUsed(o.female_snake_id,o.plan_year,editContext.id))throw new Error(`${o.female_snake_id} 已用于 ${o.plan_year} 年的其他繁育计划。`);
+      const {data:otherPlans,error:checkError}=await sb.from("annual_breeding_plans").select("id").eq("plan_year",o.plan_year).eq("female_snake_id",o.female_snake_id).neq("status","cancelled");
+      if(checkError)throw checkError;
+      if(otherPlans.some(p=>String(p.id)!==String(editContext.id||"")))throw new Error(`${o.female_snake_id} 已用于 ${o.plan_year} 年的其他繁育计划。`);
+    }
   }else if(t==="investments"){
     ["rank","strategic_score","planned_year","budget_min","budget_max"].forEach(k=>{if(o[k]!=null)o[k]=Number(o[k])});
     o.criteria=o.criteria?String(o.criteria).split(/\r?\n/).map(x=>x.trim()).filter(Boolean):[];
