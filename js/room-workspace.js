@@ -38,6 +38,46 @@
     const valid = new Map(next.cabinets.flatMap(c=>c.levels.flatMap(l=>l.slots.map(s=>[s.id,s.box_id]))));
     for(const a of assignments()){const old=slotInfo(a.slot_id);if(!valid.has(a.slot_id)||valid.get(a.slot_id)!==old?.s.box_id)throw Error(`${titleOfSlot(a.slot_id)} 仍有 ${a.snake_id}，请先实际转移后再移除。`);}
   }
+  let environmentModulePromise=null,telemetry=null,telemetryError='',telemetryLoading=false,telemetryGeneration=0,telemetryFetchedAt=null;
+  async function ensureEnvironment(){
+    if(window.SuohaRoomEnvironment?.metrics)return window.SuohaRoomEnvironment;
+    if(!environmentModulePromise)environmentModulePromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');script.src='/js/room-environment.js?v=20261016-env2';
+      script.onload=()=>window.SuohaRoomEnvironment?.metrics?resolve(window.SuohaRoomEnvironment):reject(Error('温湿度组件加载不完整，请刷新页面后重试。'));
+      script.onerror=()=>reject(Error('温湿度组件加载失败，请检查网络后重试。'));document.head.append(script);
+    }).finally(()=>{environmentModulePromise=null;});
+    return environmentModulePromise;
+  }
+  function environmentPanel(c){return `<div class="rw-environment-summary" data-environment-cabinet="${esc(c.id)}">${environmentPanelContent(c)}</div>`;}
+  function environmentPanelContent(c){
+    const E=window.SuohaRoomEnvironment;
+    return `<div class="rw-environment-heading"><b>温湿度</b>${btn('刷新读数','environment-refresh',telemetryLoading?'disabled':'')}</div>`+
+      [...c.levels].reverse().map(l=>{const index=c.levels.indexOf(l),row=telemetry?.levels?.find(x=>x.cabinetId===c.id&&x.levelId===l.id);
+        return `<div class="rw-environment-reading"><b>L${index+1}</b>`+['temperature','humidity'].map(metric=>{
+          const binding=l.environment?.[metric];let r=row?.[metric];
+          if(!binding)r={status:'unbound'};
+          else if(telemetryError)r={status:'unavailable'};
+          else if(r?.observedAt&&Date.now()-Date.parse(r.observedAt)>binding.staleAfterSeconds*1000)r={...r,status:'stale'};
+          const label=metric==='temperature'?'温度':'湿度';
+          return `<span>${label}：${esc(binding&&telemetryLoading?'读取中…':!binding?'未绑定':E?E.display(r):'等待读取')}</span>`;
+        }).join('')+'</div>';
+      }).join('')+(telemetryError?`<p class="rw-muted" role="status">读取失败：${esc(telemetryError)}</p>`:telemetryFetchedAt?`<p class="rw-muted">上次查询 ${esc(new Date(telemetryFetchedAt).toLocaleTimeString())} · 手动刷新更新</p>`:'');
+  }
+  function paintEnvironment(){host.querySelectorAll('[data-environment-cabinet]').forEach(el=>{const c=cabinet(el.dataset.environmentCabinet);if(c)el.innerHTML=environmentPanelContent(c);});}
+  async function refreshEnvironment(){
+    const generation=++telemetryGeneration,epoch=state.epoch;
+    telemetry=null;telemetryError='';telemetryFetchedAt=null;telemetryLoading=true;paintEnvironment();
+    try{
+      const E=await ensureEnvironment();
+      const cfg=state.snapshot?.config;
+      const bound=cfg?.cabinets?.some(c=>c.levels.some(l=>l.environment?.temperature||l.environment?.humidity));
+      const result=bound?await D.environment():E.snapshot(cfg);
+      if(!result||!Array.isArray(result.levels))throw Error('温湿度响应不完整，请重试。');
+      if(generation!==telemetryGeneration||epoch!==state.epoch)return;
+      telemetry=result;if(bound)telemetryFetchedAt=Date.now();
+    }catch(e){if(generation===telemetryGeneration&&epoch===state.epoch)telemetryError=e.message||'温湿度读取失败';}
+    finally{if(generation===telemetryGeneration&&epoch===state.epoch){telemetryLoading=false;paintEnvironment();}}
+  }
   async function load(force=false) {
     if(state.loading||!canWrite()||!currentUser)return;
     state.loading=true;state.error='';paint();const epoch=state.epoch,user=currentUser.id;
@@ -45,7 +85,7 @@
       const [snap] = await Promise.all([D.load(),window.SuohaWorkspace.load()]);
       if(epoch!==state.epoch||currentUser?.id!==user)return;
       if(!snap||!Number.isInteger(Number(snap.revision)))throw Error('爬房响应不完整，请检查数据库迁移与权限。');
-      state.snapshot=snap;state.snapshot.config ||= M.defaultConfig();state.loaded=true;
+      state.snapshot=snap;state.snapshot.config ||= M.defaultConfig();state.loaded=true;void refreshEnvironment();
       if(!force&&!state.draft)try{const saved=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(saved&&saved.revision===snap.revision){state.draft=saved.config;state.build=true;}else if(saved)state.error='旧布局草稿版本已过期，当前已加载实际布局。';}catch{}
       if(snap.revision>0)await syncPlans();rememberDraft();
     }catch(e){if(epoch===state.epoch)state.error=e.message||'爬房读取失败。';}
@@ -135,9 +175,9 @@
   function taskColors(slotId) { const use=state.hover?[state.hover]:state.selected;return [...new Set(state.tasks.filter(t=>t.slotId===slotId&&t.status==='pending'&&(!use.length||use.includes(t.date))).map(t=>M.dayColors[(new Date(t.date+'T12:00:00Z').getUTCDay()+6)%7]))]; }
   function mini(c) { return `<div class="rw-mini-grid" aria-label="${esc(c.name)}格位图">${[...c.levels].reverse().map(l=>`<div class="rw-mini-row" style="grid-template-columns:repeat(${l.slots.length},minmax(0,1fr))">${l.slots.map(s=>{const colors=taskColors(s.id);return `<button class="rw-mini-cell${colors.length?' is-planned':''}" data-rw="slot" data-slot="${esc(s.id)}" data-mini-slot="${esc(s.id)}" aria-label="${esc(titleOfSlot(s.id))} ${esc(occupant(s.id)?.snake_id||(workflows.eggs().find(e=>e.slot_id===s.id)?'蛇蛋':'空盒'))}" style="${colors.length?`--plan-color:${colors[0]};background:${colors.length>1?`linear-gradient(120deg,${colors.map((col,i)=>`${col}35 ${i/colors.length*100}%,${col}35 ${(i+1)/colors.length*100}%`).join(',')})`:colors[0]+'35'};border-color:${colors[0]}`:''}">${esc(occupant(s.id)?.snake_id||(workflows.eggs().find(e=>e.slot_id===s.id)?workflows.eggs().find(e=>e.slot_id===s.id).egg_count+'枚':'·'))}</button>`;}).join('')}</div>`).join('')}</div>`; }
   function summary(c,top) {
-    if(workflows.isIncubator(c))return workflows.incubationSummary(c,top);
+    if(workflows.isIncubator(c))return workflows.incubationSummary(c,top)+environmentPanel(c);
     const sum=M.summarize(state.tasks,state.selected.length?state.selected:null,c.id);
-    return `<section class="rw-summary${top?' rw-summary-top':''}" data-summary-cabinet="${esc(c.id)}"><div class="rw-summary-title"><h3>${esc(c.name)}${top?' · 备料':''}</h3>${!top?btn('展开 ↗','cabinet',`data-cabinet="${esc(c.id)}"`):`<span>${esc(rangeLabel())}</span>`}</div><div class="rw-summary-groups">${sum.groups.map(g=>`<div class="rw-summary-row" style="--mouse-ink:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).ink};--mouse-fill:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).fill}"><span>${g.mouseMin}–${g.mouseMax}<small> g</small></span><b>${g.quantity}<small> 只</small></b></div>`).join('')||'<p class="rw-muted">当前范围无需备料或鼠重待确认</p>'}</div><p class="rw-summary-meta">${sum.pendingCount} 次待喂${sum.unknownCount?` · ${sum.unknownCount} 项待确认`:''}</p>${!top?mini(c)+`<div class="rw-cabinet-placement"><span>朝向 ${c.rotation||0}°</span>${btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}" aria-label="旋转 ${esc(c.name)} 90°"`)}${deleteCabinetButton(c)}</div>`:''}</section>`;
+    return `<section class="rw-summary${top?' rw-summary-top':''}" data-summary-cabinet="${esc(c.id)}"><div class="rw-summary-title"><h3>${esc(c.name)}${top?' · 备料':''}</h3>${!top?btn('展开 ↗','cabinet',`data-cabinet="${esc(c.id)}"`):`<span>${esc(rangeLabel())}</span>`}</div>${environmentPanel(c)}<div class="rw-summary-groups">${sum.groups.map(g=>`<div class="rw-summary-row" style="--mouse-ink:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).ink};--mouse-fill:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).fill}"><span>${g.mouseMin}–${g.mouseMax}<small> g</small></span><b>${g.quantity}<small> 只</small></b></div>`).join('')||'<p class="rw-muted">当前范围无需备料或鼠重待确认</p>'}</div><p class="rw-summary-meta">${sum.pendingCount} 次待喂${sum.unknownCount?` · ${sum.unknownCount} 项待确认`:''}</p>${!top?mini(c)+`<div class="rw-cabinet-placement"><span>朝向 ${c.rotation||0}°</span>${btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}" aria-label="旋转 ${esc(c.name)} 90°"`)}${deleteCabinetButton(c)}</div>`:''}</section>`;
   }
   function roomPreparation() {
     const tasks=preparation(),selected=state.selected.length?state.selected:null,sum=M.summarize(tasks,selected),scoped=tasks.filter(t=>!selected||selected.includes(t.date)),locked=scoped.filter(t=>t.status==='pending'&&t.locked).length;
@@ -213,17 +253,17 @@
     if(state.draft)throw Error('请先保存或放弃布局草稿，再配置温湿度。');
     const cfg=copy(state.snapshot.config);
     if(!cfg?.cabinets?.length)throw Error('请先建立并保存爬柜。');
+    const E=await ensureEnvironment();
     const telemetry=await D.environment();
     const rows=cfg.cabinets.flatMap(c=>c.levels.map((l,i)=>({c,l,i})));
-    const E=window.SuohaRoomEnvironment;
     const content='<p class="rw-muted">按层绑定设备。涂鸦云可读取实际数据点；多层共用设备时，控制会影响这些层。</p>'+environmentTools(telemetry)+rows.map(({c,l,i},index)=>'<fieldset class="rw-environment-level"><legend>'+esc(c.name)+' · L'+(i+1)+'</legend>'+E.metrics.map(metric=>{
-      const b=l.environment?.[metric],p=index+'_'+metric,reading=telemetry.levels.find(x=>x.levelId===l.id&&x.cabinetId===c.id)?.[metric];
+      const b=l.environment?.[metric],p=index+'_'+metric,reading=(telemetry.levels||[]).find(x=>x.levelId===l.id&&x.cabinetId===c.id)?.[metric];
       return '<div class="rw-form-grid">'+select(metric==='temperature'?'温度来源':'湿度来源',p+'_provider',[['','未绑定'],['tuya_cloud','涂鸦云（A1 智能版）'],['davinci','达芬奇 A1（兼容原绑定）'],['home_assistant','Home Assistant（待接入）'],['mqtt','MQTT（待接入）'],['custom','其他来源（待接入）']],b?.provider||'')+field('设备标识',p+'_device',b?.deviceId||'','text','maxlength="200"')+field('数据通道 / 实体 ID',p+'_channel',b?.channel||'','text','maxlength="200"')+field('备注名称',p+'_label',b?.label||'','text','maxlength="80"')+field('数据有效期（秒）',p+'_stale',b?.staleAfterSeconds||300,'number','min="30" max="86400" step="1" required')+'</div><p class="rw-muted">'+esc(E.display(reading))+' · '+(metric==='temperature'?'温度 °C':'相对湿度 %')+'</p>';
     }).join('')+'</fieldset>').join('');
     showDialog('温湿度设备',content,async form=>{
       const v=formValues(form);
       rows.forEach(({l},index)=>{const environment={};for(const metric of E.metrics){const p=index+'_'+metric;if(v[p+'_provider'])environment[metric]={provider:v[p+'_provider'],deviceId:v[p+'_device'].trim(),channel:v[p+'_channel'].trim(),label:v[p+'_label'].trim(),staleAfterSeconds:Number(v[p+'_stale'])};}const errors=E.validate(environment);if(errors.length)throw Error(errors.join('；'));if(Object.keys(environment).length)l.environment=environment;else delete l.environment;});
-      await saveBusinessConfig(cfg);
+      await saveBusinessConfig(cfg);void refreshEnvironment();
     },'保存设备绑定',root=>bindEnvironmentTools(root,telemetry));
   }
   function openRoomSettings() {
@@ -342,6 +382,7 @@
   }
   async function action(b) {
     const a=b.dataset.rw;
+    if(a==='environment-refresh')return refreshEnvironment();
     if(a==='refresh')return load(true);
     if(!state.loaded||state.busy||state.loading)return;
     if(a==='cabinet'){dialog.close();return focusCabinet(b.dataset.cabinet);}
@@ -410,7 +451,7 @@
   function render() {if(!currentUser||!canWrite())return;if(!state.loaded&&!state.loading&&!state.error)load();else paint();}
   window.SuohaRoomWorkspace={render,reload:()=>load(true),snapshot:()=>copy(state.snapshot),getView:()=>({view:state.view,cabinetId:state.cabinetId,dates:[...state.selected]})};
   addEventListener('suoha:listings',()=>{if(state.loaded&&document.getElementById('page-room').classList.contains('active'))paint();});
-  addEventListener('suoha:logout',()=>{state.epoch++;state.snapshot=null;state.draft=null;state.loaded=false;state.loading=false;state.error='';state.selected=[];state.hover=null;state.undo=[];state.redo=[];state.cabinetId=null;state.feedingMode=false;state.view='perspective';scene?.destroy();scene=null;initialized=false;host.replaceChildren();dialog.close();});
+  addEventListener('suoha:logout',()=>{telemetryGeneration++;telemetry=null;telemetryError='';telemetryLoading=false;telemetryFetchedAt=null;state.epoch++;state.snapshot=null;state.draft=null;state.loaded=false;state.loading=false;state.error='';state.selected=[];state.hover=null;state.undo=[];state.redo=[];state.cabinetId=null;state.feedingMode=false;state.view='perspective';scene?.destroy();scene=null;initialized=false;host.replaceChildren();dialog.close();});
   setInterval(()=>{if(state.loaded&&!state.busy&&!dialog.open&&document.getElementById('page-room')?.classList.contains('active'))paint();},60000);
   addEventListener('beforeunload',e=>{if(state.draft||state.busy){e.preventDefault();e.returnValue='';}});
 })();

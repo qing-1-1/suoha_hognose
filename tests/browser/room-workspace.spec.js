@@ -979,3 +979,31 @@ test('explicit unscheduled slot persists and correcting a feeding preserves its 
   const records=await page.evaluate(()=>roomFixture.snapshot.records);
   expect(records).toHaveLength(1);expect(records[0].result).toBe('refused');expect(records[0].occurred_at).toBe('2026-10-12T10:30:00.000Z');expect(records[0].notes).toBe('原始观察备注');expect(errors).toEqual([]);
 });
+
+
+test('cabinet cards show per-layer temperatures on entry and manual refresh without background polling',async({page})=>{
+ const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'temp_current',label:'A1',staleAfterSeconds:300}};
+ const errors=await boot(page,{data});let calls=0,fail=false;
+ await page.route('**/.netlify/functions/room-environment*',async route=>{
+  calls++;if(fail)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'云服务暂不可用'}})});
+  const body=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),levels:[{cabinetId:'rack-a',levelId:'level-0-0',temperature:{value:28.5,unit:'°C',status:'cloud_cached',observedAt:null},humidity:{value:null,status:'unbound'}}]}));
+  await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+ });
+ await page.reload();
+ const card=page.locator('[data-environment-cabinet="rack-a"]').first();
+ await expect(card).toContainText('28.5 °C');await expect(card).toContainText('采样时间未知');await expect(card).toContainText('湿度：未绑定');
+ const count=calls;await page.evaluate(()=>window.SuohaRoomWorkspace.render());expect(calls).toBe(count);
+ await page.locator('[data-rw="cabinet"][data-cabinet="rack-a"]').first().click();await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).toContainText('28.5 °C');
+ fail=true;await page.locator('[data-environment-cabinet="rack-a"] [data-rw="environment-refresh"]').first().click();
+ await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).toContainText('云服务暂不可用');
+ await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).not.toContainText('28.5 °C');
+ expect(errors).toEqual([]);
+});
+
+test('environment settings recover a missing environment module instead of throwing metrics undefined',async({page})=>{
+ const errors=await boot(page);
+ await page.evaluate(()=>{delete window.SuohaRoomEnvironment;});
+ await page.locator('[data-rw="environment"]').click();
+ await expect(page.locator('#roomDialog')).toBeVisible();await expect(page.locator('#roomDialog')).toContainText('数据通道 / 实体 ID');
+ expect(errors).toEqual([]);
+});
