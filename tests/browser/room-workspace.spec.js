@@ -14,14 +14,20 @@ function initialFixture(){
   const user={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'1442399241@qq.com'};
   return {user,profiles:[{...user,display_name:'suohama',role:'admin',active:true}],snakes:[['ROOM-A','F','白化',45],['ROOM-B','M','雪花',160],['ROOM-C','U','原色',10]].map(([id,sex,gene_text])=>({id,sex,gene_text,series:'测试系列',status:'active',inventory_library:'stock',birth_date:'2025-01-01'})),snake_measurements:[['ROOM-A',45],['ROOM-B',160],['ROOM-C',10]].map(([snake_id,weight_g],i)=>({id:'weight-'+i,snake_id,weight_g,record_kind:'measurement',measured_at:'2026-10-01'})),specimen_listings:[],specimen_media:[],inventory_transfers:[],calls:[],snapshot:{revision:1,config,assignments:[{slot_id:'slot-0-0-0',snake_id:'ROOM-A',assigned_at:'2026-10-01T00:00:00Z'},{slot_id:'slot-1-0-0',snake_id:'ROOM-B',assigned_at:'2026-10-01T00:00:00Z'}],records:[],moves:[]}};
 }
-async function boot(page,{missing=false,anonymous=false}={}){
+async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={}){
+  await page.route('**/.netlify/functions/room-environment*',async route=>{
+    const response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:[]}));
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
+  });
   const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('room browser error:',e.message);});
   await page.clock.setFixedTime(new Date(fixedNow));
   await page.route('**/fonts.googleapis.com/**',r=>r.abort());
   await page.route('**/cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'text/javascript',body:`
-    window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(initialFixture())};
+    window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(data)};
     const fixture=window.roomFixture,user=fixture.user;
-    fixture.snapshot.planned_tasks||=[];fixture.snapshot.batches||=[];
+    fixture.snapshot.planned_tasks||=[];fixture.snapshot.batches||=[];fixture.snapshot.incubations||=[];
+    fixture.snapshot.breeding_plans||=[{id:'plan-1',year:2026,female_snake_id:'ROOM-A',male_snake_id:'ROOM-B',review_status:'approved'}];
+    fixture.snapshot.clutches||=[{id:'clutch-1',plan_id:'plan-1',clutch_code:'C-2026-01',status:'incubating',egg_count:8,remaining_eggs:8,female_snake_id:'ROOM-A',male_snake_id:'ROOM-B'}];
     fixture.snapshot.rule_versions||=[{id:'version-1',version:1,name:'初始鼠重',rules:structuredClone(fixture.snapshot.config.rules)}];
     fixture.snapshot.active_rule_version_id||='version-1';
     const persist=()=>sessionStorage.setItem('room-test-db',JSON.stringify(fixture));
@@ -33,8 +39,26 @@ async function boot(page,{missing=false,anonymous=false}={}){
         fixture.calls.push({name,args});
         if(${missing})return {data:null,error:{code:'PGRST202',message:'Could not find the function public.room_snapshot in the schema cache'}};
         const snap=fixture.snapshot;
+        if(name==='room_environment_snapshot')return {data:window.SuohaRoomEnvironment.snapshot(snap.config),error:null};
         if(name!=='room_snapshot'&&args.p_revision!==snap.revision)return {data:null,error:{message:'Room revision conflict'}};
         if(name==='room_save_layout')snap.config=structuredClone(args.p_config);
+        if(name==='room_assign_batch'){
+          const items=args.p_items;
+          if(new Set(items.map(x=>x.snake_id)).size!==items.length||new Set(items.map(x=>x.slot_id)).size!==items.length||items.some(x=>snap.assignments.some(a=>a.snake_id===x.snake_id||a.slot_id===x.slot_id)))return {data:null,error:{message:'批量入住位置冲突'}};
+          snap.assignments.push(...items.map(x=>({...x,assigned_at:new Date().toISOString()})));
+        }
+        if(name==='room_save_incubation'){
+          const p=args.p_payload,clutch=snap.clutches.find(c=>String(c.id)===String(p.clutch_id)&&String(c.plan_id)===String(p.plan_id));
+          const others=snap.incubations.filter(e=>e.slot_id!==p.slot_id&&String(e.clutch_id)===String(p.clutch_id)).reduce((n,e)=>n+e.egg_count,0);
+          if(!clutch||p.egg_count+others>clutch.egg_count)return {data:null,error:{message:'窝次关联无效或分配蛋数超出余量'}};
+          snap.incubations=snap.incubations.filter(e=>e.slot_id!==p.slot_id);snap.incubations.push({...p,female_snake_id:clutch.female_snake_id,male_snake_id:clutch.male_snake_id,clutch_code:clutch.clutch_code});
+          clutch.remaining_eggs=clutch.egg_count-others-p.egg_count;
+          (snap.incubation_history||=[]).push({id:crypto.randomUUID(),action:'save',target_slot:p.slot_id,payload:structuredClone(p),occurred_at:new Date().toISOString()});
+        }
+        if(name==='room_move_incubation'){
+          const old=snap.incubations.find(e=>e.slot_id===args.p_source);if(old){old.slot_id=args.p_target;(snap.incubation_history||=[]).push({id:crypto.randomUUID(),action:'move',source_slot:args.p_source,target_slot:args.p_target,payload:structuredClone(old),occurred_at:new Date().toISOString()});}
+        }
+        if(name==='room_clear_incubation')snap.incubations=snap.incubations.filter(e=>e.slot_id!==args.p_slot);
         if(name==='room_sync_plans'){
           const key=t=>t.snake_id+':'+new Date(t.planned_at).toISOString(),incoming=new Map(args.p_tasks.map(t=>[key(t),t]));
           snap.planned_tasks=snap.planned_tasks.filter(t=>t.batch_id||new Date(t.due_at)<=new Date()||incoming.has(key(t)));
@@ -47,7 +71,7 @@ async function boot(page,{missing=false,anonymous=false}={}){
         if(name==='room_activate_rule_version'){const version=snap.rule_versions.find(v=>v.id===args.p_version);snap.config.rules=structuredClone(version.rules);snap.active_rule_version_id=version.id;}
         if(name==='room_confirm_batch'){
           const batch={id:crypto.randomUUID(),name:args.p_name,confirmed_at:new Date().toISOString(),room_revision:snap.revision,rule_version_id:snap.active_rule_version_id,items:[]};
-          for(const key of args.p_items){const task=snap.planned_tasks.find(t=>t.snake_id===key.snake_id&&new Date(t.planned_at).getTime()===new Date(key.planned_at).getTime());if(!task||task.batch_id)return {data:null,error:{message:'Task already confirmed or unavailable'}};const item={...structuredClone(task),id:crypto.randomUUID(),batch_id:batch.id,record:null};task.batch_id=batch.id;task.batch_item_id=item.id;batch.items.push(item);}
+          for(const key of args.p_items){const task=snap.planned_tasks.find(t=>t.snake_id===key.snake_id&&new Date(t.planned_at).getTime()===new Date(key.planned_at).getTime());if(!task||task.batch_id)return {data:null,error:{message:'Task already confirmed or unavailable'}};const model=window.SuohaRoomModel,measured=model.latestWeight(task.snake_id,fixture.snake_measurements,model.localDate(Date.now(),snap.config.timezone)),rule=model.matchMouse(measured?.weight,snap.config.rules,fixture.snakes.find(s=>s.id===task.snake_id)?.sex);if(!rule)return {data:null,error:{message:'请补充有效称重'}};task.mouse_min_g=rule.mouseMin;task.mouse_max_g=rule.mouseMax;const item={...structuredClone(task),id:crypto.randomUUID(),batch_id:batch.id,record:null};task.batch_id=batch.id;task.batch_item_id=item.id;batch.items.push(item);}
           snap.batches.push(batch);
         }
         if(name==='room_assign'){
@@ -78,6 +102,332 @@ async function boot(page,{missing=false,anonymous=false}={}){
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('tuya cloud device inspector shows affected layers and sends explicit temperature and power commands',async({page})=>{
+ const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'actual',label:'A1',staleAfterSeconds:300}};
+ const errors=await boot(page,{data}),commands=[];
+ await page.route('**/.netlify/functions/room-environment*',async route=>{
+  const request=route.request();let response;
+  if(request.method()==='POST'){commands.push(request.postDataJSON());response={status:'accepted',message:'涂鸦云已接受指令，请刷新核对设备实际状态'};}
+  else if(request.url().includes('?check=connection'))response={authenticated:true,deviceCount:1,message:'云授权验证通过。设备读取权限仍需逐台验证。'};
+  else if(request.url().includes('?device='))response={id:'pad1',name:'A1 智能版',online:true,status:[{code:'actual',value:285,observedAt:null}],specification:{status:[{code:'actual',type:'Integer',values:{unit:'℃',scale:1}}]},controls:{temperature:{min:20,max:32,step:0.5},power:{code:'heat'}}};
+  else response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:['pad1'],capabilities:{configured:true,read:true,control:true}}));
+  await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
+ });
+ await room(page).locator('[data-rw=environment]').click();const dialog=modal(page);
+ await dialog.locator('summary').click();await dialog.locator('[data-env-connection]').click();await expect(dialog.locator('[data-env-message]')).toContainText('云授权验证通过');await dialog.locator('[data-env-inspect]').click();
+ await expect(dialog.locator('[data-env-detail]')).toContainText('银柜 A · L1');
+ await dialog.locator('[name=environment_target]').fill('28.5');await dialog.locator('[data-env-temperature]').click();
+ await expect(dialog.locator('[data-env-message]')).toContainText('已接受');expect(commands).toHaveLength(1);expect(commands[0].value).toBe(28.5);expect(commands[0].action).toBe('temperature');
+ await dialog.locator('[data-env-power="false"]').click();await expect.poll(()=>commands.length).toBe(2);expect(commands[1].value).toBe(false);expect(commands[1].action).toBe('power');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
+});
+
+test('environment device catalog saves once, assigns multiple layers and propagates device edits',async({page})=>{
+ const errors=await boot(page),dialog=modal(page);
+ await room(page).locator('[data-rw=environment]').click();
+ await dialog.locator('[data-add-environment-device]').click();const device=dialog.locator('[data-environment-device]').first();
+ await device.locator('[name=device_label]').fill('共享加热垫');await device.locator('[name=device_id]').fill('pad-01');
+ await dialog.locator('[data-add-environment-device]').click();const humidity=dialog.locator('[data-environment-device]').nth(1);
+ await humidity.locator('[name=device_label]').fill('湿度计');await humidity.locator('[name=device_provider]').selectOption('mqtt');await humidity.locator('[name=device_id]').fill('sensor-01');await humidity.locator('[name=device_temperature]').fill('');await humidity.locator('[name=device_humidity]').fill('humidity');
+ await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ const devices=await page.evaluate(()=>window.roomFixture.snapshot.config.environmentDevices);expect(devices).toHaveLength(2);
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment)).toBeUndefined();
+ await room(page).locator('[data-rw=cabinet][data-cabinet="rack-a"]').first().click();await room(page).locator('[data-rw=layer-devices]').click();
+ for(const i of [0,1])await dialog.locator(`[name="${i}_temperature"]`).selectOption(devices[0].id);
+ await dialog.locator('[name="0_humidity"]').selectOption(devices[1].id);await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ await page.reload();await room(page).locator('[data-rw=environment]').click();await expect(dialog.locator('[name=device_id]').first()).toHaveValue('pad-01');
+ await dialog.locator('[name=device_temperature]').first().fill('changed_probe');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels.map(l=>l.environment.temperature.channel))).toEqual(['changed_probe','changed_probe']);
+ await room(page).locator('[data-rw=cabinet][data-cabinet="rack-a"]').first().click();
+ await room(page).locator('[data-environment-level="level-0-0"]').click();await expect(dialog.locator('[name="0_temperature"]')).toHaveValue(devices[0].id);
+ await dialog.locator('[name="0_temperature"]').selectOption('');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.temperature)).toBeUndefined();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.humidity.deviceId)).toBe('sensor-01');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
+});
+
+test('selected-day totals span cabinets and feeding mode has large weight-only labels, sex and distinct colors',async({page})=>{
+  const data=initialFixture();
+  data.snapshot.config.cabinets.forEach(c=>c.schedule.weekdays=[4]);
+  data.snapshot.config.cabinets[1].schedule.quantity=2;
+  data.snake_measurements.push({id:'new-weight',snake_id:'ROOM-A',weight_g:160,measured_at:'2026-10-14'});
+  data.snake_measurements=data.snake_measurements.filter(m=>m.snake_id!=='ROOM-C');
+  data.snapshot.assignments.push({slot_id:'slot-0-0-1',snake_id:'ROOM-C',assigned_at:'2026-10-01T00:00:00Z'});
+  data.snapshot.planned_tasks=[{id:'stale-a',snake_id:'ROOM-A',slot_id:'slot-0-0-0',cabinet_id:'rack-a',planned_at:fixedNow,due_at:fixedNow,mouse_min_g:1,mouse_max_g:2,quantity:1}];
+  const errors=await boot(page,{data});
+  await room(page).locator('[data-rw-date="2026-10-15"]').click();
+  const total=room(page).getByRole('region',{name:'全房备料汇总'});
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total.locator('[data-mouse-range="16-20"]')).toContainText('1 只');
+  await expect(total.locator('[data-mouse-range="6-8"]')).toContainText('2 只');
+  await expect(total).toContainText('1 项待称重');
+  await room(page).getByRole('button',{name:'备料批次',exact:true}).click();
+  await modal(page).getByRole('button',{name:'确认当前范围备料',exact:true}).click();
+  await expect(modal(page)).toContainText('16–20g');
+  await expect(modal(page).locator('[name=tasks]:disabled')).toHaveCount(1);
+  await modal(page).getByRole('button',{name:'锁定并确认备料',exact:true}).click();
+  await expect(modal(page)).not.toBeVisible();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total).toContainText('2 项已确认批次');
+  await room(page).locator('[data-summary-cabinet="rack-a"] [data-rw="cabinet"]').click();
+  await room(page).getByRole('button',{name:'喂食模式',exact:true}).click();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  const box=room(page).locator('.rw-scene-world .rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(box.locator('.rw-box-id')).toHaveText('ROOM-A ♀');
+  await expect(box.locator('.rw-feeding-weight')).toHaveText('16–20 g');
+  await expect(box.locator('.rw-label-line')).toHaveCount(0);
+  const weight=await box.locator('.rw-feeding-weight').evaluate(el=>({size:parseFloat(el.getAttribute('font-size'))*el.getScreenCTM().a,bold:getComputedStyle(el).fontWeight,color:el.getAttribute('fill')}));
+  expect(weight.size).toBeGreaterThan(16);expect(Number(weight.bold)).toBeGreaterThanOrEqual(700);
+  await expect(room(page).locator('.rw-scene-world .rw-feeding-weight').filter({hasText:'待称重'})).toHaveCount(1);
+  await room(page).locator('[data-rw-canvas]').screenshot({path:`artifacts/feeding-mode-${test.info().project.name}.png`,animations:'disabled'});
+  await room(page).getByRole('button',{name:'档案模式',exact:true}).click();
+  await expect(box.locator('.rw-label-line')).not.toHaveCount(0);
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await room(page).locator('[data-summary-cabinet="rack-b"] [data-rw="cabinet"]').click();
+  await room(page).getByRole('button',{name:'喂食模式',exact:true}).click();
+  const male=room(page).locator('.rw-scene-world .rw-model-slot').filter({has:page.locator('[data-slot="slot-1-0-0"]')});
+  await expect(male.locator('.rw-box-id')).toHaveText('ROOM-B ♂');
+  await expect(male.locator('.rw-feeding-weight')).toHaveText('6–8 g');
+  expect(await male.locator('.rw-feeding-weight').getAttribute('fill')).not.toBe(weight.color);
+  await room(page).locator('[data-rw-date="2026-10-15"]').click();
+  await room(page).locator('[data-rw-date="2026-10-16"]').click();
+  await expect(total.locator('[data-mouse-total]')).toHaveText('0 只');
+  expect(errors).toEqual([]);
+});
+
+test('daily next feeding survives week navigation and searchable slot detail switches without a modal backdrop',async({page})=>{
+  const errors=await boot(page),header=room(page).locator('.rw-feed-overview');
+  const next=await header.locator('span').nth(1).textContent();
+  await room(page).getByRole('button',{name:'下一周',exact:true}).click();
+  await expect(header.locator('span').nth(1)).toHaveText(next);
+  await room(page).getByLabel('搜索蛇只或柜名').fill('ROOM-A');
+  await room(page).getByRole('button',{name:'定位',exact:true}).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await expect(modal(page)).toContainText('白化');
+  await modal(page).getByRole('button',{name:'下一盒',exact:true}).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await modal(page).getByLabel('搜索可入住蛇只').fill('原色');
+  await expect(modal(page).locator('[name=snake] option')).toHaveCount(2);
+  await expect(modal(page).locator('[name=snake]')).toContainText('10g');
+  await modal(page).getByLabel('选择蛇只',{exact:true}).selectOption('ROOM-C');
+  await modal(page).getByRole('button',{name:'放入蛇只',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  expect(await page.evaluate(()=>roomFixture.snapshot.assignments.find(a=>a.snake_id==='ROOM-C').slot_id)).toBe('slot-0-0-1');
+  expect(errors).toEqual([]);
+});
+
+test('phase one daily work supports searchable batch occupancy, live schedule preview and continuous feeding',async({page})=>{
+  const errors=await boot(page);
+  await room(page).getByRole('button',{name:'未入住蛇',exact:true}).click();
+  await modal(page).getByRole('button',{name:'批量入住',exact:true}).click();
+  await modal(page).getByLabel('搜索批量入住蛇只').fill('原色');
+  await modal(page).locator('[name=pick][value="ROOM-C"]').check();
+  await modal(page).getByLabel('目标盒子 · ROOM-C',{exact:true}).selectOption('slot-0-0-1');
+  await expect(modal(page).locator('[data-assignment-preview]')).toContainText('ROOM-C → 银柜 A');
+  await modal(page).getByRole('button',{name:'确认批量入住',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'喂食计划',exact:true}).click();
+  await expect(modal(page).getByLabel('间隔天数',{exact:true})).toBeHidden();
+  await modal(page).getByLabel('重复方式',{exact:true}).selectOption('interval');
+  await expect(modal(page).getByLabel('间隔天数',{exact:true})).toBeVisible();
+  await expect(modal(page).locator('.rw-week-fields')).toBeHidden();
+  await modal(page).getByLabel('起始日期',{exact:true}).fill('2026-10-15');
+  await modal(page).getByLabel('间隔天数',{exact:true}).fill('7');
+  await modal(page).getByLabel('每次老鼠只数（待确认可留空）').fill('1');
+  await expect(modal(page).locator('[data-schedule-preview]')).toContainText('ROOM-C');
+  await modal(page).getByRole('button',{name:'保存喂食计划',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'待喂／确认 3',exact:true}).click();
+  await expect(modal(page)).toContainText('ROOM-C');
+  await modal(page).getByRole('button',{name:'记录结果',exact:true}).first().click();
+  await modal(page).getByLabel('结果',{exact:true}).selectOption('offered');
+  await modal(page).getByLabel('本次只数',{exact:true}).fill('2');
+  await modal(page).getByLabel('备注／人工覆盖原因',{exact:true}).fill('本次按实际投喂登记');
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await expect(modal(page).locator('.rw-tour-progress')).toContainText('2 / 3');
+  await modal(page).getByRole('button',{name:'上一条',exact:true}).click();
+  await expect(modal(page).getByLabel('结果',{exact:true})).toHaveValue('offered');
+  await expect(modal(page).getByLabel('本次只数',{exact:true})).toHaveValue('2');
+  await modal(page).getByLabel('结果',{exact:true}).selectOption('fed');
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await modal(page).getByRole('button',{name:'保存并下一格',exact:true}).click();
+  await expect(modal(page).getByRole('heading',{name:'本轮巡柜完成'})).toBeVisible();
+  expect(await page.evaluate(()=>roomFixture.snapshot.records.length)).toBe(3);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(room(page).getByRole('button',{name:'待喂／确认 0',exact:true})).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('incubator build, winter occupancy and plan-linked eggs persist through box transfer',async({page},info)=>{
+  const errors=await boot(page);
+  await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
+  await room(page).getByRole('button',{name:'添加孵化箱',exact:true}).click();
+  await modal(page).getByLabel('箱名',{exact:true}).fill('冬化一号');
+  await modal(page).getByLabel('层数',{exact:true}).fill('2');
+  await modal(page).getByLabel('第 1 层盒数（从下往上）',{exact:true}).fill('2');
+  await modal(page).getByLabel('第 2 层盒数（从下往上）',{exact:true}).fill('1');
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();
+  await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const winter=await page.evaluate(()=>roomFixture.snapshot.config.cabinets.find(c=>c.name==='冬化一号'));
+  await room(page).getByRole('button',{name:'未入住蛇',exact:true}).click();
+  await modal(page).getByRole('button',{name:'选择盒子',exact:true}).click();
+  await modal(page).getByLabel('目标格位',{exact:true}).selectOption(winter.levels[0].slots[0].id);
+  await expect(modal(page).locator('[data-move-preview]')).toContainText('冬化');
+  await modal(page).getByRole('button',{name:'保存位置',exact:true}).click();
+  await room(page).locator(`[data-summary-cabinet="${winter.id}"]`).getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await expect(room(page).getByRole('button',{name:'喂食计划',exact:true})).toHaveCount(0);
+  await expect(room(page).locator('.rw-incubator-shell').first()).toBeVisible();
+  await room(page).locator(`.rw-slot-hit[data-slot="${winter.levels[0].slots[0].id}"]`).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await expect(modal(page)).toContainText('冬化期间暂停常规喂食');
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
+  await room(page).getByRole('button',{name:'添加孵化箱',exact:true}).click();
+  await modal(page).getByLabel('箱名',{exact:true}).fill('孵蛋一号');
+  await modal(page).getByLabel('用途',{exact:true}).selectOption('eggs');
+  await modal(page).getByLabel('层数',{exact:true}).fill('2');
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();
+  await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const egg=await page.evaluate(()=>roomFixture.snapshot.config.cabinets.find(c=>c.name==='孵蛋一号'));
+  await room(page).locator(`[data-summary-cabinet="${egg.id}"]`).getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const source=egg.levels[0].slots[0].id,target=egg.levels[0].slots[1].id;
+  await room(page).locator(`.rw-slot-hit[data-slot="${source}"]`).click();
+  await expect(modal(page)).toHaveAttribute('aria-modal','false');
+  await modal(page).getByLabel('繁育计划',{exact:true}).selectOption('plan-1');
+  await expect(modal(page).locator('[data-egg-parents]')).toContainText('ROOM-A');
+  await expect(modal(page).locator('[data-egg-parents]')).toContainText('ROOM-B');
+  await modal(page).getByLabel('对应窝次',{exact:true}).selectOption('clutch-1');
+  await modal(page).getByLabel('本盒蛋数',{exact:true}).fill('5');
+  await modal(page).getByRole('button',{name:'放入蛇蛋',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await room(page).locator(`.rw-slot-hit[data-slot="${source}"]`).click();
+  await expect(modal(page).getByLabel('繁育计划',{exact:true})).toBeDisabled();
+  await modal(page).getByRole('button',{name:'转移孵化盒',exact:true}).click();
+  await modal(page).getByLabel('目标孵化盒',{exact:true}).selectOption(target);
+  await modal(page).getByRole('button',{name:'确认转移',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  expect(await page.evaluate(()=>roomFixture.snapshot.incubations[0].slot_id)).toBe(target);
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.screenshot({path:`artifacts/room-incubator-workflow-${info.project.name}.png`,fullPage:true});
+  await room(page).locator('.rw-scene-host').evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));
+  await page.screenshot({path:`artifacts/room-incubator-viewport-${info.project.name}.png`});
+  await room(page).getByRole('button',{name:'历史记录',exact:true}).click();
+  await modal(page).getByLabel('记录类型',{exact:true}).selectOption('incubation');
+  await expect(modal(page)).toContainText('孵蛋分配');
+  await expect(modal(page)).toContainText('孵化盒转移');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(2);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await page.reload();
+  expect(await page.evaluate(()=>roomFixture.snapshot.incubations[0].egg_count)).toBe(5);
+  expect(await page.evaluate(()=>roomFixture.snapshot.assignments.find(a=>a.snake_id==='ROOM-C').slot_id)).toBe(winter.levels[0].slots[0].id);
+  expect(errors).toEqual([]);
+});
+
+test('room defaults to perspective and dense cabinets open with two lines at 10px minimum',async({page})=>{
+  const errors=await boot(page);
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','perspective');
+  await page.evaluate(()=>{
+    const c=roomFixture.snapshot.config.cabinets[0],base=structuredClone(c.levels[0]);c.height=1700;
+    c.levels=Array.from({length:8},(_,i)=>({...structuredClone(base),id:'dense-level-'+i,height:200,boxHeight:150,slots:base.slots.map((s,j)=>i===0?s:{id:`dense-${i}-${j}`,box_id:`dense-box-${i}-${j}`})}));
+    sessionStorage.setItem('room-test-db',JSON.stringify(roomFixture));
+  });
+  await page.reload();
+  await room(page).getByRole('button',{name:'标签',exact:true}).click();
+  await expect(modal(page).getByLabel('字号 px')).toHaveAttribute('min','10');
+  await modal(page).getByLabel('字号 px').fill('10');
+  await modal(page).getByRole('button',{name:'保存标签模板',exact:true}).click();
+  await expect(modal(page)).toBeHidden();
+  await page.reload();
+  expect(await page.evaluate(()=>roomFixture.snapshot.config.labelTemplate.fontSize)).toBe(10);
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const slot=room(page).locator('.rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(slot.locator('.rw-label-line')).toHaveCount(2);
+  expect(await slot.locator('.rw-label-line').first().evaluate(el=>parseFloat(el.getAttribute('font-size'))*el.getScreenCTM().a)).toBeGreaterThanOrEqual(9.99);
+  await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','perspective');
+  await room(page).getByRole('button',{name:'俯视',exact:true}).click();
+  await expect(room(page).locator('.rw-scene-host')).toHaveAttribute('data-view','plan');
+  expect(errors).toEqual([]);
+});
+
+test('cabinet box ID sits above two information lines without overlapping day labels',async({page},info)=>{
+  const errors=await boot(page);
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  const slot=room(page).locator('.rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
+  await expect(slot.locator('.rw-box-id')).toHaveText('ROOM-A');
+  await expect(slot.locator('.rw-label-line')).toHaveCount(2);
+  await expect(slot.locator('.rw-label-line').first()).toContainText('♀');
+  await expect(slot.locator('.rw-label-line').last()).toContainText('4–6g');
+  expect(await slot.evaluate(el=>{
+    const id=el.querySelector('.rw-box-id').getBBox(),body=[...el.querySelectorAll('.rw-label-line')].map(n=>n.getBBox()),face=el.querySelector('.rw-box-face').getBBox(),day=el.querySelector('.rw-box-days')?.getBBox();
+    return {headerInside:id.y>=face.y,headerAboveBody:id.y+id.height<body[0].y,rowsSeparate:body[0].y+body[0].height<=body[1].y,bodyInside:body[1].y+body[1].height<=face.y+face.height,daysSeparate:!day||id.x+id.width<=day.x};
+  })).toEqual({headerInside:true,headerAboveBody:true,rowsSeparate:true,bodyInside:true,daysSeparate:true});
+  await page.screenshot({path:`artifacts/room-box-labels-${info.project.name}.png`,fullPage:true});
+  await slot.locator('.rw-slot-hit').click();
+  await expect(modal(page)).toContainText('ROOM-A');
+  await expect(modal(page)).toContainText('白化');
+  expect(errors).toEqual([]);
+});
+
+test('history dialog loads all dates, filters, paginates and preserves layout drafts',async({page})=>{
+  const errors=await boot(page);
+  await page.evaluate(()=>{
+    roomFixture.snapshot.moves=Array.from({length:23},(_,i)=>({id:'move-'+i,snake_id:'ROOM-A',source_slot:null,target_slot:'slot-0-0-0',occurred_at:`2026-09-${String(i+1).padStart(2,'0')}T10:00:00Z`}));
+    roomFixture.snapshot.records=[{id:'feed-history',snake_id:'ROOM-B',cabinet_id:'rack-b',slot_id:'slot-1-0-0',result:'fed',mouse_min_g:16,mouse_max_g:20,quantity:2,occurred_at:'2026-10-01T16:30:00Z',planned_at:'2026-10-01T10:00:00Z',notes:'历史备注 <安全文本>'},{id:'removed-history',snake_id:'ROOM-X',cabinet_id:'removed-cab',slot_id:'removed-slot',result:'refused',occurred_at:'2025-01-01T00:00:00Z'}];
+  });
+  const history=room(page).getByRole('button',{name:'历史记录',exact:true});
+  await expect(room(page).locator('[data-rw=unassigned] + [data-rw=history]')).toHaveCount(1);
+  await expect(room(page).locator('[data-rw-caption] button')).toHaveCount(0);
+  await history.click();
+  await expect(modal(page).locator('[data-history-status]')).toContainText('共 25 条记录');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(20);
+  await modal(page).getByRole('button',{name:'下一页',exact:true}).click();
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(5);
+  await expect(modal(page)).toContainText('已移除格位（removed-slot）');
+  await modal(page).getByLabel('记录类型',{exact:true}).selectOption('feeding');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(2);
+  await modal(page).getByLabel('爬柜',{exact:true}).selectOption('rack-b');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await expect(modal(page)).toContainText('16–20 g · 数量 2 只');
+  await modal(page).getByText('查看详情',{exact:true}).click();
+  await expect(modal(page)).toContainText('历史备注 <安全文本>');
+  await modal(page).getByLabel('开始日期',{exact:true}).fill('2026-10-02');
+  await modal(page).getByLabel('结束日期',{exact:true}).fill('2026-10-02');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await modal(page).getByLabel('开始日期',{exact:true}).fill('2026-10-03');
+  await expect(modal(page).locator('[data-history-status]')).toContainText('开始日期不能晚于结束日期');
+  await modal(page).getByRole('button',{name:'重置筛选'}).click();
+  await modal(page).getByLabel('搜索蛇编号／位置／备注').fill('ROOM-X');
+  await expect(modal(page).locator('.rw-history-card')).toHaveCount(1);
+  await modal(page).getByLabel('喂食结果',{exact:true}).selectOption('fed');
+  await expect(modal(page)).toContainText('没有符合条件的历史记录');
+  await modal(page).getByRole('button',{name:'重置筛选'}).click();
+  await modal(page).getByLabel('时间排序').selectOption('asc');
+  await expect(modal(page).locator('.rw-history-card').first()).toContainText('ROOM-X');
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(history).toBeFocused();
+  await room(page).getByRole('button',{name:'旋转 银柜 A 90°',exact:true}).click();
+  const before=await page.evaluate(()=>roomFixture.snapshot.revision);
+  await history.click();
+  await expect(modal(page).locator('[data-history-status]')).toContainText('共 25 条记录');
+  await modal(page).getByRole('button',{name:'刷新记录'}).click();
+  await expect(modal(page).getByRole('button',{name:'刷新记录'})).toBeEnabled();
+  expect(await page.evaluate(()=>roomFixture.snapshot.revision)).toBe(before);
+  expect(await modal(page).evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+  await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await expect(room(page).getByRole('button',{name:'应用布局',exact:true})).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test('business settings and snake occupancy save independently while an unapplied layout remains intact',async({page})=>{
   const errors=await boot(page);
@@ -141,7 +491,7 @@ test('new cabinet feeding schedules can be drafted before its slots are saved',a
   expect(errors).toEqual([]);
 });
 
-test('perspective automatically shows grids facing the viewer for opposite cabinet directions',async({page},info)=>{
+test('perspective follows saved rotation and retains opaque rear panels when orbiting',async({page},info)=>{
   const errors=await boot(page);
   await page.evaluate(()=>{roomFixture.snapshot.config.cabinets[1].rotation=180;sessionStorage.setItem('room-test-db',JSON.stringify(roomFixture));});
   await page.reload();
@@ -149,18 +499,31 @@ test('perspective automatically shows grids facing the viewer for opposite cabin
   await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
   const scene=room(page).locator('.rw-scene-host'),svg=scene.locator(':scope > .rw-scene');
   await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','1');
-  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','-1');
+  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','1');
   for(let i=0;i<3;i++){
-    for(const id of ['rack-a','rack-b'])await expect(scene.locator(`[data-cabinet="${id}"] .rw-box-face`)).toHaveCount(5);
+    for(const id of ['rack-a','rack-b']){
+      const rack=scene.locator(`[data-cabinet="${id}"]`);
+      await expect(rack.locator('.rw-box-face')).toHaveCount(5);
+      await expect(rack.locator('.rw-cabinet-back')).toHaveAttribute('fill-opacity','1');
+      expect(await rack.evaluate(el=>{
+        const back=el.querySelector('.rw-cabinet-back'),grid=el.querySelector('.rw-cabinet-grid');
+        const behind=grid.getAttribute('visibility')==='hidden';return !!(back.compareDocumentPosition(grid)&(behind?Node.DOCUMENT_POSITION_PRECEDING:Node.DOCUMENT_POSITION_FOLLOWING))&&getComputedStyle(back).fill!=='none'&&back.getBBox().height>0;
+      })).toBe(true);
+    }
     await svg.scrollIntoViewIfNeeded();const box=await svg.boundingBox(),x=box.x+box.width-30,y=box.y+25;
     await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-180,y,{steps:12});await page.mouse.up();
   }
-  await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','-1');
-  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).toHaveAttribute('data-display-side','1');
+  await expect(scene.locator('[data-cabinet="rack-a"] .rw-cabinet-grid')).toHaveAttribute('visibility','hidden');
+  await expect(scene.locator('[data-cabinet="rack-b"] .rw-cabinet-grid')).not.toHaveAttribute('visibility','hidden');
   for(const id of ['rack-a','rack-b'])await expect(scene.locator(`[data-cabinet="${id}"] .rw-box-face`)).toHaveCount(5);
   expect(await page.evaluate(()=>roomFixture.snapshot.config.cabinets.map(c=>c.rotation))).toEqual([0,180]);
   await expect(room(page).getByRole('button',{name:'应用布局',exact:true})).toHaveCount(0);
   await page.screenshot({path:`artifacts/room-outward-grids-${info.project.name}.png`,fullPage:true});
+  await room(page).locator('[data-summary-cabinet="rack-a"]').getByRole('button',{name:'展开 ↗',exact:true}).click();
+  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+  await expect(svg.locator('.rw-cabinet-back')).toHaveAttribute('fill-opacity','1');
+  await expect(scene.locator('.rw-slot-hit')).toHaveCount(5);
+  await page.screenshot({path:`artifacts/room-opaque-back-${info.project.name}.png`,fullPage:true});
   expect(errors).toEqual([]);
 });
 
@@ -273,6 +636,7 @@ test('perspective uses actual wall height without fixtures and supports manual c
 
 test('all four cabinet orientations keep their names inside the room',async({page},info)=>{
   const errors=await boot(page);
+  await room(page).getByRole('button',{name:'俯视',exact:true}).click();
   for(const rotation of [0,90,180,270]){
     if(rotation){await room(page).getByRole('button',{name:'旋转 银柜 A 90°',exact:true}).click();}
     const label=room(page).locator('.rw-scene-world [data-label-cabinet="rack-a"]');
@@ -332,7 +696,7 @@ test('building keeps slot actions, saves rotation before assignment and returns 
   await expect(room(page).locator('[data-summary-cabinet="rack-a"]')).toContainText('朝向 90°');
   expect(errors).toEqual([]);
 });
-async function openRack(page,id='rack-a'){await room(page).locator(`[data-rw="cabinet"][data-cabinet="${id}"]`).click();await expect(room(page).locator('.rw-summary-top')).toContainText(id==='rack-a'?'银柜 A':'银柜 B');}
+async function openRack(page,id='rack-a'){await room(page).locator(`[data-rw="cabinet"][data-cabinet="${id}"]`).click();await expect(room(page).locator('.rw-summary-top')).toContainText(id==='rack-a'?'银柜 A':'银柜 B');const menu=room(page).getByRole('button',{name:'柜体设置',exact:true});if(await menu.isVisible()&&!await room(page).getByRole('button',{name:'柜体配置',exact:true}).isVisible())await menu.click();}
 async function closeModal(page){await modal(page).getByRole('button',{name:'关闭',exact:true}).last().click();}
 
 test('private room renders multi-date colored surfaces and retains date scope across smooth cabinet navigation',async({page},info)=>{
@@ -614,4 +978,30 @@ test('explicit unscheduled slot persists and correcting a feeding preserves its 
   await modal(page).getByRole('button',{name:'保存实际记录',exact:true}).click();await expect(modal(page)).toBeHidden();
   const records=await page.evaluate(()=>roomFixture.snapshot.records);
   expect(records).toHaveLength(1);expect(records[0].result).toBe('refused');expect(records[0].occurred_at).toBe('2026-10-12T10:30:00.000Z');expect(records[0].notes).toBe('原始观察备注');expect(errors).toEqual([]);
+});
+
+
+test('cabinet layer right sides show temperatures and manual refresh clears failed readings',async({page})=>{
+ const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'temp_current',label:'A1',staleAfterSeconds:300}};
+ const errors=await boot(page,{data});let calls=0,fail=false;
+ await page.route('**/.netlify/functions/room-environment*',async route=>{
+  calls++;if(fail)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'云服务暂不可用'}})});
+  await route.fulfill({contentType:'application/json',body:JSON.stringify({levels:[{cabinetId:'rack-a',levelId:'level-0-0',temperature:{value:28.5,unit:'°C',status:'cloud_cached',observedAt:null},humidity:{value:null,status:'unbound'}}]})});
+ });
+ await page.reload();await page.locator('[data-rw="cabinet"][data-cabinet="rack-a"]').first().click();
+ const panel=page.locator('.rw-scene-world [data-environment-level="level-0-0"]');
+ await expect(panel).toContainText('28.5℃');await expect(panel).toContainText('云端值');await expect(panel).toContainText('湿度 未绑定');
+ const count=calls;await page.evaluate(()=>window.SuohaRoomWorkspace.render());expect(calls).toBe(count);
+ const panelRect=await panel.boundingBox(),slotRect=await page.locator('.rw-scene-world [data-slot="slot-0-0-2"]').boundingBox();expect(panelRect.x).toBeGreaterThan(slotRect.x+slotRect.width);expect(Math.abs(panelRect.y+panelRect.height/2-slotRect.y-slotRect.height/2)).toBeLessThan(slotRect.height);
+ await page.screenshot({path:'artifacts/environment-layer-'+test.info().project.name+'.png',fullPage:true});
+ fail=true;await page.locator('[data-rw="environment-refresh"]').click();await expect(panel).toContainText('读取失败');await expect(panel).not.toContainText('28.5℃');
+ expect(errors).toEqual([]);
+});
+
+test('environment settings recover a missing environment module instead of throwing metrics undefined',async({page})=>{
+ const errors=await boot(page);
+ await page.evaluate(()=>{delete window.SuohaRoomEnvironment;});
+ await page.locator('[data-rw="environment"]').click();
+ await expect(page.locator('#roomDialog')).toBeVisible();await expect(page.locator('#roomDialog')).toContainText('添加设备');
+ expect(errors).toEqual([]);
 });
