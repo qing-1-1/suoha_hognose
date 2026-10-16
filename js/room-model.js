@@ -5,6 +5,7 @@
   if (root) root.SuohaRoomModel = api;
 })(typeof window !== 'undefined' ? window : null, function () {
   'use strict';
+  const environment = typeof module === 'object' && module.exports && typeof require === 'function' ? require('./room-environment.js') : (typeof window !== 'undefined' ? window.SuohaRoomEnvironment : null);
   const dayColors = Object.freeze(['#2563EB', '#15803D', '#C2410C', '#7C3AED', '#0E7490', '#BE185D', '#946200']);
   const dateFormatters = new Map();
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -26,7 +27,7 @@
       const old = spec.id ? cabinet.levels.find(level => level.id === spec.id) : cabinet.levels[index];
       const count = Number(spec.count);
       if (!Number.isInteger(count) || count < 1 || count > 50) throw new Error('每层盒数须为 1–50 的整数');
-      return { id: old?.id || uid('level'), height:Number(spec.height), count,
+      return { ...(old?.environment ? {environment:clone(old.environment)} : {}), id: old?.id || uid('level'), height:Number(spec.height), count,
         boxWidth:Number(spec.boxWidth ?? (next.width / count)), boxDepth:Number(spec.boxDepth ?? next.depth), boxHeight:Number(spec.boxHeight ?? spec.height),
         slots:Array.from({length:count}, (_,i) => old?.slots[i] ? clone(old.slots[i]) : {id:uid('slot'), box_id:uid('box')}) };
     });
@@ -237,6 +238,7 @@
         if(incubatorLayout(cabinet).boxes.some(b=>b.x+b.width>Number(cabinet.width)+0.001||b.z+b.depth>Number(cabinet.depth)+0.001||b.y+b.height>Number(cabinet.height)+0.001))errors.push(name+'：堆叠盒子超出孵化箱空间');
       }
       for (const level of cabinet.levels||[]) {
+        if(level.environment!==undefined){if(!environment)errors.push('温湿度模块未加载');else errors.push(...environment.validate(level.environment));}
         if (!Number.isInteger(level.count) || level.count<1 || level.count>50 || level.slots?.length!==level.count) errors.push(name+'：每层格数或格位列表无效');
         if (![level.height,level.boxWidth,level.boxDepth,level.boxHeight].every(positive)) errors.push(name+'：层和盒子尺寸须为正数');
         if (level.boxWidth*level.count>Number(cabinet.width)+0.001 || Number(level.boxDepth)>Number(cabinet.depth) || Number(level.boxHeight)>Number(level.height)) errors.push(name+'：盒子尺寸超出本层容纳范围');

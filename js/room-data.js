@@ -24,8 +24,16 @@
       throw error;
     }
   }
+  async function environmentRequest(device,body){
+    const session=(await sb.auth.getSession()).data?.session;if(!session?.access_token)throw Error('请登录后台');
+    const response=await fetch('/.netlify/functions/room-environment'+(device?'?device='+encodeURIComponent(device):''),{method:body?'POST':'GET',headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const data=await response.json();if(!response.ok)throw Error(data.error?.message||'温湿度服务暂不可用');return data;
+  }
   window.SuohaRoomData = Object.freeze({
     load: () => rpc('room_snapshot'),
+    environment: () => environmentRequest(),
+    environmentDevice: id => environmentRequest(id),
+    environmentCommand: body => environmentRequest(null,body),
     save: (config, revision) => write('room_save_layout', { p_revision: revision, p_config: config }),
     assign: (snakeId, slotId, revision, swap = false, scheduleMode = 'inherit') => write('room_assign', { p_revision: revision, p_snake: snakeId, p_target_slot: slotId ?? null, p_swap: !!swap, p_schedule_mode: scheduleMode }),
     assignBatch: (items, revision) => write('room_assign_batch', { p_revision: revision, p_items: items }),

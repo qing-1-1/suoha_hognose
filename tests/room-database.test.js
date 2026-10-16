@@ -182,6 +182,7 @@ for(const upgradeIncubators of [false,true])test(`${upgradeIncubators?'042 upgra
     create table clutches(id bigint primary key,clutch_code text,breeding_event_id bigint,female_snake_id text,male_snake_id text,laid_date date,egg_count integer,fertile_egg_count integer,hatched_count integer,status text,expected_hatch_date date);`);
    await db.exec(fs.readFileSync('supabase/migrations/042_room_incubators.sql','utf8'));
   }
+  await db.exec(fs.readFileSync('supabase/migrations/050_room_environment.sql','utf8'));
   await db.exec('set role authenticated');
   const snap=async()=>(await db.query('select room_snapshot() data')).rows[0].data;
   let state=await snap();assert.equal(state.revision,1);assert.equal(state.rule_versions.length,1);const firstRule=state.active_rule_version_id;

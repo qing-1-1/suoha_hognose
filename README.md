@@ -1,5 +1,9 @@
 # Suoha Hognose
 
+**涂鸦云接入（2026-10-16）：** 已实现设备状态/数据点读取、层级绑定和按明确映射设置目标温度/加热开关。凭据尚未配置，真实 A1 未联调。旧项目新增 051，独立重构新增 022 控制审计迁移。详见 [接入步骤与成功案例资料](docs/design/涂鸦云接入与案例.md)。
+
+**温湿度设备预留（2026-10-16）：** 爬房 → 温湿度设备，按层保存温度/湿度来源及设备通道。先部署 [050 温湿度接口迁移](supabase/migrations/050_room_environment.sql)。当前未连接真实加热垫，接入格式与两项目对应接口见 [温湿度设备接入](docs/design/温湿度设备接入.md)。
+
 **喂食保存 UUID 报错修复（2026-10-16）：** 若保存喂食记录时报 `invalid input syntax for type uuid: "33"` 等数字编号错误，在已有爬房数据库执行 [049_room_feeding_measurement_type.sql](supabase/migrations/049_room_feeding_measurement_type.sql)。它独立替换旧版 `room_record_feeding`，让成长记录编号沿用 `snake_measurements.id` 的真实类型，并修复旧版临时写入保护表的 UUID 类型；保留历史记录、权限与重复提交保护。不要重跑 039/040 建表迁移。修复需要执行 SQL，刷新或重新部署前端不会更新旧数据库函数。本轮未连接生产数据库，线上尚未执行。
 
 **公开三分类与喂食展示（2026-10-14）：** 访客目录固定为“种群展示 / 在售 / 过往已售”；爬房增加选日全房鼠重只数汇总和单柜“喂食模式”。在已有 047 后执行 [048](supabase/migrations/048_current_weight_preparation.sql)，让确认备料时也按最新有效称重计算，已确认批次和历史结果保留。三分类与场景更新需要部署前端，SQL 不负责更新界面；本轮未执行线上 SQL。验收见 [爬房清单](docs/design/爬房工作台实现与验收.md) 和 [公开展示清单](docs/design/已售回库修复.md)。

@@ -115,7 +115,7 @@
     const c=activeCabinet(), cfg=config(), slots=cfg.cabinets.flatMap(c=>c.levels.flatMap(l=>l.slots));
     const nextTask=state.overview?.nextTask||state.tasks.filter(t=>t.status==='pending'&&new Date(t.dueAt||t.plannedAt)>new Date()).sort((a,b)=>String(a.dueAt||a.plannedAt).localeCompare(String(b.dueAt||b.plannedAt)))[0];
     const lastRecord=records().at(-1);
-    host.querySelector('[data-rw-header]').innerHTML=`<div><p class="eyebrow">ROOM STUDIO / 爬房工作台</p><h1>${esc(c&&state.view==='cabinet'?c.name:cfg.name||'我的爬房')}</h1><p class="rw-muted">${cfg.cabinets.length} 个爬柜 · ${assignments().length} 条已定位 · ${slots.length} 个格位 <span data-rw-status></span></p><div class="rw-feed-overview"><span>本次查看：${esc(rangeLabel())}</span><span>下次待喂：${nextTask?esc(nextTask.date+' '+nextTask.time):'未来一年暂无'}</span><span>最近记录：${lastRecord?esc(new Date(lastRecord.occurred_at).toLocaleString('zh-CN',{timeZone:cfg.timezone})): '暂无'}</span></div></div><div class="rw-actions">${btn('房间设置','room-settings')}${btn('鼠重规则','rules')}${btn('标签','labels')}${btn('备料批次','batches')}${btn('刷新','refresh')}</div>`;
+    host.querySelector('[data-rw-header]').innerHTML=`<div><p class="eyebrow">ROOM STUDIO / 爬房工作台</p><h1>${esc(c&&state.view==='cabinet'?c.name:cfg.name||'我的爬房')}</h1><p class="rw-muted">${cfg.cabinets.length} 个爬柜 · ${assignments().length} 条已定位 · ${slots.length} 个格位 <span data-rw-status></span></p><div class="rw-feed-overview"><span>本次查看：${esc(rangeLabel())}</span><span>下次待喂：${nextTask?esc(nextTask.date+' '+nextTask.time):'未来一年暂无'}</span><span>最近记录：${lastRecord?esc(new Date(lastRecord.occurred_at).toLocaleString('zh-CN',{timeZone:cfg.timezone})): '暂无'}</span></div></div><div class="rw-actions">${btn('房间设置','room-settings')}${btn('温湿度设备','environment')}${btn('鼠重规则','rules')}${btn('标签','labels')}${btn('备料批次','batches')}${btn('刷新','refresh')}</div>`;
     host.querySelector('[data-rw-message]').innerHTML=state.error?`<div class="rw-alert" role="alert">${esc(state.error)} ${btn('重新读取','refresh')}</div>`:!state.loaded?'<p class="rw-empty" role="status">正在连接实际爬房资料…</p>':state.snapshot.revision===0?'<div class="rw-notice">这是待校准的单间参考尺寸。添加爬柜并应用布局后保存到工作台。</div>':'';
     host.querySelector('[data-rw-daily]').innerHTML=workflows.dailyMarkup();
     paintWeek();
@@ -179,6 +179,51 @@
   }
   dialog.addEventListener('cancel',e=>{if(state.busy)e.preventDefault();});
   dialog.addEventListener('close',()=>{if(dialog.open)return;const target=dialogOrigin?.isConnected?dialogOrigin:dialogOriginSelector?findFocusTarget(dialogOriginSelector):null;(target||host.querySelector('[data-rw=room-settings]'))?.focus({preventScroll:true});});
+  function environmentTools(telemetry) {
+    const ids=telemetry.deviceIds||[];
+    return '<details class="rw-environment-level"><summary>涂鸦设备、数据点与控制</summary><p class="rw-muted">'+(telemetry.capabilities?.configured?'云授权已配置，选择设备读取规格和状态。':'服务器尚未配置涂鸦云授权。配置后可在此读取数据点。')+'</p>'+select('已授权设备','environment_device',ids.map(id=>[id,id]),ids[0]||'')+'<button class="rw-btn" type="button" data-env-inspect '+(!ids.length?'disabled':'')+'>读取设备</button><div data-env-detail></div><p data-env-message role="status"></p></details>';
+  }
+  function bindEnvironmentTools(root,telemetry){
+    const inspect=root.querySelector('[data-env-inspect]'),output=root.querySelector('[data-env-detail]'),message=root.querySelector('[data-env-message]');
+    if(!inspect)return;
+    let current=null,working=false,pendingCommand=null;
+    inspect.onclick=async()=>{if(working)return;working=true;inspect.disabled=true;message.textContent='正在读取涂鸦云…';output.innerHTML='';
+      try{const id=root.querySelector('[name=environment_device]').value;current=await D.environmentDevice(id);
+        const affected=(state.snapshot.config.cabinets||[]).flatMap(c=>c.levels.flatMap((l,i)=>['davinci','tuya_cloud'].includes(l.environment?.temperature?.provider)&&l.environment.temperature.deviceId===id?[c.name+' · L'+(i+1)]:[]));
+        const codes=(current.specification?.status||[]).map(d=>'<li>'+esc(d.name||d.code)+'：<code>'+esc(d.code)+'</code> · '+esc(d.type)+' · '+esc(JSON.stringify(d.values))+'</li>').join('');
+        const t=current.controls?.temperature,p=current.controls?.power;
+        output.innerHTML='<h3>'+esc(current.name)+'</h3><p>'+esc(current.online===true?'设备在线':current.online===false?'设备离线':'在线状态未知')+'</p><p>已保存绑定：'+esc(affected.join('、')||'无，请先保存温度绑定后控制')+'</p><p class="rw-muted">下列状态为云端原始值；按规格中的 scale 换算。复制实际测温 code 到对应层的数据通道。</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(JSON.stringify(current.status,null,2))+'</pre><ul>'+codes+'</ul>'+(affected.length&&current.online===true?(t?'<div class="rw-form-grid">'+field('目标温度 °C','environment_target','','number','min="'+t.min+'" max="'+t.max+'" step="'+t.step+'"')+'</div><button type="button" class="rw-btn" data-env-temperature>设置目标温度</button>':'')+(p?'<button type="button" class="rw-btn" data-env-power="true">开启加热</button><button type="button" class="rw-btn" data-env-power="false">关闭加热</button>':''):'')+(!t&&!p?'<p class="rw-muted">控制尚未启用，或设备未提供已配置的控制通道。</p>':'');
+        message.textContent='读取完成。云端接受控制指令不代表设备已执行，请重新读取核对。';
+      }catch(e){message.textContent=e.message;}finally{working=false;inspect.disabled=false;}
+    };
+    output.onclick=async event=>{const button=event.target.closest('[data-env-temperature],[data-env-power]');if(!button||working||!current)return;
+      const temperature=button.hasAttribute('data-env-temperature'),input=output.querySelector('[name=environment_target]');
+      if(temperature&&(!input.value||!input.checkValidity())){message.textContent='请填写设备允许范围和步进内的目标温度';return;}
+      const intent={revision:telemetry.revision??state.snapshot.revision,deviceId:current.id,action:temperature?'temperature':'power',value:temperature?Number(input.value):button.dataset.envPower==='true'};
+      const key=JSON.stringify(intent);if(!pendingCommand||pendingCommand.key!==key)pendingCommand={key,requestId:crypto.randomUUID()};
+      working=true;output.querySelectorAll('button').forEach(b=>b.disabled=true);inspect.disabled=true;
+      try{const response=await D.environmentCommand({...intent,requestId:pendingCommand.requestId});message.textContent=response.message||response.status;if(['accepted','failed'].includes(response.status))pendingCommand=null;}
+      catch(e){message.textContent=e.message+'；请先读取设备状态再决定下一步，同一请求不会自动重发。';}
+      finally{working=false;output.querySelectorAll('button').forEach(b=>b.disabled=false);inspect.disabled=false;}
+    };
+  }
+  async function openEnvironment() {
+    if(state.draft)throw Error('请先保存或放弃布局草稿，再配置温湿度。');
+    const cfg=copy(state.snapshot.config);
+    if(!cfg?.cabinets?.length)throw Error('请先建立并保存爬柜。');
+    const telemetry=await D.environment();
+    const rows=cfg.cabinets.flatMap(c=>c.levels.map((l,i)=>({c,l,i})));
+    const E=window.SuohaRoomEnvironment;
+    const content='<p class="rw-muted">按层绑定设备。涂鸦云可读取实际数据点；多层共用设备时，控制会影响这些层。</p>'+environmentTools(telemetry)+rows.map(({c,l,i},index)=>'<fieldset class="rw-environment-level"><legend>'+esc(c.name)+' · L'+(i+1)+'</legend>'+E.metrics.map(metric=>{
+      const b=l.environment?.[metric],p=index+'_'+metric,reading=telemetry.levels.find(x=>x.levelId===l.id&&x.cabinetId===c.id)?.[metric];
+      return '<div class="rw-form-grid">'+select(metric==='temperature'?'温度来源':'湿度来源',p+'_provider',[['','未绑定'],['tuya_cloud','涂鸦云（A1 智能版）'],['davinci','达芬奇 A1（兼容原绑定）'],['home_assistant','Home Assistant（待接入）'],['mqtt','MQTT（待接入）'],['custom','其他来源（待接入）']],b?.provider||'')+field('设备标识',p+'_device',b?.deviceId||'','text','maxlength="200"')+field('数据通道 / 实体 ID',p+'_channel',b?.channel||'','text','maxlength="200"')+field('备注名称',p+'_label',b?.label||'','text','maxlength="80"')+field('数据有效期（秒）',p+'_stale',b?.staleAfterSeconds||300,'number','min="30" max="86400" step="1" required')+'</div><p class="rw-muted">'+esc(E.display(reading))+' · '+(metric==='temperature'?'温度 °C':'相对湿度 %')+'</p>';
+    }).join('')+'</fieldset>').join('');
+    showDialog('温湿度设备',content,async form=>{
+      const v=formValues(form);
+      rows.forEach(({l},index)=>{const environment={};for(const metric of E.metrics){const p=index+'_'+metric;if(v[p+'_provider'])environment[metric]={provider:v[p+'_provider'],deviceId:v[p+'_device'].trim(),channel:v[p+'_channel'].trim(),label:v[p+'_label'].trim(),staleAfterSeconds:Number(v[p+'_stale'])};}const errors=E.validate(environment);if(errors.length)throw Error(errors.join('；'));if(Object.keys(environment).length)l.environment=environment;else delete l.environment;});
+      await saveBusinessConfig(cfg);
+    },'保存设备绑定',root=>bindEnvironmentTools(root,telemetry));
+  }
   function openRoomSettings() {
     const c=config();showDialog('房间尺寸',`<p class="rw-muted">墙体按这里的实际高度显示，与柜体使用相同比例。请按实测尺寸校准。</p><div class="rw-form-grid">${field('房间名称','name',c.name,'text','required maxlength="80"')}${field('房间宽度 mm','width',c.width,'number','min="500" max="30000" required')}${field('房间深度 mm','depth',c.depth,'number','min="500" max="30000" required')}${field('墙高／房间高度 mm','height',c.height,'number','min="500" max="10000" required')}${field('房间时区','timezone',c.timezone,'text','required')}</div>`,form=>{const v=formValues(form),next=copy(config());Object.assign(next,{name:v.name,width:+v.width,depth:+v.depth,height:+v.height,timezone:v.timezone});requireErrors(next);editConfig(next);},'保存到布局草稿');
   }
@@ -317,6 +362,7 @@
       c.x=Math.max(hw,Math.min(next.width-hw,c.x));c.z=Math.max(hd,Math.min(next.depth-hd,c.z));
       try{requireErrors(next);editConfig(next);toast(`${c.name} 已旋转至 ${c.rotation}°，应用布局后保存。`);}catch(e){toast('无法旋转：'+e.message,true);}return;
     }
+    if(a==='environment')return openEnvironment();
     if(a==='room-settings')return openRoomSettings();
     if(a==='add-cabinet')return openCabinet();
     if(a==='edit-cabinet')return openCabinet(state.cabinetId);

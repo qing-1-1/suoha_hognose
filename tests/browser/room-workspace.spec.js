@@ -15,6 +15,10 @@ function initialFixture(){
   return {user,profiles:[{...user,display_name:'suohama',role:'admin',active:true}],snakes:[['ROOM-A','F','白化',45],['ROOM-B','M','雪花',160],['ROOM-C','U','原色',10]].map(([id,sex,gene_text])=>({id,sex,gene_text,series:'测试系列',status:'active',inventory_library:'stock',birth_date:'2025-01-01'})),snake_measurements:[['ROOM-A',45],['ROOM-B',160],['ROOM-C',10]].map(([snake_id,weight_g],i)=>({id:'weight-'+i,snake_id,weight_g,record_kind:'measurement',measured_at:'2026-10-01'})),specimen_listings:[],specimen_media:[],inventory_transfers:[],calls:[],snapshot:{revision:1,config,assignments:[{slot_id:'slot-0-0-0',snake_id:'ROOM-A',assigned_at:'2026-10-01T00:00:00Z'},{slot_id:'slot-1-0-0',snake_id:'ROOM-B',assigned_at:'2026-10-01T00:00:00Z'}],records:[],moves:[]}};
 }
 async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={}){
+  await page.route('**/.netlify/functions/room-environment*',async route=>{
+    const response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:[]}));
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
+  });
   const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('room browser error:',e.message);});
   await page.clock.setFixedTime(new Date(fixedNow));
   await page.route('**/fonts.googleapis.com/**',r=>r.abort());
@@ -35,6 +39,7 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={
         fixture.calls.push({name,args});
         if(${missing})return {data:null,error:{code:'PGRST202',message:'Could not find the function public.room_snapshot in the schema cache'}};
         const snap=fixture.snapshot;
+        if(name==='room_environment_snapshot')return {data:window.SuohaRoomEnvironment.snapshot(snap.config),error:null};
         if(name!=='room_snapshot'&&args.p_revision!==snap.revision)return {data:null,error:{message:'Room revision conflict'}};
         if(name==='room_save_layout')snap.config=structuredClone(args.p_config);
         if(name==='room_assign_batch'){
@@ -97,6 +102,49 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('tuya cloud device inspector shows affected layers and sends explicit temperature and power commands',async({page})=>{
+ const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'actual',label:'A1',staleAfterSeconds:300}};
+ const errors=await boot(page,{data}),commands=[];
+ await page.route('**/.netlify/functions/room-environment*',async route=>{
+  const request=route.request();let response;
+  if(request.method()==='POST'){commands.push(request.postDataJSON());response={status:'accepted',message:'涂鸦云已接受指令，请刷新核对设备实际状态'};}
+  else if(request.url().includes('?device='))response={id:'pad1',name:'A1 智能版',online:true,status:[{code:'actual',value:285,observedAt:null}],specification:{status:[{code:'actual',type:'Integer',values:{unit:'℃',scale:1}}]},controls:{temperature:{min:20,max:32,step:0.5},power:{code:'heat'}}};
+  else response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:['pad1'],capabilities:{configured:true,read:true,control:true}}));
+  await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
+ });
+ await room(page).locator('[data-rw=environment]').click();const dialog=modal(page);
+ await dialog.locator('summary').click();await dialog.locator('[data-env-inspect]').click();
+ await expect(dialog.locator('[data-env-detail]')).toContainText('银柜 A · L1');
+ await dialog.locator('[name=environment_target]').fill('28.5');await dialog.locator('[data-env-temperature]').click();
+ await expect(dialog.locator('[data-env-message]')).toContainText('已接受');expect(commands).toHaveLength(1);expect(commands[0].value).toBe(28.5);expect(commands[0].action).toBe('temperature');
+ await dialog.locator('[data-env-power="false"]').click();await expect.poll(()=>commands.length).toBe(2);expect(commands[1].value).toBe(false);expect(commands[1].action).toBe('power');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
+});
+
+test('environment bindings save, reload and unbind per layer without exposing simulated readings',async({page})=>{
+ const errors=await boot(page),dialog=modal(page);
+ await room(page).locator('[data-rw=environment]').click();
+ await expect(dialog.getByRole('heading',{name:'温湿度设备'})).toBeVisible();
+ await dialog.locator('[name="0_temperature_provider"]').selectOption('davinci');
+ await dialog.locator('[name="0_temperature_device"]').fill('pad-01');
+ await dialog.locator('[name="0_temperature_channel"]').fill('probe-1');
+ await dialog.locator('[name="0_humidity_provider"]').selectOption('mqtt');
+ await dialog.locator('[name="0_humidity_device"]').fill('sensor-01');
+ await dialog.locator('[name="0_humidity_channel"]').fill('humidity');
+ await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ await page.reload();await expect(room(page).locator('[data-rw=environment]')).toBeVisible();
+ await room(page).locator('[data-rw=environment]').click();
+ await expect(dialog.locator('[name="0_temperature_device"]')).toHaveValue('pad-01');
+ await expect(dialog.locator('[name="0_humidity_device"]')).toHaveValue('sensor-01');
+ await expect(dialog.locator('[name="1_temperature_provider"]')).toHaveValue('');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await dialog.locator('[name="0_temperature_provider"]').selectOption('');
+ await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.temperature)).toBeUndefined();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.humidity.deviceId)).toBe('sensor-01');
+ expect(errors).toEqual([]);
+});
 
 test('selected-day totals span cabinets and feeding mode has large weight-only labels, sex and distinct colors',async({page})=>{
   const data=initialFixture();
