@@ -109,12 +109,13 @@ test('tuya cloud device inspector shows affected layers and sends explicit tempe
  await page.route('**/.netlify/functions/room-environment*',async route=>{
   const request=route.request();let response;
   if(request.method()==='POST'){commands.push(request.postDataJSON());response={status:'accepted',message:'涂鸦云已接受指令，请刷新核对设备实际状态'};}
+  else if(request.url().includes('?check=connection'))response={authenticated:true,deviceCount:1,message:'云授权验证通过。设备读取权限仍需逐台验证。'};
   else if(request.url().includes('?device='))response={id:'pad1',name:'A1 智能版',online:true,status:[{code:'actual',value:285,observedAt:null}],specification:{status:[{code:'actual',type:'Integer',values:{unit:'℃',scale:1}}]},controls:{temperature:{min:20,max:32,step:0.5},power:{code:'heat'}}};
   else response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:['pad1'],capabilities:{configured:true,read:true,control:true}}));
   await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
  });
  await room(page).locator('[data-rw=environment]').click();const dialog=modal(page);
- await dialog.locator('summary').click();await dialog.locator('[data-env-inspect]').click();
+ await dialog.locator('summary').click();await dialog.locator('[data-env-connection]').click();await expect(dialog.locator('[data-env-message]')).toContainText('云授权验证通过');await dialog.locator('[data-env-inspect]').click();
  await expect(dialog.locator('[data-env-detail]')).toContainText('银柜 A · L1');
  await dialog.locator('[name=environment_target]').fill('28.5');await dialog.locator('[data-env-temperature]').click();
  await expect(dialog.locator('[data-env-message]')).toContainText('已接受');expect(commands).toHaveLength(1);expect(commands[0].value).toBe(28.5);expect(commands[0].action).toBe('temperature');

@@ -18,10 +18,10 @@ function createTuya({env=process.env,fetchImpl=globalThis.fetch,now=Date.now}={}
  function settings(){
   const ids=[...new Set((env.TUYA_DEVICE_IDS||'').split(',').map(x=>x.trim()).filter(Boolean))];
   if(ids.length>100||ids.some(x=>!idValid(x)))fail('TUYA_CONFIG','涂鸦设备白名单配置无效',503);
-  const ready=!!(env.TUYA_ACCESS_ID&&env.TUYA_ACCESS_SECRET&&ids.length);
+  const credentialsConfigured=!!(env.TUYA_ACCESS_ID?.trim()&&env.TUYA_ACCESS_SECRET?.trim()),ready=credentialsConfigured&&ids.length>0;
   const base=regions[env.TUYA_REGION||'cn'];if(!base)fail('TUYA_CONFIG','涂鸦数据中心配置无效',503);
   let policy={};try{policy=JSON.parse(env.TUYA_CONTROL_MAP||'{}');if(!policy||Array.isArray(policy)||typeof policy!=='object')throw Error();}catch{fail('TUYA_CONFIG','涂鸦控制映射配置无效',503);}
-  return {ids,ready,base,policy};
+  return {ids,ready,credentialsConfigured,base,policy};
  }
  function allowed(id){const s=settings();if(!s.ready)fail('TUYA_NOT_CONFIGURED','尚未配置涂鸦云授权与设备白名单',503);if(!idValid(id)||!s.ids.includes(id))fail('TUYA_DEVICE_DENIED','设备不在服务器授权清单内',403);return s;}
  async function wire(method,path,body,access=''){
@@ -37,6 +37,10 @@ function createTuya({env=process.env,fetchImpl=globalThis.fetch,now=Date.now}={}
   if(token&&token.until>now()+60000)return token.value;
   if(!tokenPromise)tokenPromise=(async()=>{const r=await wire('GET','/v1.0/token?grant_type=1');if(typeof r?.access_token!=='string'||!Number.isFinite(r.expire_time)||r.expire_time<=0)fail('TUYA_TOKEN','涂鸦授权响应无效',502);token={value:r.access_token,until:now()+r.expire_time*1000};return token.value;})().finally(()=>tokenPromise=null);
   return tokenPromise;
+ }
+ async function checkConnection(){
+  const s=settings();if(!s.credentialsConfigured)fail('TUYA_NOT_CONFIGURED','请在服务器配置 TUYA_ACCESS_ID 和 TUYA_ACCESS_SECRET',503);
+  await access();return {authenticated:true,deviceCount:s.ids.length,message:'云授权验证通过。'+(s.ids.length?'设备读取权限仍需逐台验证。':'尚未配置设备 ID，可在绑定设备后补充。')};
  }
  async function call(method,path,body){try{return await wire(method,path,body,await access());}catch(e){if(method==='GET'&&e.code==='TUYA_1010'){token=null;return wire(method,path,body,await access());}throw e;}}
  function controlOptions(id,spec){
@@ -76,7 +80,7 @@ function createTuya({env=process.env,fetchImpl=globalThis.fetch,now=Date.now}={}
   const ids=[...new Set(levels.flatMap(l=>Object.values(l.environment).filter(cloudBinding).map(b=>b.deviceId)))];
   if(ids.length>20)fail('TUYA_LIMIT','每次最多读取20台温湿度设备',422);
   const devices=new Map();for(let i=0;i<ids.length;i+=4)await Promise.all(ids.slice(i,i+4).map(async id=>{try{devices.set(id,await device(id));}catch(e){devices.set(id,{error:e.code||'TUYA_UNAVAILABLE',message:e.message});}}));
-  return {version:1,capabilities:{read:true,control:env.TUYA_CONTROL_ENABLED==='true',connected:[...devices.values()].some(d=>d.status),configured:s.ready},deviceIds:s.ids,levels:levels.map(l=>{const row={cabinetId:l.cabinetId,levelId:l.levelId};for(const metric of ['temperature','humidity']){const b=l.environment[metric],d=b&&devices.get(b.deviceId);row[metric]=!b?{value:null,unit:metric==='temperature'?'°C':'%',observedAt:null,status:'unbound'}:cloudBinding(b)&&d?.status?reading(b,metric,d):{value:null,unit:metric==='temperature'?'°C':'%',observedAt:null,status:!s.ready||!cloudBinding(b)?'not_connected':'unavailable',...(d?.error?{error:d.error,message:d.message}:{})};}return row;})};
+  return {version:1,capabilities:{read:true,control:env.TUYA_CONTROL_ENABLED==='true',connected:[...devices.values()].some(d=>d.status),configured:s.ready,credentialsConfigured:s.credentialsConfigured},deviceIds:s.ids,levels:levels.map(l=>{const row={cabinetId:l.cabinetId,levelId:l.levelId};for(const metric of ['temperature','humidity']){const b=l.environment[metric],d=b&&devices.get(b.deviceId);row[metric]=!b?{value:null,unit:metric==='temperature'?'°C':'%',observedAt:null,status:'unbound'}:cloudBinding(b)&&d?.status?reading(b,metric,d):{value:null,unit:metric==='temperature'?'°C':'%',observedAt:null,status:!s.ready||!cloudBinding(b)?'not_connected':'unavailable',...(d?.error?{error:d.error,message:d.message}:{})};}return row;})};
  }
  async function prepare(config,body){
   if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['requestId','revision','deviceId','action','value'].includes(k))||!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.requestId||'')||!Number.isInteger(body.revision)||body.revision<0)fail('INVALID_COMMAND','控制请求无效');
@@ -93,6 +97,6 @@ function createTuya({env=process.env,fetchImpl=globalThis.fetch,now=Date.now}={}
   return {command,affected:bindingUses(config,body.deviceId)};
  }
  async function send(id,command){allowed(id);try{const result=await call('POST','/v1.0/iot-03/devices/'+id+'/commands',{commands:[command]});if(result!==true)fail('COMMAND_REJECTED','涂鸦云未接受控制指令',502);return {status:'accepted',message:'涂鸦云已接受指令，请刷新核对设备实际状态'};}finally{cache.delete(id);}}
- return {settings,device,snapshot,prepare,send};
+ return {settings,checkConnection,device,snapshot,prepare,send};
 }
 module.exports={createTuya,TuyaError,signature,bindingUses};

@@ -24,14 +24,15 @@
       throw error;
     }
   }
-  async function environmentRequest(device,body){
+  async function environmentRequest(device,body,check=false){
     const session=(await sb.auth.getSession()).data?.session;if(!session?.access_token)throw Error('请登录后台');
-    const response=await fetch('/.netlify/functions/room-environment'+(device?'?device='+encodeURIComponent(device):''),{method:body?'POST':'GET',headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const response=await fetch('/.netlify/functions/room-environment'+(check?'?check=connection':device?'?device='+encodeURIComponent(device):''),{method:body?'POST':'GET',headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
     const data=await response.json();if(!response.ok)throw Error(data.error?.message||'温湿度服务暂不可用');return data;
   }
   window.SuohaRoomData = Object.freeze({
     load: () => rpc('room_snapshot'),
     environment: () => environmentRequest(),
+    environmentConnection: () => environmentRequest(null,null,true),
     environmentDevice: id => environmentRequest(id),
     environmentCommand: body => environmentRequest(null,body),
     save: (config, revision) => write('room_save_layout', { p_revision: revision, p_config: config }),

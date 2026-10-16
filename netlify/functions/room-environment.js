@@ -14,6 +14,7 @@ exports.handler=async event=>{
  try{
   if(await rpc('can_edit_app')!==true)return result(403,{error:{message:'没有温控操作权限'}});
   if(event.httpMethod==='GET'){
+   if(event.queryStringParameters?.check==='connection')return result(200,await cloud.checkConnection());
    if(event.queryStringParameters?.device)return result(200,await cloud.device(event.queryStringParameters.device));
    const snap=await rpc('room_snapshot');return result(200,{...await cloud.snapshot(snap.config),revision:snap.revision});
   }

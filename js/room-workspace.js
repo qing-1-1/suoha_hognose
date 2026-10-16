@@ -181,12 +181,14 @@
   dialog.addEventListener('close',()=>{if(dialog.open)return;const target=dialogOrigin?.isConnected?dialogOrigin:dialogOriginSelector?findFocusTarget(dialogOriginSelector):null;(target||host.querySelector('[data-rw=room-settings]'))?.focus({preventScroll:true});});
   function environmentTools(telemetry) {
     const ids=telemetry.deviceIds||[];
-    return '<details class="rw-environment-level"><summary>涂鸦设备、数据点与控制</summary><p class="rw-muted">'+(telemetry.capabilities?.configured?'云授权已配置，选择设备读取规格和状态。':'服务器尚未配置涂鸦云授权。配置后可在此读取数据点。')+'</p>'+select('已授权设备','environment_device',ids.map(id=>[id,id]),ids[0]||'')+'<button class="rw-btn" type="button" data-env-inspect '+(!ids.length?'disabled':'')+'>读取设备</button><div data-env-detail></div><p data-env-message role="status"></p></details>';
+    return '<details class="rw-environment-level"><summary>涂鸦设备、数据点与控制</summary><p class="rw-muted">'+(telemetry.capabilities?.credentialsConfigured?'密钥已填写，请验证云授权；绑定设备并配置设备 ID 后可读取数据点。':'服务器尚未配置涂鸦云授权。请先配置密钥。')+'</p><button class="rw-btn" type="button" data-env-connection>验证云授权</button>'+select('已授权设备','environment_device',ids.map(id=>[id,id]),ids[0]||'')+'<button class="rw-btn" type="button" data-env-inspect '+(!ids.length?'disabled':'')+'>读取设备</button><div data-env-detail></div><p data-env-message role="status"></p></details>';
   }
   function bindEnvironmentTools(root,telemetry){
     const inspect=root.querySelector('[data-env-inspect]'),output=root.querySelector('[data-env-detail]'),message=root.querySelector('[data-env-message]');
     if(!inspect)return;
     let current=null,working=false,pendingCommand=null;
+    const connection=root.querySelector('[data-env-connection]');
+    connection.onclick=async()=>{if(working)return;working=true;connection.disabled=true;message.textContent='正在验证云授权…';try{const result=await D.environmentConnection();message.textContent=result.message;}catch(e){message.textContent=e.message;}finally{working=false;connection.disabled=false;}};
     inspect.onclick=async()=>{if(working)return;working=true;inspect.disabled=true;message.textContent='正在读取涂鸦云…';output.innerHTML='';
       try{const id=root.querySelector('[name=environment_device]').value;current=await D.environmentDevice(id);
         const affected=(state.snapshot.config.cabinets||[]).flatMap(c=>c.levels.flatMap((l,i)=>['davinci','tuya_cloud'].includes(l.environment?.temperature?.provider)&&l.environment.temperature.deviceId===id?[c.name+' · L'+(i+1)]:[]));
