@@ -193,6 +193,8 @@
   function validateConfig(config) {
     const errors=[];
     if (!config || typeof config !== 'object') return ['房间配置无效'];
+    if(environment)errors.push(...environment.validateCatalog(config));
+    else if(config.environmentDevices!==undefined)errors.push('温湿度模块未加载');
     for (const [key,label] of [['width','房间宽度'],['depth','房间深度'],['height','房间高度']]) if (!positive(config[key])) errors.push(label+'须为正数');
     try { if (typeof config.timezone!=='string' || !config.timezone) throw new Error(); localDate(new Date(),config.timezone); } catch (_) { errors.push('房间时区无效'); }
     if (!Array.isArray(config.rules) || !config.rules.length) errors.push('至少配置一档完整鼠重规则');

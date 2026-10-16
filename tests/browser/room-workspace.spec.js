@@ -123,28 +123,28 @@ test('tuya cloud device inspector shows affected layers and sends explicit tempe
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
 });
 
-test('environment bindings save, reload and unbind per layer without exposing simulated readings',async({page})=>{
+test('environment device catalog saves once, assigns multiple layers and propagates device edits',async({page})=>{
  const errors=await boot(page),dialog=modal(page);
  await room(page).locator('[data-rw=environment]').click();
- await expect(dialog.getByRole('heading',{name:'温湿度设备'})).toBeVisible();
- await dialog.locator('[name="0_temperature_provider"]').selectOption('davinci');
- await dialog.locator('[name="0_temperature_device"]').fill('pad-01');
- await dialog.locator('[name="0_temperature_channel"]').fill('probe-1');
- await dialog.locator('[name="0_humidity_provider"]').selectOption('mqtt');
- await dialog.locator('[name="0_humidity_device"]').fill('sensor-01');
- await dialog.locator('[name="0_humidity_channel"]').fill('humidity');
+ await dialog.locator('[data-add-environment-device]').click();const device=dialog.locator('[data-environment-device]').first();
+ await device.locator('[name=device_label]').fill('共享加热垫');await device.locator('[name=device_id]').fill('pad-01');
+ await dialog.locator('[data-add-environment-device]').click();const humidity=dialog.locator('[data-environment-device]').nth(1);
+ await humidity.locator('[name=device_label]').fill('湿度计');await humidity.locator('[name=device_provider]').selectOption('mqtt');await humidity.locator('[name=device_id]').fill('sensor-01');await humidity.locator('[name=device_temperature]').fill('');await humidity.locator('[name=device_humidity]').fill('humidity');
  await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
- await page.reload();await expect(room(page).locator('[data-rw=environment]')).toBeVisible();
- await room(page).locator('[data-rw=environment]').click();
- await expect(dialog.locator('[name="0_temperature_device"]')).toHaveValue('pad-01');
- await expect(dialog.locator('[name="0_humidity_device"]')).toHaveValue('sensor-01');
- await expect(dialog.locator('[name="1_temperature_provider"]')).toHaveValue('');
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await dialog.locator('[name="0_temperature_provider"]').selectOption('');
- await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ const devices=await page.evaluate(()=>window.roomFixture.snapshot.config.environmentDevices);expect(devices).toHaveLength(2);
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment)).toBeUndefined();
+ await room(page).locator('[data-rw=cabinet][data-cabinet="rack-a"]').first().click();await room(page).locator('[data-rw=layer-devices]').click();
+ for(const i of [0,1])await dialog.locator(`[name="${i}_temperature"]`).selectOption(devices[0].id);
+ await dialog.locator('[name="0_humidity"]').selectOption(devices[1].id);await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ await page.reload();await room(page).locator('[data-rw=environment]').click();await expect(dialog.locator('[name=device_id]').first()).toHaveValue('pad-01');
+ await dialog.locator('[name=device_temperature]').first().fill('changed_probe');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
+ expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels.map(l=>l.environment.temperature.channel))).toEqual(['changed_probe','changed_probe']);
+ await room(page).locator('[data-rw=cabinet][data-cabinet="rack-a"]').first().click();
+ await room(page).locator('[data-environment-level="level-0-0"]').click();await expect(dialog.locator('[name="0_temperature"]')).toHaveValue(devices[0].id);
+ await dialog.locator('[name="0_temperature"]').selectOption('');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
  expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.temperature)).toBeUndefined();
  expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.humidity.deviceId)).toBe('sensor-01');
- expect(errors).toEqual([]);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
 });
 
 test('selected-day totals span cabinets and feeding mode has large weight-only labels, sex and distinct colors',async({page})=>{
@@ -981,22 +981,20 @@ test('explicit unscheduled slot persists and correcting a feeding preserves its 
 });
 
 
-test('cabinet cards show per-layer temperatures on entry and manual refresh without background polling',async({page})=>{
+test('cabinet layer right sides show temperatures and manual refresh clears failed readings',async({page})=>{
  const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'temp_current',label:'A1',staleAfterSeconds:300}};
  const errors=await boot(page,{data});let calls=0,fail=false;
  await page.route('**/.netlify/functions/room-environment*',async route=>{
   calls++;if(fail)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'云服务暂不可用'}})});
-  const body=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),levels:[{cabinetId:'rack-a',levelId:'level-0-0',temperature:{value:28.5,unit:'°C',status:'cloud_cached',observedAt:null},humidity:{value:null,status:'unbound'}}]}));
-  await route.fulfill({contentType:'application/json',body:JSON.stringify(body)});
+  await route.fulfill({contentType:'application/json',body:JSON.stringify({levels:[{cabinetId:'rack-a',levelId:'level-0-0',temperature:{value:28.5,unit:'°C',status:'cloud_cached',observedAt:null},humidity:{value:null,status:'unbound'}}]})});
  });
- await page.reload();
- const card=page.locator('[data-environment-cabinet="rack-a"]').first();
- await expect(card).toContainText('28.5 °C');await expect(card).toContainText('采样时间未知');await expect(card).toContainText('湿度：未绑定');
+ await page.reload();await page.locator('[data-rw="cabinet"][data-cabinet="rack-a"]').first().click();
+ const panel=page.locator('.rw-scene-world [data-environment-level="level-0-0"]');
+ await expect(panel).toContainText('28.5℃');await expect(panel).toContainText('云端值');await expect(panel).toContainText('湿度 未绑定');
  const count=calls;await page.evaluate(()=>window.SuohaRoomWorkspace.render());expect(calls).toBe(count);
- await page.locator('[data-rw="cabinet"][data-cabinet="rack-a"]').first().click();await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).toContainText('28.5 °C');
- fail=true;await page.locator('[data-environment-cabinet="rack-a"] [data-rw="environment-refresh"]').first().click();
- await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).toContainText('云服务暂不可用');
- await expect(page.locator('[data-environment-cabinet="rack-a"]').first()).not.toContainText('28.5 °C');
+ const panelRect=await panel.boundingBox(),slotRect=await page.locator('.rw-scene-world [data-slot="slot-0-0-2"]').boundingBox();expect(panelRect.x).toBeGreaterThan(slotRect.x+slotRect.width);expect(Math.abs(panelRect.y+panelRect.height/2-slotRect.y-slotRect.height/2)).toBeLessThan(slotRect.height);
+ await page.screenshot({path:'artifacts/environment-layer-'+test.info().project.name+'.png',fullPage:true});
+ fail=true;await page.locator('[data-rw="environment-refresh"]').click();await expect(panel).toContainText('读取失败');await expect(panel).not.toContainText('28.5℃');
  expect(errors).toEqual([]);
 });
 
@@ -1004,6 +1002,6 @@ test('environment settings recover a missing environment module instead of throw
  const errors=await boot(page);
  await page.evaluate(()=>{delete window.SuohaRoomEnvironment;});
  await page.locator('[data-rw="environment"]').click();
- await expect(page.locator('#roomDialog')).toBeVisible();await expect(page.locator('#roomDialog')).toContainText('数据通道 / 实体 ID');
+ await expect(page.locator('#roomDialog')).toBeVisible();await expect(page.locator('#roomDialog')).toContainText('添加设备');
  expect(errors).toEqual([]);
 });

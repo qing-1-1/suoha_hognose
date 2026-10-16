@@ -42,28 +42,13 @@
   async function ensureEnvironment(){
     if(window.SuohaRoomEnvironment?.metrics)return window.SuohaRoomEnvironment;
     if(!environmentModulePromise)environmentModulePromise=new Promise((resolve,reject)=>{
-      const script=document.createElement('script');script.src='/js/room-environment.js?v=20261016-env2';
+      const script=document.createElement('script');script.src='/js/room-environment.js?v=20261016-env3';
       script.onload=()=>window.SuohaRoomEnvironment?.metrics?resolve(window.SuohaRoomEnvironment):reject(Error('温湿度组件加载不完整，请刷新页面后重试。'));
       script.onerror=()=>reject(Error('温湿度组件加载失败，请检查网络后重试。'));document.head.append(script);
     }).finally(()=>{environmentModulePromise=null;});
     return environmentModulePromise;
   }
-  function environmentPanel(c){return `<div class="rw-environment-summary" data-environment-cabinet="${esc(c.id)}">${environmentPanelContent(c)}</div>`;}
-  function environmentPanelContent(c){
-    const E=window.SuohaRoomEnvironment;
-    return `<div class="rw-environment-heading"><b>温湿度</b>${btn('刷新读数','environment-refresh',telemetryLoading?'disabled':'')}</div>`+
-      [...c.levels].reverse().map(l=>{const index=c.levels.indexOf(l),row=telemetry?.levels?.find(x=>x.cabinetId===c.id&&x.levelId===l.id);
-        return `<div class="rw-environment-reading"><b>L${index+1}</b>`+['temperature','humidity'].map(metric=>{
-          const binding=l.environment?.[metric];let r=row?.[metric];
-          if(!binding)r={status:'unbound'};
-          else if(telemetryError)r={status:'unavailable'};
-          else if(r?.observedAt&&Date.now()-Date.parse(r.observedAt)>binding.staleAfterSeconds*1000)r={...r,status:'stale'};
-          const label=metric==='temperature'?'温度':'湿度';
-          return `<span>${label}：${esc(binding&&telemetryLoading?'读取中…':!binding?'未绑定':E?E.display(r):'等待读取')}</span>`;
-        }).join('')+'</div>';
-      }).join('')+(telemetryError?`<p class="rw-muted" role="status">读取失败：${esc(telemetryError)}</p>`:telemetryFetchedAt?`<p class="rw-muted">上次查询 ${esc(new Date(telemetryFetchedAt).toLocaleTimeString())} · 手动刷新更新</p>`:'');
-  }
-  function paintEnvironment(){host.querySelectorAll('[data-environment-cabinet]').forEach(el=>{const c=cabinet(el.dataset.environmentCabinet);if(c)el.innerHTML=environmentPanelContent(c);});}
+  function paintEnvironment(){paintScene();host.querySelectorAll('[data-rw=environment-refresh]').forEach(b=>b.disabled=telemetryLoading);}
   async function refreshEnvironment(){
     const generation=++telemetryGeneration,epoch=state.epoch;
     telemetry=null;telemetryError='';telemetryFetchedAt=null;telemetryLoading=true;paintEnvironment();
@@ -131,6 +116,7 @@
     if(initialized)return;initialized=true;
     host.innerHTML=`<div class="rw-workspace"><div class="rw-header" data-rw-header></div><div data-rw-message></div><div data-rw-daily></div><div class="rw-week-strip" data-rw-week></div><div class="rw-toolbar" data-rw-toolbar></div><div data-rw-top-summary></div><div class="rw-body"><div class="rw-main"><div class="rw-canvas" data-rw-canvas></div><div class="rw-scene-caption" data-rw-caption></div></div><aside class="rw-aside" data-rw-aside aria-label="各柜备料"></aside></div></div>`;
     scene=new window.SuohaRoomScene(host.querySelector('[data-rw-canvas]'),{
+      onEnvironment:(cabinetId,levelId)=>openLayerDevices(cabinetId,levelId).catch(e=>toast(e.message,true)),
       onCabinet:id=>focusCabinet(typeof id==='object'?id.id:id),onSlot:id=>openSlot(typeof id==='object'?id.id:id),
       onMove:move=>{if(!state.build)return;const next=copy(config()),c=next.cabinets.find(c=>c.id===move.cabinetId);if(!c)return;Object.assign(c,{x:Math.round(move.x),z:Math.round(move.z)});if(move.rotation!=null)c.rotation=move.rotation;try{requireErrors(next);editConfig(next);}catch(e){toast(e.message,true);paintScene();}},
       onViewChange:change=>{const view=typeof change==='string'?change:change?.view;if(view&&(view!==state.view||change?.cabinetId&&change.cabinetId!==state.cabinetId)){state.view=view;if(change?.cabinetId)state.cabinetId=change.cabinetId;paint();}}
@@ -159,7 +145,7 @@
     host.querySelector('[data-rw-message]').innerHTML=state.error?`<div class="rw-alert" role="alert">${esc(state.error)} ${btn('重新读取','refresh')}</div>`:!state.loaded?'<p class="rw-empty" role="status">正在连接实际爬房资料…</p>':state.snapshot.revision===0?'<div class="rw-notice">这是待校准的单间参考尺寸。添加爬柜并应用布局后保存到工作台。</div>':'';
     host.querySelector('[data-rw-daily]').innerHTML=workflows.dailyMarkup();
     paintWeek();
-    host.querySelector('[data-rw-toolbar]').innerHTML=`<div class="rw-actions">${state.view==='cabinet'?btn('← 房间总览','back')+(workflows.isIncubator(c)?'':`<div class="rw-display-modes" role="group" aria-label="柜体展示模式">${btn('档案模式','normal-mode',`aria-pressed="${!state.feedingMode}"`)}${btn('喂食模式','feeding-mode',`aria-pressed="${state.feedingMode}"`)}</div>`):''}${btn('俯视','view-plan',`aria-pressed="${state.view==='plan'}"`)}${btn('立体','view-perspective',`aria-pressed="${state.view==='perspective'}"`)}${btn('适应','fit')}${btn('−','zoom-out','aria-label="缩小房间"')}${btn('+','zoom-in','aria-label="放大房间"')}</div><div class="rw-actions">${btn(state.build?'退出搭建':'搭建房间','build',`aria-pressed="${state.build}"`)}${state.build?btn('添加爬柜','add-cabinet')+btn('添加孵化箱','add-incubator')+btn('撤销','undo',state.undo.length?'':'disabled')+btn('重做','redo',state.redo.length?'':'disabled'):''}${state.draft?btn('应用布局','apply',state.busy?'disabled':'',true):''}${c&&state.view==='cabinet'?btn('柜体设置','cabinet-tools')+`<div class="rw-cabinet-tools${state.controlsExpanded||state.build?' is-open':''}">`+btn('柜体配置','edit-cabinet')+btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}"`)+btn('复制柜体结构','clone-cabinet')+deleteCabinetButton(c)+'</div>'+(workflows.isIncubator(c)?'':btn('喂食计划','schedule',`data-cabinet="${esc(c.id)}"`,true)):btn('喂食计划','schedule','',true)}${btn('未入住蛇','unassigned')}${btn('历史记录','history')}</div>`;
+    host.querySelector('[data-rw-toolbar]').innerHTML=`<div class="rw-actions">${state.view==='cabinet'?btn('← 房间总览','back')+(workflows.isIncubator(c)?'':`<div class="rw-display-modes" role="group" aria-label="柜体展示模式">${btn('档案模式','normal-mode',`aria-pressed="${!state.feedingMode}"`)}${btn('喂食模式','feeding-mode',`aria-pressed="${state.feedingMode}"`)}</div>`):''}${btn('俯视','view-plan',`aria-pressed="${state.view==='plan'}"`)}${btn('立体','view-perspective',`aria-pressed="${state.view==='perspective'}"`)}${btn('适应','fit')}${btn('−','zoom-out','aria-label="缩小房间"')}${btn('+','zoom-in','aria-label="放大房间"')}</div><div class="rw-actions">${btn(state.build?'退出搭建':'搭建房间','build',`aria-pressed="${state.build}"`)}${state.build?btn('添加爬柜','add-cabinet')+btn('添加孵化箱','add-incubator')+btn('撤销','undo',state.undo.length?'':'disabled')+btn('重做','redo',state.redo.length?'':'disabled'):''}${state.draft?btn('应用布局','apply',state.busy?'disabled':'',true):''}${c&&state.view==='cabinet'?btn('层设备','layer-devices',`data-cabinet="${esc(c.id)}"`)+btn('刷新温湿度','environment-refresh',telemetryLoading?'disabled':'')+btn('柜体设置','cabinet-tools')+`<div class="rw-cabinet-tools${state.controlsExpanded||state.build?' is-open':''}">`+btn('柜体配置','edit-cabinet')+btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}"`)+btn('复制柜体结构','clone-cabinet')+deleteCabinetButton(c)+'</div>'+(workflows.isIncubator(c)?'':btn('喂食计划','schedule',`data-cabinet="${esc(c.id)}"`,true)):btn('喂食计划','schedule','',true)}${btn('未入住蛇','unassigned')}${btn('历史记录','history')}</div>`;
     host.querySelector('[data-rw-top-summary]').innerHTML=state.view==='cabinet'&&c?(state.selected.length?roomPreparation(): '')+summary(c,true):'';
     const all=M.summarize(preparation(),state.selected.length?state.selected:null,state.view==='cabinet'?state.cabinetId:null);
     host.querySelector('[data-rw-aside]').innerHTML=`<form class="rw-search-row" data-room-search><input type="search" name="query" aria-label="搜索蛇只或柜名" placeholder="蛇只编号、基因、柜名"><button class="rw-btn" type="submit">定位</button></form><div class="rw-aside-heading"><span class="eyebrow">${state.view==='cabinet'&&workflows.isIncubator(c)?c.purpose==='eggs'?'INCUBATION / 孵蛋':'BRUMATION / 冬化':'FEEDING / 备料'}</span><h2>${state.view==='cabinet'?'当前柜操作':'各柜备料'}</h2>${state.view==='cabinet'&&workflows.isIncubator(c)?'<p>按盒管理与追踪位置</p>':`<p>${esc(rangeLabel())} · 待备料</p><small>计划 ${all.taskCount} 次 · 待处理 ${all.pendingCount} 次 · 待确认 ${all.unknownCount} 项</small>`}</div>${state.view==='cabinet'&&c?`<div class="rw-summary"><h3>${esc(c.name)}</h3><p class="rw-muted">${workflows.isEggs(c)?'点击盒子查看窝次、放入蛇蛋或转移。':workflows.isIncubator(c)?'点击盒子查看档案、安排冬化或移出蛇只。':'点击盒子查看档案、分配蛇只或记录喂食。'}</p>${workflows.isIncubator(c)?`<p>${c.purpose==='eggs'?'点击盒子选择繁育计划与窝次。':'冬化期间不安排常规喂食，移出后采用目标柜计划。'}</p>`:btn('配置本柜计划','schedule',`data-cabinet="${esc(c.id)}"`)+btn('逐项巡柜','feeding-list')}</div>`:roomPreparation()+(cfg.cabinets.map(c=>summary(c,false)).join('')||`<div class="rw-empty">先搭建第一座爬柜，逐层添加盒子，再安排现有蛇只。${btn('添加爬柜','add-cabinet','',true)}</div>`)}<div class="rw-aside-footer">${state.view==='cabinet'&&workflows.isIncubator(c)?c.purpose==='eggs'?'蛋数按盒汇总，父母本与繁育计划保持一致。':'冬化期间暂停常规喂食，移出时预览目标柜排期。':'边框日期色表示喂食日；喂食模式底色表示鼠重档。未确认备料按最新称重计算，已确认批次保留原备料。'}</div>`;
@@ -175,9 +161,9 @@
   function taskColors(slotId) { const use=state.hover?[state.hover]:state.selected;return [...new Set(state.tasks.filter(t=>t.slotId===slotId&&t.status==='pending'&&(!use.length||use.includes(t.date))).map(t=>M.dayColors[(new Date(t.date+'T12:00:00Z').getUTCDay()+6)%7]))]; }
   function mini(c) { return `<div class="rw-mini-grid" aria-label="${esc(c.name)}格位图">${[...c.levels].reverse().map(l=>`<div class="rw-mini-row" style="grid-template-columns:repeat(${l.slots.length},minmax(0,1fr))">${l.slots.map(s=>{const colors=taskColors(s.id);return `<button class="rw-mini-cell${colors.length?' is-planned':''}" data-rw="slot" data-slot="${esc(s.id)}" data-mini-slot="${esc(s.id)}" aria-label="${esc(titleOfSlot(s.id))} ${esc(occupant(s.id)?.snake_id||(workflows.eggs().find(e=>e.slot_id===s.id)?'蛇蛋':'空盒'))}" style="${colors.length?`--plan-color:${colors[0]};background:${colors.length>1?`linear-gradient(120deg,${colors.map((col,i)=>`${col}35 ${i/colors.length*100}%,${col}35 ${(i+1)/colors.length*100}%`).join(',')})`:colors[0]+'35'};border-color:${colors[0]}`:''}">${esc(occupant(s.id)?.snake_id||(workflows.eggs().find(e=>e.slot_id===s.id)?workflows.eggs().find(e=>e.slot_id===s.id).egg_count+'枚':'·'))}</button>`;}).join('')}</div>`).join('')}</div>`; }
   function summary(c,top) {
-    if(workflows.isIncubator(c))return workflows.incubationSummary(c,top)+environmentPanel(c);
+    if(workflows.isIncubator(c))return workflows.incubationSummary(c,top);
     const sum=M.summarize(state.tasks,state.selected.length?state.selected:null,c.id);
-    return `<section class="rw-summary${top?' rw-summary-top':''}" data-summary-cabinet="${esc(c.id)}"><div class="rw-summary-title"><h3>${esc(c.name)}${top?' · 备料':''}</h3>${!top?btn('展开 ↗','cabinet',`data-cabinet="${esc(c.id)}"`):`<span>${esc(rangeLabel())}</span>`}</div>${environmentPanel(c)}<div class="rw-summary-groups">${sum.groups.map(g=>`<div class="rw-summary-row" style="--mouse-ink:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).ink};--mouse-fill:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).fill}"><span>${g.mouseMin}–${g.mouseMax}<small> g</small></span><b>${g.quantity}<small> 只</small></b></div>`).join('')||'<p class="rw-muted">当前范围无需备料或鼠重待确认</p>'}</div><p class="rw-summary-meta">${sum.pendingCount} 次待喂${sum.unknownCount?` · ${sum.unknownCount} 项待确认`:''}</p>${!top?mini(c)+`<div class="rw-cabinet-placement"><span>朝向 ${c.rotation||0}°</span>${btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}" aria-label="旋转 ${esc(c.name)} 90°"`)}${deleteCabinetButton(c)}</div>`:''}</section>`;
+    return `<section class="rw-summary${top?' rw-summary-top':''}" data-summary-cabinet="${esc(c.id)}"><div class="rw-summary-title"><h3>${esc(c.name)}${top?' · 备料':''}</h3>${!top?btn('展开 ↗','cabinet',`data-cabinet="${esc(c.id)}"`):`<span>${esc(rangeLabel())}</span>`}</div><div class="rw-summary-groups">${sum.groups.map(g=>`<div class="rw-summary-row" style="--mouse-ink:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).ink};--mouse-fill:${M.mouseColor(g.mouseMin,g.mouseMax,mouseRules()).fill}"><span>${g.mouseMin}–${g.mouseMax}<small> g</small></span><b>${g.quantity}<small> 只</small></b></div>`).join('')||'<p class="rw-muted">当前范围无需备料或鼠重待确认</p>'}</div><p class="rw-summary-meta">${sum.pendingCount} 次待喂${sum.unknownCount?` · ${sum.unknownCount} 项待确认`:''}</p>${!top?mini(c)+`<div class="rw-cabinet-placement"><span>朝向 ${c.rotation||0}°</span>${btn('旋转 90°','rotate-cabinet',`data-cabinet="${esc(c.id)}" aria-label="旋转 ${esc(c.name)} 90°"`)}${deleteCabinetButton(c)}</div>`:''}</section>`;
   }
   function roomPreparation() {
     const tasks=preparation(),selected=state.selected.length?state.selected:null,sum=M.summarize(tasks,selected),scoped=tasks.filter(t=>!selected||selected.includes(t.date)),locked=scoped.filter(t=>t.status==='pending'&&t.locked).length;
@@ -199,7 +185,18 @@
     if(state.cabinetId===id){state.view=overviewView;state.cabinetId=null;state.selectedSlot=null;state.focusSlotId=null;}
     editConfig(next);dialog.close();toast('空柜已从布局草稿删除，可撤销；应用布局后保存。');
   }
-  function paintScene(pulse=false) { if(scene&&state.loaded)scene.update({config:config(),assignments:assignments(),incubations:workflows.eggs(),focusSlotId:state.focusSlotId,snakes:snakes(),measurements:measurements(),tasks:preparation(),mouseRules:mouseRules(),feedingMode:state.feedingMode,selectedDates:state.selected,hoverDate:state.hover,view:state.view,cabinetId:state.cabinetId,build:state.build,labels:config().labels,highlightPulse:pulse}); }
+  function sceneEnvironment(){
+    const E=window.SuohaRoomEnvironment,rows={};
+    for(const c of config().cabinets)for(const l of c.levels){const row=telemetry?.levels?.find(r=>r.cabinetId===c.id&&r.levelId===l.id),item={};
+      for(const m of ['temperature','humidity']){const b=l.environment?.[m];let r=row?.[m];
+        if(!b)r={status:'unbound'};else if(telemetryLoading)r={status:'loading'};else if(telemetryError)r={status:'unavailable',message:telemetryError};
+        else if(r?.observedAt&&Date.now()-Date.parse(r.observedAt)>b.staleAfterSeconds*1000)r={...r,status:'stale'};
+        const labels={unbound:'未绑定',loading:'读取中',unavailable:'读取失败',not_connected:'待接入',offline:'离线',invalid:'数据无效',stale:'已过期',cloud_cached:'云端值',ok:''};
+        item[m]={text:(typeof r?.value==='number'?r.value+(m==='temperature'?'℃':'%')+' ':'')+(labels[r?.status]??'待刷新'),detail:E?E.display(r):'等待读取'};
+      }rows[l.id]=item;
+    }return rows;
+  }
+  function paintScene(pulse=false) { if(scene&&state.loaded)scene.update({environment:sceneEnvironment(),config:config(),assignments:assignments(),incubations:workflows.eggs(),focusSlotId:state.focusSlotId,snakes:snakes(),measurements:measurements(),tasks:preparation(),mouseRules:mouseRules(),feedingMode:state.feedingMode,selectedDates:state.selected,hoverDate:state.hover,view:state.view,cabinetId:state.cabinetId,build:state.build,labels:config().labels,highlightPulse:pulse}); }
   function previewDate(date,pulse=true) {
     state.hover=date;paintScene(pulse);
     for(const el of host.querySelectorAll('[data-mini-slot]')){const colors=taskColors(el.dataset.miniSlot);el.style.background=colors.length===1?colors[0]+'45':colors.length?`linear-gradient(120deg,${colors.map((c,i)=>`${c}45 ${i/colors.length*100}%,${c}45 ${(i+1)/colors.length*100}%`).join(',')})`:'';el.style.borderColor=colors[0]||'';el.style.setProperty('--plan-color',colors[0]||'transparent');el.classList.remove('rw-plan-pulse');if(date&&colors.length&&pulse){void el.offsetWidth;el.classList.add('rw-plan-pulse');}}
@@ -249,22 +246,34 @@
       finally{working=false;output.querySelectorAll('button').forEach(b=>b.disabled=false);inspect.disabled=false;}
     };
   }
+  const deviceProviders=[['tuya_cloud','涂鸦云（A1 智能版）'],['davinci','达芬奇 A1（兼容原绑定）'],['home_assistant','Home Assistant（待接入）'],['mqtt','MQTT（待接入）'],['custom','其他来源（待接入）']];
+  function deviceForm(d){return `<fieldset class="rw-environment-level" data-environment-device="${esc(d.id)}"><legend>${esc(d.label||'新增设备')}</legend><div class="rw-form-grid">`+
+    field('设备名称','device_label',d.label,'text','required maxlength="80"')+select('设备来源','device_provider',deviceProviders,d.provider)+field('设备 ID','device_id',d.deviceId,'text','required maxlength="200"')+
+    field('温度通道','device_temperature',d.temperatureChannel,'text','maxlength="200" placeholder="例如 temp_current，不支持则留空"')+field('湿度通道','device_humidity',d.humidityChannel,'text','maxlength="200" placeholder="不支持则留空"')+
+    field('数据有效期（秒）','device_stale',d.staleAfterSeconds,'number','min="30" max="86400" step="1" required')+'</div><label class="rw-check"><input type="checkbox" name="device_remove">删除此设备，并解除对应柜层绑定</label></fieldset>';}
   async function openEnvironment() {
     if(state.draft)throw Error('请先保存或放弃布局草稿，再配置温湿度。');
-    const cfg=copy(state.snapshot.config);
-    if(!cfg?.cabinets?.length)throw Error('请先建立并保存爬柜。');
-    const E=await ensureEnvironment();
-    const telemetry=await D.environment();
-    const rows=cfg.cabinets.flatMap(c=>c.levels.map((l,i)=>({c,l,i})));
-    const content='<p class="rw-muted">按层绑定设备。涂鸦云可读取实际数据点；多层共用设备时，控制会影响这些层。</p>'+environmentTools(telemetry)+rows.map(({c,l,i},index)=>'<fieldset class="rw-environment-level"><legend>'+esc(c.name)+' · L'+(i+1)+'</legend>'+E.metrics.map(metric=>{
-      const b=l.environment?.[metric],p=index+'_'+metric,reading=(telemetry.levels||[]).find(x=>x.levelId===l.id&&x.cabinetId===c.id)?.[metric];
-      return '<div class="rw-form-grid">'+select(metric==='temperature'?'温度来源':'湿度来源',p+'_provider',[['','未绑定'],['tuya_cloud','涂鸦云（A1 智能版）'],['davinci','达芬奇 A1（兼容原绑定）'],['home_assistant','Home Assistant（待接入）'],['mqtt','MQTT（待接入）'],['custom','其他来源（待接入）']],b?.provider||'')+field('设备标识',p+'_device',b?.deviceId||'','text','maxlength="200"')+field('数据通道 / 实体 ID',p+'_channel',b?.channel||'','text','maxlength="200"')+field('备注名称',p+'_label',b?.label||'','text','maxlength="80"')+field('数据有效期（秒）',p+'_stale',b?.staleAfterSeconds||300,'number','min="30" max="86400" step="1" required')+'</div><p class="rw-muted">'+esc(E.display(reading))+' · '+(metric==='temperature'?'温度 °C':'相对湿度 %')+'</p>';
-    }).join('')+'</fieldset>').join('');
+    const cfg=copy(state.snapshot.config),E=await ensureEnvironment();
+    let telemetry,warning='';try{telemetry=await D.environment();}catch(e){telemetry={deviceIds:[],capabilities:{},levels:[]};warning=e.message;}
+    const previous=E.catalog(cfg),devices=E.catalog(cfg,telemetry.deviceIds||[]);
+    const content='<p class="rw-muted">在这里统一配置设备参数，保存后在爬柜每层右侧选择设备。修改参数会同步到使用该设备的所有层。A1 温度通道预填 temp_current，请读取设备核对。</p>'+(warning?'<p role="status">云连接暂不可用：'+esc(warning)+'，仍可编辑已保存的设备。</p>':'')+environmentTools(telemetry)+
+      '<div data-environment-devices>'+devices.map(deviceForm).join('')+'</div><button type="button" class="rw-btn" data-add-environment-device>添加设备</button>';
     showDialog('温湿度设备',content,async form=>{
-      const v=formValues(form);
-      rows.forEach(({l},index)=>{const environment={};for(const metric of E.metrics){const p=index+'_'+metric;if(v[p+'_provider'])environment[metric]={provider:v[p+'_provider'],deviceId:v[p+'_device'].trim(),channel:v[p+'_channel'].trim(),label:v[p+'_label'].trim(),staleAfterSeconds:Number(v[p+'_stale'])};}const errors=E.validate(environment);if(errors.length)throw Error(errors.join('；'));if(Object.keys(environment).length)l.environment=environment;else delete l.environment;});
+      const next=[...form.querySelectorAll('[data-environment-device]')].filter(row=>!row.querySelector('[name=device_remove]').checked).map(row=>{const v=name=>row.querySelector('[name='+name+']').value.trim();return {id:row.dataset.environmentDevice,provider:v('device_provider'),deviceId:v('device_id'),label:v('device_label'),temperatureChannel:v('device_temperature'),humidityChannel:v('device_humidity'),staleAfterSeconds:Number(v('device_stale'))};});
+      E.applyCatalog(cfg,next,previous);await saveBusinessConfig(cfg);void refreshEnvironment();
+    },'保存设备参数',root=>{bindEnvironmentTools(root,telemetry);root.querySelector('[data-add-environment-device]').onclick=()=>root.querySelector('[data-environment-devices]').insertAdjacentHTML('beforeend',deviceForm({id:uid(),provider:'tuya_cloud',deviceId:'',label:'',temperatureChannel:'temp_current',humidityChannel:'',staleAfterSeconds:300}));});
+  }
+  async function openLayerDevices(cabinetId,levelId){
+    if(state.draft)throw Error('请先保存或放弃布局草稿，再选择设备。');
+    const E=await ensureEnvironment(),cfg=copy(state.snapshot.config),c=cfg.cabinets.find(c=>c.id===cabinetId);
+    if(!c)return;const devices=E.catalog(cfg),levels=levelId?c.levels.filter(l=>l.id===levelId):c.levels;
+    if(!devices.length){toast('请先在温湿度设备中保存设备参数。');return openEnvironment();}
+    E.applyCatalog(cfg,devices);
+    const content='<p class="rw-muted">为每层选择已配置的设备。多个层可以共用同一台设备；温度与湿度可分别选择。</p>'+levels.map((l,i)=>'<fieldset class="rw-environment-level"><legend>L'+(c.levels.indexOf(l)+1)+'</legend><div class="rw-form-grid">'+E.metrics.map(m=>select(m==='temperature'?'温度设备':'湿度设备',i+'_'+m,[['','未绑定'],...devices.filter(d=>d[m+'Channel']).map(d=>[d.id,d.label+' · '+d.deviceId])],E.findDevice(devices,m,l.environment?.[m])?.id||'')).join('')+'</div></fieldset>').join('');
+    showDialog(c.name+' · '+(levelId?'L'+(c.levels.findIndex(l=>l.id===levelId)+1)+' ':'')+'设备绑定',content,async form=>{
+      const v=formValues(form);levels.forEach((l,i)=>{const env={};for(const m of E.metrics){const binding=E.deviceBinding(devices.find(d=>d.id===v[i+'_'+m]),m);if(binding)env[m]=binding;}if(Object.keys(env).length)l.environment=env;else delete l.environment;});
       await saveBusinessConfig(cfg);void refreshEnvironment();
-    },'保存设备绑定',root=>bindEnvironmentTools(root,telemetry));
+    },'保存层设备');
   }
   function openRoomSettings() {
     const c=config();showDialog('房间尺寸',`<p class="rw-muted">墙体按这里的实际高度显示，与柜体使用相同比例。请按实测尺寸校准。</p><div class="rw-form-grid">${field('房间名称','name',c.name,'text','required maxlength="80"')}${field('房间宽度 mm','width',c.width,'number','min="500" max="30000" required')}${field('房间深度 mm','depth',c.depth,'number','min="500" max="30000" required')}${field('墙高／房间高度 mm','height',c.height,'number','min="500" max="10000" required')}${field('房间时区','timezone',c.timezone,'text','required')}</div>`,form=>{const v=formValues(form),next=copy(config());Object.assign(next,{name:v.name,width:+v.width,depth:+v.depth,height:+v.height,timezone:v.timezone});requireErrors(next);editConfig(next);},'保存到布局草稿');
@@ -382,6 +391,7 @@
   }
   async function action(b) {
     const a=b.dataset.rw;
+    if(a==='layer-devices')return openLayerDevices(b.dataset.cabinet||state.cabinetId,b.dataset.level);
     if(a==='environment-refresh')return refreshEnvironment();
     if(a==='refresh')return load(true);
     if(!state.loaded||state.busy||state.loading)return;

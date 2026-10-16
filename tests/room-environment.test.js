@@ -36,3 +36,15 @@ test('050 persists bindings, guards roles and rejects malformed requests, reruns
   cfg.version=2;await assert.rejects(db.query('select room_validate_config($1)',[cfg]),/old validator/);
  }finally{await db.close();}
 });
+
+test('device catalog imports legacy bindings, links multiple layers and propagates edits/removal',()=>{
+ const cfg=M.defaultConfig();cfg.cabinets=[M.createCabinet()];const levels=cfg.cabinets[0].levels;
+ levels[0].environment={temperature:{...binding,channel:'probe-1'}};levels[1].environment={temperature:{...binding,channel:'probe-1'}};
+ const devices=E.catalog(cfg,['cloud-1','cloud-2','cloud-3']);assert.equal(devices.length,4);assert.equal(devices[1].temperatureChannel,'temp_current');
+ E.applyCatalog(cfg,devices);assert.equal(levels[0].environment.temperature.sourceId,devices[0].id);assert.equal(levels[1].environment.temperature.sourceId,devices[0].id);assert.deepEqual(M.validateConfig(cfg),[]);
+ const edited=structuredClone(devices);edited[0].channel='bad';assert.throws(()=>E.applyCatalog(cfg,edited),/设备参数/);delete edited[0].channel;
+ edited[0].temperatureChannel='temp_current';edited[0].label='共享加热垫';E.applyCatalog(cfg,edited);
+ assert.equal(levels[1].environment.temperature.channel,'temp_current');assert.equal(levels[0].environment.temperature.label,'共享加热垫');assert.deepEqual(M.validateConfig(cfg),[]);
+ const invalid=structuredClone(cfg);invalid.cabinets[0].levels[0].environment.temperature.sourceId='missing';assert.ok(M.validateConfig(invalid).some(e=>e.includes('不一致')));
+ E.applyCatalog(cfg,edited.slice(1));assert.equal(levels[0].environment,undefined);assert.equal(levels[1].environment,undefined);assert.equal(cfg.environmentDevices.length,3);
+});

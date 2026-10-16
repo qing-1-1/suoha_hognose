@@ -17,7 +17,7 @@
       this.host.classList.add('rw-scene-host');
       this.host.innerHTML = '<div class="rw-scene-caption"></div><svg class="rw-scene" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="可缩放的爬房空间"><defs></defs><g class="rw-scene-world"></g></svg><div class="rw-scene-hint"></div><div class="rw-scene-scale"></div>';
       this.svg = host.querySelector('svg'); this.world = host.querySelector('.rw-scene-world');
-      this.events = {click:e=>this.activate(e),keydown:e=>this.keydown(e),focusin:e=>{const target=e.target.closest('[data-slot],[data-cabinet]');if(target?.dataset.slot)this.lastFocusedSlot=target.dataset.slot;if(target)this.ensureVisible(target);},wheel:e=>this.wheel(e),pointerdown:e=>this.down(e),pointermove:e=>this.move(e),pointerup:e=>this.up(e),pointercancel:e=>this.up(e)};
+      this.events = {click:e=>this.activate(e),keydown:e=>this.keydown(e),focusin:e=>{const target=e.target.closest('[data-slot],[data-cabinet],[data-environment-level]');if(target?.dataset.slot)this.lastFocusedSlot=target.dataset.slot;if(target)this.ensureVisible(target);},wheel:e=>this.wheel(e),pointerdown:e=>this.down(e),pointermove:e=>this.move(e),pointerup:e=>this.up(e),pointercancel:e=>this.up(e)};
       Object.entries(this.events).forEach(([name,handler])=>this.svg.addEventListener(name,handler,{passive:false}));
       this.lastSize=[host.clientWidth,host.clientHeight];this.resize = new ResizeObserver(()=>{const size=[host.clientWidth,host.clientHeight],changed=size.some((v,i)=>Math.abs(v-this.lastSize[i])>1);this.lastSize=size;if(changed&&this.bounds)this.render();else this.applyCamera();}); this.resize.observe(host);
     }
@@ -36,7 +36,7 @@
       if(oldView!==this.state.view){this.cameras[oldView]={...this.camera};this.camera={...(this.cameras[this.state.view]||{zoom:1,x:0,y:0})};}
       if(this.state.view==='cabinet'&&(oldView!=='cabinet'||oldCabinet!==this.state.cabinetId)){
         const c=this.state.config.cabinets.find(c=>c.id===this.state.cabinetId);
-        const scale=c?Math.min((this.svg.clientWidth||800)/(c.width+280),(this.svg.clientHeight||640)/(c.height+280)):1;
+        const scale=c?Math.min((this.svg.clientWidth||800)/(c.width+280+Math.max(440,c.width*.38)),(this.svg.clientHeight||640)/(c.height+280)):1;
         const heights=c?.type==='incubator'?global.SuohaRoomModel.incubatorLayout(c).boxes.map(b=>b.height):(c?.levels||[]).filter(l=>l.slots?.length).map(l=>Math.min(num(l.height,150)-22,num(l.boxHeight,num(l.height,150)-22)));
         const smallest=Math.max(1,Math.min(...heights));
         this.camera={zoom:Math.max(1,Math.min(4,48/(smallest*scale))),x:0,y:0};
@@ -70,7 +70,7 @@
     down(e) {
       if(e.button!==0)return;this.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
       const cab=e.target.closest('[data-cabinet]');
-      this.pointer={id:e.pointerId,x:e.clientX,y:e.clientY,panX:this.camera.x,panY:this.camera.y,target:e.target.closest('[data-slot],[data-cabinet]'),cab:this.state.build&&this.state.view!=='cabinet'?cab?.dataset.cabinet:null,moved:false};
+      this.pointer={id:e.pointerId,x:e.clientX,y:e.clientY,panX:this.camera.x,panY:this.camera.y,target:e.target.closest('[data-slot],[data-cabinet],[data-environment-level]'),cab:this.state.build&&this.state.view!=='cabinet'?cab?.dataset.cabinet:null,moved:false};
       this.pointer.orbit={...this.orbit};this.pointer.pan=e.shiftKey;
       if(this.pointer.cab){const c=this.cabinets.find(c=>String(c.id)===this.pointer.cab);this.pointer.start={...c};}
       this.svg.setPointerCapture?.(e.pointerId);
@@ -88,7 +88,7 @@
       else {this.camera.x=p.panX-dx*sx;this.camera.y=p.panY-dy*sy;this.applyCamera();}
     }
     up(e) {this.pointers.delete(e.pointerId);if(this.pointers.size<2)this.pinch=null;const p=this.pointer;if(!p)return;if(p.cab&&p.moved){const c=this.cabinets.find(c=>String(c.id)===p.cab);this.callbacks.onMove?.({cabinetId:c.id,x:c.x,z:c.z,rotation:c.rotation});}this.preventClick=p.moved;this.clickTarget=p.moved?null:p.target;this.pointer=null;}
-    activate(e) {if(this.preventClick){this.preventClick=false;return;}const target=e.target.closest('[data-slot],[data-cabinet]')||this.clickTarget;this.clickTarget=null;const slot=target?.closest('[data-slot]');if(slot){this.callbacks.onSlot?.(slot.dataset.slot);return;}const cab=target?.closest('[data-cabinet]');if(cab)this.callbacks.onCabinet?.(cab.dataset.cabinet);}
+    activate(e) {if(this.preventClick){this.preventClick=false;return;}const environment=e.target.closest('[data-environment-level]')||this.clickTarget?.closest('[data-environment-level]');if(environment){this.clickTarget=null;this.callbacks.onEnvironment?.(this.state.cabinetId,environment.dataset.environmentLevel);return;}const target=e.target.closest('[data-slot],[data-cabinet]')||this.clickTarget;this.clickTarget=null;const slot=target?.closest('[data-slot]');if(slot){this.callbacks.onSlot?.(slot.dataset.slot);return;}const cab=target?.closest('[data-cabinet]');if(cab)this.callbacks.onCabinet?.(cab.dataset.cabinet);}
     focusSlot(slotId) {const target=[...this.world.querySelectorAll('[data-slot]')].find(el=>el.dataset.slot===String(slotId));target?.focus({preventScroll:true});return !!target;}
     highlightSlot(slotId) {
       if(slotId==null){this.update({focusSlotId:null});return true;}
@@ -257,11 +257,13 @@
       return `<g class="rw-cabinet-label" data-label-cabinet="${escape(c.id)}" data-label-x="${x}" data-label-z="${z}" pointer-events="none"><rect x="${label[0]-labelWidth/2}" y="${label[1]-90}" width="${labelWidth}" height="210" rx="24" fill="#f9faf3" fill-opacity=".9"/><text x="${label[0]}" y="${label[1]}" text-anchor="middle" class="rw-cab-name">${escape(ellipsize(String(c.name),labelWidth-30,84))}</text><text x="${label[0]}" y="${label[1]+90}" text-anchor="middle" class="rw-cab-count">${occupied} / ${slots.length} ${purpose}</text></g>`;
     }
     front(c) {
-      const w=num(c.width,1000),h=num(c.height,1600),levels=c.levels||[],renderScale=Math.min((this.svg.clientWidth||800)/(w+280),(this.svg.clientHeight||640)/(h+280))*this.camera.zoom,compact=(this.host.clientWidth||800)<650,incubator=c.type==='incubator',eggs=incubator&&c.purpose==='eggs',layout=incubator?global.SuohaRoomModel.incubatorLayout(c):null,stack=new Map((layout?.boxes||[]).map(b=>[String(b.slotId),b]));let out='',bottom=h;
+      const w=num(c.width,1000),h=num(c.height,1600),levels=c.levels||[],environmentWidth=Math.max(440,w*.38),renderScale=Math.min((this.svg.clientWidth||800)/(w+280+environmentWidth),(this.svg.clientHeight||640)/(h+280))*this.camera.zoom,compact=(this.host.clientWidth||800)<650,incubator=c.type==='incubator',eggs=incubator&&c.purpose==='eggs',layout=incubator?global.SuohaRoomModel.incubatorLayout(c):null,stack=new Map((layout?.boxes||[]).map(b=>[String(b.slotId),b]));let out='',bottom=h;
       out+=`<ellipse cx="${w/2}" cy="${h+25}" rx="${w*.6}" ry="35" fill="#879280" opacity=".14"/>`;
       out+=incubator?`<rect x="-26" y="-18" width="${w+52}" height="${h+36}" rx="16" class="rw-incubator-shell" fill="#efece0" stroke="#aaa99a" stroke-width="8"/><rect x="0" y="0" width="${w}" height="${h}" class="rw-incubator-back" fill="#dedbcb" fill-opacity="1"/>`:`<rect x="-24" y="0" width="${w+48}" height="${h}" class="rw-cabinet-back" fill="#b8c2bc" fill-opacity="1" stroke="#97a59a" stroke-width="3"/><rect x="12" y="24" width="${w-24}" height="${h-60}" fill="#d7dfd7" fill-opacity="1"/><path d="M8 6V${h-25}H${w-8}V6" stroke="#a5b4aa" stroke-width="13" fill="none"/>`;
       levels.forEach((l,li)=>{const lh=num(l.height,150),top=bottom-lh,slots=l.slots||[];
         const firstBox=stack.get(String(slots[0]?.id));out+=`<text x="-70" y="${firstBox?h-firstBox.y-firstBox.height/2:top+lh/2}" text-anchor="end" class="rw-level-label">${String(li+1).padStart(2,'0')}</text>`;
+        const reading=this.state.environment?.[l.id],panelHeight=Math.max(40,lh-16),font=Math.min(panelHeight/4.8,Math.max(26,12/renderScale)),center=firstBox?h-firstBox.y-firstBox.height/2:top+lh/2;
+        out+=`<foreignObject x="${w+48}" y="${center-panelHeight/2}" width="${environmentWidth}" height="${panelHeight}"><button xmlns="http://www.w3.org/1999/xhtml" type="button" class="rw-layer-environment" data-environment-level="${escape(l.id)}" style="font-size:${font}px" aria-label="${escape(c.name)} L${li+1} 温湿度，选择设备" title="${escape([reading?.temperature?.detail,reading?.humidity?.detail].filter(Boolean).join('；'))}"><span>温度 ${escape(reading?.temperature?.text||'未绑定')}</span><span>湿度 ${escape(reading?.humidity?.text||'未绑定')}</span><small>L${li+1} · 选择设备 ›</small></button></foreignObject>`;
         slots.forEach((s,i)=>{const box=stack.get(String(s.id)),cellW=(w-36)/Math.max(1,slots.length),bw=box?.width??Math.min(cellW-12,num(l.boxWidth,cellW-12)||cellW-12),bh=box?.height??Math.min(lh-22,num(l.boxHeight,lh-22)||lh-22),x=box?.x??18+i*cellW+(cellW-bw)/2,y=box?h-box.y-box.height:bottom-bh-8,f=this.face(s.id),snake=eggs?null:this.snake(s.id),incubation=eggs?this.incubation(s.id):null,name=eggs?(incubation?.clutch_code||incubation?.clutch_id||'空蛋盒'):snake?.code||snake?.name||snake?.id||'空盒';
           const tasks=incubator?[]:this.slotTasks(s.id),pending=incubator?[]:(this.state.tasks||[]).filter(t=>String(t.slotId??t.slot_id)===String(s.id)&&(!t.status||t.status==='pending')).sort((a,b)=>String(a.dueAt||a.plannedAt||a.date+(a.time||'')).localeCompare(String(b.dueAt||b.plannedAt||b.date+(b.time||'')))),mouseTask=tasks[0]||pending[0];let mouse=mouseTask?(mouseTask.mouseMin!=null&&mouseTask.mouseMax!=null?`${mouseTask.mouseMin}–${mouseTask.mouseMax}g`:'待确认'):incubator&&!eggs?'冬化暂停喂食':null;
           const feeding=this.state.feedingMode&&!incubator;
@@ -307,7 +309,7 @@
       else [-21,w-3].forEach(x=>{out+=`<rect x="${x}" y="-15" width="25" height="${h+12}" rx="3" fill="url(#${this.uid}-metal)"/><circle cx="${x+12}" cy="${h+8}" r="20" fill="#53665c"/><circle cx="${x+12}" cy="${h+8}" r="11" fill="#c0c9bf"/>`;});
       out+=`<rect x="-26" y="-20" width="${w+52}" height="26" rx="4" fill="${incubator?'#f4f1e7':`url(#${this.uid}-metal)`}"/><text x="${w/2}" y="${h+100}" text-anchor="middle" font-size="27" fill="#7c8d77">${w} × ${num(c.depth)} × ${h} mm · ${levels.length} 层${incubator?' · '+(eggs?'蛋孵化':'冬化')+' · 无隔板堆叠':''}</text>`;
       if(!levels.length)out+=`<text x="${w/2}" y="${h/2}" text-anchor="middle" font-size="35" fill="#f3f6ee">空框架 · 在搭建模式添加第一层</text>`;
-      this.bounds=[-140,-100,w+280,h+280];return out;
+      this.bounds=[-140,-100,w+280+environmentWidth,h+280];return out;
     }
     destroy() {this.animations.forEach(a=>a.cancel());this.overlays.forEach(el=>el.remove());this.resize.disconnect();Object.entries(this.events).forEach(([n,h])=>this.svg.removeEventListener(n,h));this.host.replaceChildren();}
   }

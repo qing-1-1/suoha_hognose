@@ -10,7 +10,13 @@ test('051 reserves commands durably, rejects stale bindings/conflicts and only s
    create function room_validate_config(p jsonb) returns void language plpgsql as $$begin end$$;
    grant usage on schema auth to authenticated,service_role;`);
   const sql=n=>fs.readFileSync('supabase/migrations/'+n,'utf8');await db.exec(sql('050_room_environment.sql'));await db.exec(sql('051_room_tuya_cloud.sql'));await db.exec(sql('051_room_tuya_cloud.sql'));
+  await db.exec(sql('052_room_environment_devices.sql'));await db.exec(sql('052_room_environment_devices.sql'));
   const config={cabinets:[{levels:[{environment:{temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'actual',label:'',staleAfterSeconds:300}}}]}]};
+  const E=require('../js/room-environment.js');E.applyCatalog(config,E.catalog(config));
+  await db.query('select room_validate_config($1)',[config]);
+  const broken=structuredClone(config);broken.cabinets[0].levels[0].environment.temperature.channel='wrong';await assert.rejects(db.query('select room_validate_config($1)',[broken]),/不一致/);
+  const invalid=structuredClone(config);invalid.environmentDevices[0].accessSecret='no';await assert.rejects(db.query('select room_validate_config($1)',[invalid]),/字段无效/);
+  const orphan=structuredClone(config);orphan.environmentDevices=[];await assert.rejects(db.query('select room_validate_config($1)',[orphan]),/不存在/);
   await db.query('select room_validate_config($1)',[config]);await db.query('insert into room_workspace values(1,1,$1)',[config]);
   await db.exec("set role authenticated;set test.editor='true'");const body={requestId:randomUUID(),revision:1,deviceId:'pad1',action:'temperature',value:28};
   const reserve=async b=>(await db.query('select room_environment_begin_command($1,$2) data',[b.requestId,b])).rows[0].data;
