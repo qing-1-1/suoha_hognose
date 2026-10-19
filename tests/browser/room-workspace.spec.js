@@ -825,12 +825,14 @@ test('structure duplication preserves custom layer geometry while creating empty
   const errors=await boot(page);await openRack(page);
   await room(page).getByRole('button',{name:'复制柜体结构',exact:true}).click();
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(2);
-  await expect(modal(page).locator('[name=levelCount]').nth(1)).toHaveValue('2');
+  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L2','L1']);
+  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('2');
   await modal(page).getByLabel('柜名',{exact:true}).fill('复制的南侧柜');
   await modal(page).getByLabel('柜高 mm').fill('1400');
-  await modal(page).getByRole('button',{name:'＋ 复制上一层',exact:true}).click();
+  await modal(page).getByRole('button',{name:'＋ 在顶部新增一层',exact:true}).click();
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(3);
-  await expect(modal(page).locator('[name=levelCount]').nth(2)).toHaveValue('2');
+  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L3','L2','L1']);
+  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('2');
   await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();await expect(modal(page)).toBeHidden();
   await room(page).getByRole('button',{name:'应用布局',exact:true}).click();await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
   const data=await page.evaluate(()=>roomFixture.snapshot),original=data.config.cabinets[0],copied=data.config.cabinets[2];
