@@ -834,10 +834,11 @@ test('structure duplication preserves custom layer geometry while creating empty
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(3);
   expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L3','L2','L1']);
   await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('3');
+  await modal(page).locator('[name=levelCount]').first().fill('4');
   await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();await expect(modal(page)).toBeHidden();
   await room(page).getByRole('button',{name:'应用布局',exact:true}).click();await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
   const data=await page.evaluate(()=>roomFixture.snapshot),original=data.config.cabinets[0],copied=data.config.cabinets[2];
-  expect(copied.levels.map(l=>l.count)).toEqual([3,3,2]);expect(copied.schedule).toBeNull();expect(copied.slotSchedules).toEqual({});
+  expect(copied.levels.map(l=>l.count)).toEqual([4,3,2]);expect(copied.schedule).toBeNull();expect(copied.slotSchedules).toEqual({});
   const originalIds=new Set(original.levels.flatMap(l=>l.slots.flatMap(s=>[s.id,s.box_id])));
   expect(copied.levels.flatMap(l=>l.slots).every(s=>!originalIds.has(s.id)&&!originalIds.has(s.box_id))).toBe(true);
   expect(data.assignments).toHaveLength(2);
