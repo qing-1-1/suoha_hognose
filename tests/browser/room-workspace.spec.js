@@ -830,6 +830,7 @@ test('structure duplication preserves custom layer geometry while creating empty
   await modal(page).getByLabel('柜名',{exact:true}).fill('复制的南侧柜');
   await modal(page).getByLabel('柜高 mm').fill('1400');
   await modal(page).getByRole('button',{name:'＋ 在顶部新增一层',exact:true}).click();
+  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1700');
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(3);
   expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L3','L2','L1']);
   await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('3');
