@@ -22,7 +22,7 @@
   const slotInfo = slotId => { for (const c of config().cabinets) for (const [li,l] of c.levels.entries()) for (const [ci,s] of l.slots.entries()) if (s.id === slotId) return {c,l,s,li,ci}; return null; };
   const scheduleLabel = (c,id) => Object.prototype.hasOwnProperty.call(c.slotSchedules||{},id) ? (c.slotSchedules[id] ? '本格独立计划' : '本格未安排喂食') : '继承柜计划';
   const occupant = id => assignments().find(a => a.slot_id === id);
-  const titleOfSlot = id => { const x = slotInfo(id); return x ? `${x.c.name} · L${x.li+1} / ${x.ci+1}` : '待定位'; };
+  const titleOfSlot = id => { const x = slotInfo(id); return x ? `${x.c.name} · L${x.c.levels.length-x.li} / ${x.ci+1}` : '待定位'; };
   const btn = (text, action, extra = '', primary = false) => `<button type="button" class="rw-btn${primary?' rw-primary':''}" data-rw="${action}" ${extra}>${text}</button>`;
   const field = (label,name,value='',type='text',extra='') => `<label class="rw-field">${label}<input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`;
   const select = (label,name,options,value) => `<label class="rw-field">${label}<select name="${name}" aria-label="${esc(label)}">${options.map(([v,t])=>`<option value="${esc(v)}" ${String(value)===String(v)?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
@@ -269,8 +269,8 @@
     if(!c)return;const devices=E.catalog(cfg),levels=levelId?c.levels.filter(l=>l.id===levelId):c.levels;
     if(!devices.length){toast('请先在温湿度设备中保存设备参数。');return openEnvironment();}
     E.applyCatalog(cfg,devices);
-    const content='<p class="rw-muted">为每层选择已配置的设备。多个层可以共用同一台设备；温度与湿度可分别选择。</p>'+levels.map((l,i)=>'<fieldset class="rw-environment-level"><legend>L'+(c.levels.indexOf(l)+1)+'</legend><div class="rw-form-grid">'+E.metrics.map(m=>select(m==='temperature'?'温度设备':'湿度设备',i+'_'+m,[['','未绑定'],...devices.filter(d=>d[m+'Channel']).map(d=>[d.id,d.label+' · '+d.deviceId])],E.findDevice(devices,m,l.environment?.[m])?.id||'')).join('')+'</div></fieldset>').join('');
-    showDialog(c.name+' · '+(levelId?'L'+(c.levels.findIndex(l=>l.id===levelId)+1)+' ':'')+'设备绑定',content,async form=>{
+    const content='<p class="rw-muted">为每层选择已配置的设备。多个层可以共用同一台设备；温度与湿度可分别选择。</p>'+levels.map((l,i)=>'<fieldset class="rw-environment-level"><legend>L'+(c.levels.length-c.levels.indexOf(l))+'</legend><div class="rw-form-grid">'+E.metrics.map(m=>select(m==='temperature'?'温度设备':'湿度设备',i+'_'+m,[['','未绑定'],...devices.filter(d=>d[m+'Channel']).map(d=>[d.id,d.label+' · '+d.deviceId])],E.findDevice(devices,m,l.environment?.[m])?.id||'')).join('')+'</div></fieldset>').join('');
+    showDialog(c.name+' · '+(levelId?'L'+(c.levels.length-c.levels.findIndex(l=>l.id===levelId))+' ':'')+'设备绑定',content,async form=>{
       const v=formValues(form);levels.forEach((l,i)=>{const env={};for(const m of E.metrics){const binding=E.deviceBinding(devices.find(d=>d.id===v[i+'_'+m]),m);if(binding)env[m]=binding;}if(Object.keys(env).length)l.environment=env;else delete l.environment;});
       await saveBusinessConfig(cfg);void refreshEnvironment();
     },'保存层设备');
@@ -282,10 +282,10 @@
   function openCabinet(id,duplicate=false) {
     if(workflows.isIncubator(cabinet(id)))return workflows.openIncubator(id,duplicate);
     const cfg=config(),original=cabinet(id),existing=duplicate?null:original;let c=duplicate?M.cloneCabinet(original,{name:original.name+' 副本',x:cfg.width/2,z:cfg.depth/2}):existing?copy(existing):M.createCabinet({name:`A${String(cfg.cabinets.length+1).padStart(2,'0')}`,width:1200,depth:500,height:1700,x:cfg.width/2,z:cfg.depth/2,rotation:0});
-    const displayLevels=c.levels.map((level,index)=>({level,index})).reverse();
-    showDialog(duplicate?'复制柜体结构':existing?'配置爬柜':'添加银色爬柜',`<div class="rw-form-grid">${field('柜名','name',c.name,'text','required maxlength="60"')}${field('柜宽 mm','width',c.width,'number','min="100" required')}${field('柜深 mm','depth',c.depth,'number','min="100" required')}${field('柜高 mm','height',c.height,'number','min="100" required')}</div><h3>逐层搭建 <small>底层为 L1，由下向上编号</small></h3><button class="rw-btn" type="button" data-add-level>＋ 在顶部新增一层</button><div class="rw-levels">${displayLevels.map(({level,index})=>levelRow(level,index)).join('')}</div><p class="rw-muted">保存后在房间画布中拖动柜子，使用「旋转 90°」调整方向。每格最多一条蛇；移除有蛇的格位前请先转移。</p>${existing?deleteCabinetButton(existing):''}`,form=>{
+    const displayLevels=c.levels.map((level,index)=>({level,index}));
+    showDialog(duplicate?'复制柜体结构':existing?'配置爬柜':'添加银色爬柜',`<div class="rw-form-grid">${field('柜名','name',c.name,'text','required maxlength="60"')}${field('柜宽 mm','width',c.width,'number','min="100" required')}${field('柜深 mm','depth',c.depth,'number','min="100" required')}${field('柜高 mm','height',c.height,'number','min="100" required')}</div><h3>逐层搭建 <small>底层为 L1，由下向上编号</small></h3><button class="rw-btn" type="button" data-add-level>＋ 在顶部新增一层</button><div class="rw-levels">${displayLevels.map(({level,index})=>levelRow(level,c.levels.length-index-1)).join('')}</div><p class="rw-muted">保存后在房间画布中拖动柜子，使用「旋转 90°」调整方向。每格最多一条蛇；移除有蛇的格位前请先转移。</p>${existing?deleteCabinetButton(existing):''}`,form=>{
       const v=formValues(form);let changed=copy(c);Object.assign(changed,{name:v.name,width:+v.width,depth:+v.depth,height:+v.height});
-      const specs=[...form.querySelectorAll('[data-level-id]')].map(row=>({id:row.dataset.levelId,height:+row.querySelector('[name=levelHeight]').value,count:+row.querySelector('[name=levelCount]').value,boxWidth:+row.querySelector('[name=boxWidth]').value,boxDepth:+row.querySelector('[name=boxDepth]').value,boxHeight:+row.querySelector('[name=boxHeight]').value})).reverse();
+      const specs=[...form.querySelectorAll('[data-level-id]')].map(row=>({id:row.dataset.levelId,height:+row.querySelector('[name=levelHeight]').value,count:+row.querySelector('[name=levelCount]').value,boxWidth:+row.querySelector('[name=boxWidth]').value,boxDepth:+row.querySelector('[name=boxDepth]').value,boxHeight:+row.querySelector('[name=boxHeight]').value}));
       changed=M.resizeLevels(changed,specs);c=copy(changed);
       const next=copy(config());if(existing)next.cabinets[next.cabinets.findIndex(x=>x.id===id)]=changed;else {placeNewCabinet(changed,next);next.cabinets.push(changed);}requireErrors(next);protectSlots(next);editConfig(next);state.cabinetId=changed.id;
     },'保存到布局草稿',root=>{
@@ -371,7 +371,7 @@
           try{
             const snapshot=await D.load();if(!panel.isConnected||!root.open)return;
             const cfg=snapshot.config||M.defaultConfig(),tz=cfg.timezone||'Asia/Shanghai',slots=new Map(),cabinets=new Map();
-            cfg.cabinets.forEach(c=>{cabinets.set(c.id,c.name);c.levels.forEach((l,li)=>l.slots.forEach((slot,si)=>slots.set(slot.id,{cabinet:c.id,label:c.name+' · L'+(li+1)+' / '+(si+1)})));});
+            cfg.cabinets.forEach(c=>{cabinets.set(c.id,c.name);c.levels.forEach((l,li)=>l.slots.forEach((slot,si)=>slots.set(slot.id,{cabinet:c.id,label:c.name+' · L'+(c.levels.length-li)+' / '+(si+1)})));});
             const place=id=>!id?'未入住':slots.get(id)?.label||'已移除格位（'+id+'）';
             const format=v=>v&&!Number.isNaN(Date.parse(v))?new Intl.DateTimeFormat('zh-CN',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date(v)):'未记录';
             rows=[...(snapshot.moves||snapshot.history||[]).map(r=>({...r,kind:'move',source:r.from_slot_id||r.source_slot||r.from_slot,target:r.to_slot_id||r.target_slot||r.to_slot})),...(snapshot.records||[]).map(r=>({...r,kind:'feeding'})),...(snapshot.incubation_history||[]).map(r=>({...r,kind:'incubation',source:r.source_slot,target:r.target_slot,snake_id:'窝次 '+r.payload?.clutch_id,notes:r.payload?.notes||'',egg_count:r.payload?.egg_count}))].map((r,order)=>{
