@@ -110,6 +110,36 @@ test('feeding overview reports persisted overdue and today unknown counts withou
   assert.equal(M.feedingOverview(f.config,f.assignments,f.snakes,[],[{...persisted,result:'fed'}],{now,plannedTasks:[persisted]}).overdueTasks.length,0);
 });
 
+test('next feeding day aggregates all cabinets beyond the displayed week and skips completed meals',()=>{
+  const f=fixture(),now='2026-10-18T16:30:00Z';
+  f.cabinet.schedule={mode:'interval',start:'2026-11-02',time:'18:00',interval:30,quantity:1};
+  const second=M.createCabinet({id:'second'});second.schedule={...f.cabinet.schedule,quantity:2};f.config.cabinets.push(second);
+  f.snakes.push({id:'B',sex:'M',status:'active'});f.measurements.push({snake_id:'B',weight_g:300,measured_at:'2026-10-01'});
+  f.assignments.push({snake_id:'B',slot_id:second.levels[0].slots[0].id,assigned_at:'2026-10-01T00:00:00Z'});
+  const view=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now});
+  assert.equal(view.nextFeedingDate,'2026-11-02');assert.equal(view.nextFeedingTasks.length,2);
+  assert.equal(view.nextFeedingSummary.groups.reduce((n,g)=>n+g.quantity,0),3);
+  assert.ok(view.nextFeedingSummary.groups.some(g=>g.mouseMin===6&&g.mouseMax===8&&g.quantity===2));
+  const done=view.nextFeedingTasks.map(t=>({snake_id:t.snakeId,slot_id:t.slotId,cabinet_id:t.cabinetId,planned_at:t.plannedAt,result:'fed',mouse_min_g:t.mouseMin,mouse_max_g:t.mouseMax,quantity:t.quantity}));
+  assert.equal(M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,done,{now}).nextFeedingDate,'2026-12-02');
+  second.schedule.paused=true;f.cabinet.schedule.paused=true;
+  const empty=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now});
+  assert.equal(empty.nextFeedingDate,null);assert.deepEqual(empty.nextFeedingTasks,[]);
+});
+
+test('next feeding preparation includes overdue times today, keeps locked amounts and reports unknown counts',()=>{
+  const f=fixture(),now='2026-10-14T12:00:00Z';
+  f.cabinet.schedule.quantity=2;
+  const stored={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:'2026-10-14T11:30:00Z',due_at:'2026-10-14T11:30:00Z',mouse_min_g:1,mouse_max_g:2,quantity:2};
+  const current=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now,plannedTasks:[stored]});
+  assert.equal(current.nextFeedingDate,'2026-10-14');assert.equal(current.nextFeedingSummary.groups.reduce((n,g)=>n+g.quantity,0),2);
+  assert.notEqual(current.nextFeedingSummary.groups[0].mouseMax,2);
+  const locked=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now,lockedTasks:[{...stored,batch_id:'batch',batch_item_id:'item'}]});
+  assert.equal(locked.nextFeedingSummary.groups[0].mouseMax,2);
+  const unknown=M.feedingOverview(f.config,f.assignments,f.snakes,[],[],{now,plannedTasks:[{...stored,quantity:null}]});
+  assert.equal(unknown.nextFeedingDate,'2026-10-14');assert.equal(unknown.nextFeedingSummary.unknownCount,1);assert.deepEqual(unknown.nextFeedingSummary.groups,[]);
+});
+
 test('offered meals remain overdue across dates without snapshots and are not duplicated by frozen plans',()=>{
   const f=fixture(),now='2026-10-14T12:00:00Z',base={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,mouse_min_g:7,mouse_max_g:11,quantity:2};
   const prior={...base,id:'prior',result:'offered',planned_at:'2026-10-12T10:00:00Z',due_at:'2026-10-12T10:00:00Z',occurred_at:'2026-10-12T10:30:00Z'},today={...base,id:'today',result:'offered',planned_at:'2026-10-14T11:30:00Z',due_at:'2026-10-14T11:30:00Z',occurred_at:'2026-10-14T11:45:00Z'};

@@ -338,8 +338,8 @@
     return tasks.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time) || String(a.cabinetId).localeCompare(String(b.cabinetId)) || String(a.slotId).localeCompare(String(b.slotId)));
   }
   // Live preparation preview: historical records and confirmed batches retain their snapshots.
-  function preparationTasks(tasks,config,snakes,measurements) {
-    const animals=new Map(snakes.map(s=>[s.id,s])),weights=new Map(),through=localDate(Date.now(),config.timezone);
+  function preparationTasks(tasks,config,snakes,measurements,{now=Date.now()}={}) {
+    const animals=new Map(snakes.map(s=>[s.id,s])),weights=new Map(),through=localDate(now,config.timezone);
     return tasks.map(task=>{
       if(task.status!=='pending'||task.locked)return {...task};
       if(!weights.has(task.snakeId))weights.set(task.snakeId,latestWeight(task.snakeId,measurements,through));
@@ -379,7 +379,10 @@
     const todayTasks=tasks.filter(t=>t.date===today),future=tasks.filter(t=>t.status==='pending'&&t.dueAt&&Date.parse(t.dueAt)>=new Date(now).getTime()),nextByCabinet={},nextBySnake={};
     for(const task of future){if(task.cabinetId&&!nextByCabinet[task.cabinetId])nextByCabinet[task.cabinetId]=task;if(!nextBySnake[task.snakeId])nextBySnake[task.snakeId]=task;}
     overdueTasks.push(...todayTasks.filter(t=>['pending','offered'].includes(t.status)&&t.dueAt&&Date.parse(t.dueAt)<new Date(now).getTime()));
-    return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake};
+    // Preparation is day-based: include today's outstanding meals, even after their scheduled time.
+    const nextFeedingDate=tasks.find(t=>t.status==='pending')?.date||null;
+    const nextFeedingTasks=preparationTasks(tasks.filter(t=>t.status==='pending'&&t.date===nextFeedingDate),config,snakes,measurements,{now});
+    return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake,nextFeedingDate,nextFeedingTasks,nextFeedingSummary:summarize(nextFeedingTasks)};
   }
   return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,preparationTasks,mouseColor,summarize,dayColors,cabinetCorners};
 });

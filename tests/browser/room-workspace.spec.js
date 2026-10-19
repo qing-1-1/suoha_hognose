@@ -103,6 +103,38 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
 
+test('layer telemetry is hidden by default and its display switch never changes bindings',async({page},info)=>{
+ const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'mqtt',deviceId:'probe',channel:'temp',label:'温度计',staleAfterSeconds:300}};
+ const errors=await boot(page,{data});await openRack(page);
+ const toggle=room(page).getByRole('switch',{name:'温湿度显示'}),panels=room(page).locator('.rw-scene-world [data-environment-level]');
+ await expect(toggle).toHaveAttribute('aria-checked','false');await expect(panels).toHaveCount(0);
+ const before=await page.evaluate(()=>structuredClone(roomFixture.snapshot.config));
+ await toggle.click();await expect(toggle).toHaveAttribute('aria-checked','true');await expect(panels).toHaveCount(2);
+ await toggle.click();await expect(panels).toHaveCount(0);
+ await room(page).getByRole('button',{name:'层设备',exact:true}).click();await expect(modal(page)).toContainText('设备绑定');
+ await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+ expect(await page.evaluate(()=>roomFixture.snapshot.config)).toEqual(before);
+ await page.screenshot({path:`artifacts/room-telemetry-hidden-${info.project.name}.png`});
+ await page.reload();await openRack(page);await expect(toggle).toHaveAttribute('aria-checked','false');await expect(panels).toHaveCount(0);expect(errors).toEqual([]);
+});
+
+test('overview preparation shows next feeding day across cabinets independent of the selected week',async({page},info)=>{
+ const data=initialFixture();data.snapshot.config.cabinets.forEach((c,i)=>c.schedule={mode:'interval',start:'2026-11-02',time:'18:00',interval:30,quantity:i+2,paused:false});
+ const errors=await boot(page,{data}),card=room(page).getByRole('region',{name:'全房备料汇总'});
+ await expect(card).toContainText('下一个喂食日 · 2026-11-02（周一）');
+ await expect(card.locator('[data-mouse-range="4-6"]')).toContainText('2 只');await expect(card.locator('[data-mouse-range="6-8"]')).toContainText('3 只');await expect(card.locator('[data-mouse-total]')).toHaveText('5 只');
+ await room(page).getByRole('button',{name:'上一周',exact:true}).click();await expect(card).toContainText('2026-11-02');await expect(card.locator('[data-mouse-total]')).toHaveText('5 只');
+ await page.screenshot({path:`artifacts/room-next-preparation-${info.project.name}.png`,fullPage:true});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
+});
+
+test('next feeding preparation distinguishes unknown quantities from an empty schedule',async({page})=>{
+ const data=initialFixture();data.snake_measurements=[];data.snapshot.config.cabinets.forEach(c=>c.schedule.quantity=null);
+ const errors=await boot(page,{data}),card=room(page).getByRole('region',{name:'全房备料汇总'});
+ await expect(card).toContainText('下一个喂食日 · 2026-10-15');await expect(card.locator('[data-mouse-total]')).toHaveText('数量待确认');
+ await expect(card).toContainText('1 项待称重 / 确认只数');await expect(card.locator('[data-mouse-range]')).toHaveCount(0);expect(errors).toEqual([]);
+});
+
 test('tuya cloud device inspector shows affected layers and sends explicit temperature and power commands',async({page})=>{
  const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'actual',label:'A1',staleAfterSeconds:300}};
  const errors=await boot(page,{data}),commands=[];
@@ -140,6 +172,7 @@ test('environment device catalog saves once, assigns multiple layers and propaga
  await dialog.locator('[name=device_temperature]').first().fill('changed_probe');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
  expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels.map(l=>l.environment.temperature.channel))).toEqual(['changed_probe','changed_probe']);
  await room(page).locator('[data-rw=cabinet][data-cabinet="rack-a"]').first().click();
+ await room(page).getByRole('switch',{name:'温湿度显示'}).click();
  await room(page).locator('[data-environment-level="level-0-0"]').click();await expect(dialog.locator('[name="0_temperature"]')).toHaveValue(devices[0].id);
  await dialog.locator('[name="0_temperature"]').selectOption('');await dialog.locator('[type=submit]').click();await expect(dialog).toBeHidden();
  expect(await page.evaluate(()=>window.roomFixture.snapshot.config.cabinets[0].levels[0].environment.temperature)).toBeUndefined();
@@ -158,7 +191,7 @@ test('selected-day totals span cabinets and feeding mode has large weight-only l
   const errors=await boot(page,{data});
   await room(page).locator('[data-rw-date="2026-10-15"]').click();
   const total=room(page).getByRole('region',{name:'全房备料汇总'});
-  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只（已知）');
   await expect(total.locator('[data-mouse-range="16-20"]')).toContainText('1 只');
   await expect(total.locator('[data-mouse-range="6-8"]')).toContainText('2 只');
   await expect(total).toContainText('1 项待称重');
@@ -168,11 +201,11 @@ test('selected-day totals span cabinets and feeding mode has large weight-only l
   await expect(modal(page).locator('[name=tasks]:disabled')).toHaveCount(1);
   await modal(page).getByRole('button',{name:'锁定并确认备料',exact:true}).click();
   await expect(modal(page)).not.toBeVisible();
-  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只（已知）');
   await expect(total).toContainText('2 项已确认批次');
   await room(page).locator('[data-summary-cabinet="rack-a"] [data-rw="cabinet"]').click();
   await room(page).getByRole('button',{name:'喂食模式',exact:true}).click();
-  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只');
+  await expect(total.locator('[data-mouse-total]')).toHaveText('3 只（已知）');
   const box=room(page).locator('.rw-scene-world .rw-model-slot').filter({has:page.locator('[data-slot="slot-0-0-0"]')});
   await expect(box.locator('.rw-box-id')).toHaveText('ROOM-A ♀');
   await expect(box.locator('.rw-feeding-weight')).toHaveText('16–20 g');
@@ -372,6 +405,8 @@ test('cabinet box ID sits above two information lines without overlapping day la
     const id=el.querySelector('.rw-box-id').getBBox(),body=[...el.querySelectorAll('.rw-label-line')].map(n=>n.getBBox()),face=el.querySelector('.rw-box-face').getBBox(),day=el.querySelector('.rw-box-days')?.getBBox();
     return {headerInside:id.y>=face.y,headerAboveBody:id.y+id.height<body[0].y,rowsSeparate:body[0].y+body[0].height<=body[1].y,bodyInside:body[1].y+body[1].height<=face.y+face.height,daysSeparate:!day||id.x+id.width<=day.x};
   })).toEqual({headerInside:true,headerAboveBody:true,rowsSeparate:true,bodyInside:true,daysSeparate:true});
+  const caption=await room(page).locator('.rw-scene-host > .rw-scene-caption').boundingBox(),canvas=await room(page).locator('.rw-scene-host > .rw-scene').boundingBox();
+  expect(caption.y+caption.height).toBeLessThanOrEqual(canvas.y);
   await page.screenshot({path:`artifacts/room-box-labels-${info.project.name}.png`,fullPage:true});
   await slot.locator('.rw-slot-hit').click();
   await expect(modal(page)).toContainText('ROOM-A');
@@ -826,6 +861,7 @@ test('cabinet layers grow above the current L1 and keep top-down labels after sa
   original.levels[1].environment={temperature:{provider:'tuya_cloud',deviceId:'top-pad',channel:'temp_current',label:'原顶层加热垫',staleAfterSeconds:300}};
   data.snapshot.config.cabinets[0]=structuredClone(original);
   const errors=await boot(page,{data});await openRack(page);
+  await room(page).getByRole('switch',{name:'温湿度显示'}).click();
   const sceneLevels=()=>room(page).locator('.rw-scene-world [data-environment-level]').evaluateAll(nodes=>nodes.map(el=>({id:el.dataset.environmentLevel,label:el.querySelector('small').textContent,y:el.getBoundingClientRect().top})).sort((a,b)=>a.y-b.y));
   expect((await sceneLevels()).map(l=>l.id)).toEqual(['level-0-1','level-0-0']);
   await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
@@ -874,7 +910,7 @@ test('cabinet layers grow above the current L1 and keep top-down labels after sa
     expect(saved.height-boxes.find(b=>b.id==='slot-0-0-0').y).toBe(original.levels[0].boxHeight+8);
   };
   await assertScene();await page.screenshot({path:`artifacts/room-layer-scene-${info.project.name}.png`});
-  await page.reload();await openRack(page);await assertScene();
+  await page.reload();await openRack(page);await room(page).getByRole('switch',{name:'温湿度显示'}).click();await assertScene();
   await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
   await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2','L3','L4']);
   expect(await rows.evaluateAll(nodes=>nodes.map(el=>el.dataset.levelId))).toEqual(saved.levels.map(l=>l.id).reverse());
@@ -1013,7 +1049,9 @@ test('keyboard alone enters rack, navigates uneven rows, assigns a snake and res
   await page.keyboard.press('ArrowRight');await expect(room(page).locator('.rw-scene-world [data-slot="slot-0-1-1"]')).toBeFocused();
   await page.keyboard.press('ArrowDown');const target=room(page).locator('.rw-scene-world [data-slot="slot-0-0-1"]');await expect(target).toBeFocused();
   await page.keyboard.press('Enter');await expect(modal(page)).toBeVisible();
-  await tabTo(page,modal(page).getByRole('combobox',{name:'选择蛇只',exact:true}));await page.keyboard.press('End');
+  // Native select type-ahead also works in macOS headless Chrome, whose menu arrows are OS-owned.
+  await tabTo(page,modal(page).getByRole('combobox',{name:'选择蛇只',exact:true}));await page.keyboard.type('ROOM-C');
+  await expect(modal(page).getByRole('combobox',{name:'选择蛇只',exact:true})).toHaveValue('ROOM-C');
   await tabTo(page,modal(page).getByRole('button',{name:'放入蛇只',exact:true}));await page.keyboard.press('Enter');await expect(modal(page)).toBeHidden();
   await expect(target).toBeFocused();expect(await page.evaluate(()=>roomFixture.snapshot.assignments.find(a=>a.slot_id==='slot-0-0-1').snake_id)).toBe('ROOM-C');
   await page.keyboard.press('ArrowLeft');await expect(first).toBeFocused();await page.keyboard.press('Enter');await expect(modal(page)).toContainText('ROOM-A');
@@ -1026,7 +1064,11 @@ test('keyboard alone enters rack, navigates uneven rows, assigns a snake and res
   await tabTo(page,modal(page).getByRole('button',{name:'保存喂食计划',exact:true}));await page.keyboard.press('Enter');await expect(modal(page)).toBeHidden();
   expect(await page.evaluate(()=>Object.hasOwn(roomFixture.snapshot.config.cabinets[0].slotSchedules,'slot-0-0-0'))).toBe(false);await expect(first).toBeFocused();
   await page.keyboard.press('Enter');await tabTo(page,modal(page).getByRole('button',{name:'记录结果',exact:true}).first());await page.keyboard.press('Enter');
-  await tabTo(page,modal(page).getByRole('combobox',{name:'结果',exact:true}));await page.keyboard.press('Home');await page.keyboard.press('ArrowDown');
+  await tabTo(page,modal(page).getByRole('combobox',{name:'结果',exact:true}));await expect(modal(page).getByRole('combobox',{name:'结果',exact:true})).toHaveValue('fed');
+  if(process.platform!=='darwin'||test.info().project.use.isMobile){
+    await page.keyboard.press('ArrowUp');await expect(modal(page).getByRole('combobox',{name:'结果',exact:true})).toHaveValue('offered');
+    await page.keyboard.press('ArrowDown');await expect(modal(page).getByRole('combobox',{name:'结果',exact:true})).toHaveValue('fed');
+  }
   await tabTo(page,modal(page).getByRole('button',{name:'保存实际记录',exact:true}));await page.keyboard.press('Enter');await expect(modal(page)).toBeHidden();
   expect(await page.evaluate(()=>roomFixture.snapshot.records.find(r=>r.snake_id==='ROOM-A').result)).toBe('fed');await expect(first).toBeFocused();
   await page.keyboard.press('Enter');await expect(modal(page)).toContainText('ROOM-A');
@@ -1074,6 +1116,7 @@ test('cabinet layer right sides show temperatures and manual refresh clears fail
   await route.fulfill({contentType:'application/json',body:JSON.stringify({levels:[{cabinetId:'rack-a',levelId:'level-0-0',temperature:{value:28.5,unit:'°C',status:'cloud_cached',observedAt:null},humidity:{value:null,status:'unbound'}}]})});
  });
  await page.reload();await page.locator('[data-rw="cabinet"][data-cabinet="rack-a"]').first().click();
+ await room(page).getByRole('switch',{name:'温湿度显示'}).click();
  const panel=page.locator('.rw-scene-world [data-environment-level="level-0-0"]');
  await expect(panel).toContainText('28.5℃');await expect(panel).toContainText('云端值');await expect(panel).toContainText('湿度 未绑定');
  const count=calls;await page.evaluate(()=>window.SuohaRoomWorkspace.render());expect(calls).toBe(count);
