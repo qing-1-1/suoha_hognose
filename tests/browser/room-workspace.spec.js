@@ -797,8 +797,8 @@ test('layer dimensions and new cabinet save as a draft then persist through a re
   await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
   await room(page).getByRole('button',{name:'添加爬柜',exact:true}).click();
   await modal(page).getByLabel('柜名',{exact:true}).fill('南墙育成柜');
-  await modal(page).locator('[name=levelCount]').first().fill('2');
-  await modal(page).locator('[name=boxWidth]').first().fill('540');
+  await modal(page).locator('[name=levelCount]').last().fill('2');
+  await modal(page).locator('[name=boxWidth]').last().fill('540');
   await modal(page).getByRole('button',{name:/保存到布局草稿|添加到布局草稿/}).click();await expect(modal(page)).toBeHidden();
   expect(await page.evaluate(()=>roomFixture.snapshot.config.cabinets.length)).toBe(2);
   await room(page).getByRole('button',{name:'应用布局',exact:true}).click();
@@ -821,24 +821,105 @@ test('unauthenticated private route remains gated without reading room RPCs',asy
   expect(await page.evaluate(()=>roomFixture.calls.filter(c=>c.name.startsWith('room_')).length)).toBe(0);
 });
 
+test('cabinet layers grow above the current L1 and keep top-down labels after saving and reloading',async({page},info)=>{
+  const data=initialFixture(),original=structuredClone(data.snapshot.config.cabinets[0]);
+  original.levels[1].environment={temperature:{provider:'tuya_cloud',deviceId:'top-pad',channel:'temp_current',label:'原顶层加热垫',staleAfterSeconds:300}};
+  data.snapshot.config.cabinets[0]=structuredClone(original);
+  const errors=await boot(page,{data});await openRack(page);
+  const sceneLevels=()=>room(page).locator('.rw-scene-world [data-environment-level]').evaluateAll(nodes=>nodes.map(el=>({id:el.dataset.environmentLevel,label:el.querySelector('small').textContent,y:el.getBoundingClientRect().top})).sort((a,b)=>a.y-b.y));
+  expect((await sceneLevels()).map(l=>l.id)).toEqual(['level-0-1','level-0-0']);
+  await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
+  const rows=modal(page).locator('[data-level-id]');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2']);
+  await expect(rows.first()).toHaveAttribute('data-level-id','level-0-1');
+  await expect(rows.first().locator('[name=levelCount]')).toHaveValue('2');
+  // Copy the edited current top, not the bottom layer or the original snapshot.
+  await rows.first().locator('[name=levelCount]').fill('1');
+  await rows.first().locator('[name=boxWidth]').fill('560');
+  await rows.first().locator('[name=boxDepth]').fill('440');
+  await rows.first().locator('[name=boxHeight]').fill('350');
+  await modal(page).locator('[data-add-level]').click();
+  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1300');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2','L3']);
+  for(const [name,value] of Object.entries({levelHeight:'400',levelCount:'1',boxWidth:'560',boxDepth:'440',boxHeight:'350'}))await expect(rows.first().locator(`[name=${name}]`)).toHaveValue(value);
+  // A second addition must use the newest top row, including unsaved edits.
+  await rows.first().locator('[name=levelHeight]').fill('420');
+  await modal(page).locator('[data-add-level]').click();
+  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1720');
+  await expect(rows.first().locator('[name=levelHeight]')).toHaveValue('420');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2','L3','L4']);
+  await page.screenshot({path:`artifacts/room-layer-config-${info.project.name}.png`});
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const saved=await page.evaluate(()=>roomFixture.snapshot.config.cabinets[0]);
+  expect(saved.height).toBe(1720);
+  expect(saved.levels[0]).toEqual(original.levels[0]);
+  expect(saved.levels[1].id).toBe(original.levels[1].id);
+  expect(saved.levels[1].slots).toEqual(original.levels[1].slots.slice(0,1));
+  expect(saved.levels[1].environment).toEqual(original.levels[1].environment);
+  expect(saved.levels.map(l=>l.height)).toEqual([300,400,420,420]);
+  const oldIds=new Set(original.levels.flatMap(l=>[l.id,...l.slots.flatMap(s=>[s.id,s.box_id])]));
+  expect(saved.levels.slice(2).flatMap(l=>[l.id,...l.slots.flatMap(s=>[s.id,s.box_id])]).every(id=>!oldIds.has(id))).toBe(true);
+  expect(saved.levels.slice(2).every(l=>!l.environment)).toBe(true);
+  expect(await page.evaluate(()=>roomFixture.snapshot.assignments)).toEqual(data.snapshot.assignments);
+  const assertScene=async()=>{
+    const visible=await sceneLevels();
+    expect(visible.map(l=>l.id)).toEqual(saved.levels.map(l=>l.id).reverse());
+    expect(visible.map(l=>l.label)).toEqual(['L1 · 选择设备 ›','L2 · 选择设备 ›','L3 · 选择设备 ›','L4 · 选择设备 ›']);
+    for(let i=1;i<visible.length;i++)expect(visible[i].y).toBeGreaterThan(visible[i-1].y);
+    const boxes=await room(page).locator('.rw-scene-world .rw-slot-hit').evaluateAll(nodes=>nodes.map(el=>({id:el.dataset.slot,label:el.getAttribute('aria-label'),y:Number(el.parentElement.getAttribute('y')),height:Number(el.parentElement.getAttribute('height'))})));
+    const firstTop=boxes.find(b=>b.id===saved.levels[3].slots[0].id),secondTop=boxes.find(b=>b.id===saved.levels[2].slots[0].id);
+    expect(firstTop.y+firstTop.height).toBeLessThan(secondTop.y);expect(firstTop.label).toContain('第1层');
+    // The old bottom stays at the same height above the cabinet floor.
+    expect(saved.height-boxes.find(b=>b.id==='slot-0-0-0').y).toBe(original.levels[0].boxHeight+8);
+  };
+  await assertScene();await page.screenshot({path:`artifacts/room-layer-scene-${info.project.name}.png`});
+  await page.reload();await openRack(page);await assertScene();
+  await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2','L3','L4']);
+  expect(await rows.evaluateAll(nodes=>nodes.map(el=>el.dataset.levelId))).toEqual(saved.levels.map(l=>l.id).reverse());
+  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1720');expect(errors).toEqual([]);
+});
+
+test('removing cabinet layers subtracts their height and preserves surviving boxes through save',async({page})=>{
+  const errors=await boot(page);await openRack(page);
+  const original=await page.evaluate(()=>roomFixture.snapshot.config.cabinets[0]);
+  await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
+  const rows=modal(page).locator('[data-level-id]'),height=modal(page).getByLabel('柜高 mm');
+  await modal(page).locator('[data-add-level]').click();await expect(height).toHaveValue('1300');
+  await rows.first().locator('[data-remove-level]').click();await expect(height).toHaveValue('900');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2']);
+  await modal(page).locator('[data-add-level]').click();
+  await rows.nth(1).locator('[data-remove-level]').click();await expect(height).toHaveValue('900');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1','L2']);
+  await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();await expect(modal(page)).toBeHidden();
+  await room(page).getByRole('button',{name:'应用布局',exact:true}).click();await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
+  const saved=await page.evaluate(()=>roomFixture.snapshot.config.cabinets[0]);
+  expect(saved.height).toBe(900);expect(saved.levels[0]).toEqual(original.levels[0]);expect(saved.levels[1].id).not.toBe(original.levels[1].id);
+  await page.reload();await openRack(page);await room(page).getByRole('button',{name:'柜体配置',exact:true}).click();
+  await expect(height).toHaveValue('900');await rows.first().locator('[data-remove-level]').click();await expect(height).toHaveValue('500');
+  await expect(rows.locator('[data-level-number]')).toHaveText(['L1']);await expect(rows.locator('[data-remove-level]')).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
 test('structure duplication preserves custom layer geometry while creating empty fresh boxes',async({page})=>{
   const errors=await boot(page);await openRack(page);
   await room(page).getByRole('button',{name:'复制柜体结构',exact:true}).click();
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(2);
-  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L2','L1']);
-  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('3');
+  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L1','L2']);
+  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('2');
   await modal(page).getByLabel('柜名',{exact:true}).fill('复制的南侧柜');
   await modal(page).getByLabel('柜高 mm').fill('1400');
   await modal(page).getByRole('button',{name:'＋ 在顶部新增一层',exact:true}).click();
-  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1700');
+  await expect(modal(page).getByLabel('柜高 mm')).toHaveValue('1800');
   await expect(modal(page).locator('[name=levelCount]')).toHaveCount(3);
-  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L3','L2','L1']);
-  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('3');
-  await modal(page).locator('[name=levelCount]').first().fill('4');
+  expect(await modal(page).locator('[data-level-number]').allTextContents()).toEqual(['L1','L2','L3']);
+  await expect(modal(page).locator('[name=levelCount]').first()).toHaveValue('2');
+  await modal(page).locator('[name=levelCount]').first().fill('1');
   await modal(page).getByRole('button',{name:'保存到布局草稿',exact:true}).click();await expect(modal(page)).toBeHidden();
   await room(page).getByRole('button',{name:'应用布局',exact:true}).click();await expect(room(page).locator('[data-rw-status]')).toHaveText('已同步');
   const data=await page.evaluate(()=>roomFixture.snapshot),original=data.config.cabinets[0],copied=data.config.cabinets[2];
-  expect(copied.levels.map(l=>l.count)).toEqual([4,3,2]);expect(copied.schedule).toBeNull();expect(copied.slotSchedules).toEqual({});
+  expect(copied.levels.map(l=>l.count)).toEqual([3,2,1]);expect(copied.schedule).toBeNull();expect(copied.slotSchedules).toEqual({});
   const originalIds=new Set(original.levels.flatMap(l=>l.slots.flatMap(s=>[s.id,s.box_id])));
   expect(copied.levels.flatMap(l=>l.slots).every(s=>!originalIds.has(s.id)&&!originalIds.has(s.box_id))).toBe(true);
   expect(data.assignments).toHaveLength(2);
