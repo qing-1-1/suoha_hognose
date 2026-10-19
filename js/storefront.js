@@ -2,7 +2,7 @@
   'use strict';
   const $ = s => document.querySelector(s);
   const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const statuses = { available:'在售',reserved:'已预留',sold:'已售',display:'留种展示' };
+  const statuses = { available:'在售',reserved:'已预留',sold:'过往已售',display:'种群展示' };
   const sexes = { F:'母 ♀',M:'公 ♂',U:'性别未知' };
   const states = { visual:'表现',het:'确定携带',possible_het:'可能携带',super:'Super',line_trait:'品系性状',unknown:'未知' };
   let current = null, abort = null, requestIds = {}, lastTrigger = null;
@@ -24,7 +24,7 @@
   const placeholder = () => '<div class="no-photo"><img src="/assets/mark.svg" alt=""><span>个体照片待补充</span></div>';
   function photoImage(p,title,small=false,eager=false) { return `<img data-specimen-photo src="${esc(small&&p.thumbnail_url||p.url)}" data-original="${esc(p.url)}" data-fallback="${esc(p.fallback_url||'')}" alt="${esc(p.caption||title)}" loading="${eager?'eager':'lazy'}" decoding="async" ${eager?'fetchpriority="high"':''} width="600" height="550">`; }
   function photo(item,detail=false) { return item.photos?.[0] ? photoImage(item.photos[0],item.title,!detail,detail) : placeholder(); }
-  function card(item) { return `<a class="specimen-card reveal-in" href="/specimens/${encodeURIComponent(item.slug)}"><div class="specimen-photo">${photo(item)}<span class="photo-label ${esc(item.sale_status)}">${esc(statuses[item.sale_status] || '展示')}</span><span class="specimen-number">${esc(item.snake_id)}</span></div><div class="specimen-meta"><h3>${esc(item.title)}</h3><span class="specimen-price">${item.sale_status==='display'?'仅展示 · 不出售':money(item)}</span></div><div class="specimen-sub"><span>${esc(sexes[item.sex] || sexes.U)}</span><span>${esc(item.birth || '出生时间待确认')}</span><span>${esc(item.series || '未分类')}</span></div></a>`; }
+  function card(item) { return `<a class="specimen-card reveal-in" href="/specimens/${encodeURIComponent(item.slug)}"><div class="specimen-photo">${photo(item)}<span class="photo-label ${esc(item.sale_status)}">${esc(statuses[item.sale_status] || '展示')}</span><span class="specimen-number">${esc(item.snake_id)}</span></div><div class="specimen-meta"><h3>${esc(item.title)}</h3><span class="specimen-price">${item.sale_status==='display'?'种群展示 · 不出售':item.sale_status==='sold'?'已售留档 · 不再出售':money(item)}</span></div><div class="specimen-sub"><span>${esc(sexes[item.sex] || sexes.U)}</span><span>${esc(item.birth || '出生时间待确认')}</span><span>${esc(item.series || '未分类')}</span></div></a>`; }
   function empty(host, error=false) {
     host.innerHTML=`<div class="empty-collection"><span class="empty-glyph" aria-hidden="true">✳</span><div><h3>${error?'档案暂时无法连接。':'下一份独特，正在准备。'}</h3><p>${error?'暂未能读取公开目录。你可以稍后重试；这里不会用示例个体替代真实档案。':'当前条件下暂无公开个体。我们只展示已确认发布的资料，照片与档案准备完成后会在这里呈现。'}</p>${error?'<button data-retry>重新连接 ↗</button>':'<a href="/collection">查看全部档案 ↗</a>'}</div></div>`;
     host.querySelector('[data-retry]')?.addEventListener('click',route);
@@ -46,7 +46,7 @@
     const detail=location.pathname.startsWith('/specimens/'), catalog=location.pathname==='/collection';
     $('#homeView').hidden=detail||catalog;$('#catalogView').hidden=!catalog;$('#detailView').hidden=!detail;
     $('a[data-nav="collection"]').setAttribute('aria-current',catalog||detail?'page':'false');
-    document.title=detail?'个体档案 · SUOHA':catalog?'商店 · SUOHA':'SUOHA · 猪鼻蛇繁育档案';
+    document.title=detail?'个体档案 · SUOHA':catalog?'个体档案 · SUOHA':'SUOHA · 猪鼻蛇繁育档案';
     if(detail){
       const host=$('#detailView');host.innerHTML='<div class="catalog-loading">正在读取个体档案…</div>';
       try { const slug=decodeURIComponent(location.pathname.split('/')[2]||'');const data=await fetchCatalog({slug},abort.signal);current=data.items[0];if(!current){host.innerHTML='<div class="empty-collection"><div><h1>这份档案暂未公开。</h1><p>可能尚未发布或已经下架。</p><a href="/collection">返回个体目录 ↗</a></div></div>';return;}renderDetail(current); }
@@ -54,6 +54,19 @@
     }
     if(!catalog)return;
     const form=$('#catalogFilters'), params=new URLSearchParams(location.search), host=$('#catalogGrid');
+    const status=['display','available','reserved','sold'].includes(params.get('status'))?params.get('status'):'display';
+    params.set('status',status);
+    const section=status==='reserved'?'available':status;
+    const titles={display:['种群展示','认识我们的留种个体，了解繁育方向。'],available:['在售','查看真实档案与售卖状态，找到想进一步了解的伙伴。'],sold:['过往已售','留存每一段相遇。以下个体已售出，仅供档案回顾。']};
+    $('#catalogTitle').textContent=titles[section][0]+'。';$('#catalogDescription').textContent=titles[section][1];
+    document.title=titles[section][0]+' · SUOHA';
+    document.querySelectorAll('[data-catalog-section]').forEach(a=>{a.setAttribute('aria-current',a.dataset.catalogSection===section?'page':'false');const next=new URLSearchParams(params);next.set('status',a.dataset.catalogSection);next.delete('page');if(a.dataset.catalogSection!=='available')next.delete('sort');a.href='/collection?'+next;});
+    $('[data-catalog-availability]').hidden=section!=='available';
+    $('#guide').hidden=section!=='available';
+    form.elements.sort.closest('label').hidden=section!=='available';
+    form.elements.sort.disabled=section!=='available';
+    if(section!=='available'&&params.has('sort')){params.delete('sort');history.replaceState(history.state,'','/collection?'+params);}
+    $('.filter-note').textContent=section==='available'?'可咨询与已预留分开查看；售价跨币种不作汇率换算。':'仅显示已公开档案；可按编号、基因与出生年份筛选。';
     sessionStorage.setItem('suoha.catalogQuery',location.search);
     for(const field of ['q','sex','status','sort','year','gene','gene_state'])if(form.elements[field])form.elements[field].value=params.get(field)|| (field==='sort'?'newest':'');
     host.innerHTML='<div class="catalog-loading">正在读取公开档案…</div>';$('#pagination').innerHTML='';
@@ -66,7 +79,7 @@
         form.elements[field].innerHTML=`<option value="">${title}</option>`+rows.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('');form.elements[field].value=value;
       }
       $('#catalogCount').textContent=`${data.total} 份公开档案`;
-      if(data.items.length)host.innerHTML=data.items.map(card).join('');else empty(host);
+      if(data.items.length)host.innerHTML=data.items.map(card).join('');else {empty(host);host.querySelector('h3').textContent=section==='sold'?'当前条件下暂无过往已售档案。':section==='available'?'当前条件下暂无在售个体。':'当前条件下暂无种群展示。';host.querySelector('p').textContent='可以调整筛选条件，或切换上方分类继续浏览。';host.querySelector('a').href='/collection'+(section==='display'?'':'?status='+status);}
       window.dispatchEvent(new Event('suoha:catalog'));
       window.SuohaAuctionPublic?.decorate(data.items);
       const pages=Math.max(1,Math.ceil(data.total/24));
@@ -78,7 +91,7 @@
     document.title=`${item.title} · ${item.snake_id} · SUOHA`;
     const genes=(item.genes||[]).map(g=>`<span class="${g.state==='possible_het'||g.state==='unknown'?'uncertain':''}">${esc(g.name)} · ${esc(states[g.state]||g.state)}${g.state==='possible_het'&&g.probability!=null?' '+Math.round(g.probability*100)+'%':''}</span>`).join('');
     const canInquire=['available','reserved'].includes(item.sale_status)&&item.auction?.status!=='open';
-    $('#detailView').innerHTML=`<nav class="breadcrumbs" aria-label="面包屑"><a href="/">首页</a><span>/</span><a href="/collection${esc(sessionStorage.getItem('suoha.catalogQuery')||'')}">个体档案</a><span>/ ${esc(item.snake_id)}</span></nav><div class="detail-layout"><div><button class="detail-main-photo" id="detailPhoto" type="button" aria-label="放大个体照片" ${!item.photos.length?'disabled':''}>${photo(item,true)}</button><div class="detail-thumbnails">${item.photos.map((p,i)=>`<button type="button" data-photo="${i}" aria-pressed="${i===0}" aria-label="照片 ${i+1}">${photoImage(p,item.title,true)}</button>`).join('')}</div><p class="photo-caption" id="photoCaption">${esc(item.photos[0]?.caption||'仅展示此个体的真实照片')}${item.photos[0]?.date?' · '+esc(item.photos[0].date):''}</p></div><div class="detail-copy"><span class="sale-tag">${esc(statuses[item.sale_status])}</span><p class="eyebrow">SPECIMEN / ${esc(item.snake_id)}</p><h1>${esc(item.title)}</h1><div class="detail-price">${item.sale_status==='display'?'留种展示 · 不出售':money(item)}</div><dl class="detail-facts"><div><dt>性别</dt><dd>${esc(sexes[item.sex]||sexes.U)}</dd></div><div><dt>出生时间</dt><dd>${esc(item.birth||'待确认')}</dd></div><div><dt>系列</dt><dd>${esc(item.series||'未分类')}</dd></div></dl><p>${esc(item.description||'更多个体资料正在整理中。')}</p><div class="gene-tags">${genes||'<span class="uncertain">结构化基因资料待补充</span>'}</div><p>基因状态以已记录资料为依据，可能携带不等于确定携带。</p><div class="detail-purchase">${canInquire?`<button class="button button-dark" id="openInquiry">${item.sale_status==='reserved'?'提交候补咨询':'咨询购买'} <span>↗</span></button>`:'<a class="button button-dark" href="/collection?status=available">探索其他在售个体 <span>↗</span></a>'}<p>${item.sale_status==='display'?'留种个体仅作展示，不提供售卖或预留。':canInquire?'无需注册 · 提交不扣款 · 预留由人工确认':'该个体已售出，仅保留档案展示。'}</p></div></div></div><div class="detail-notes"><article><h3>个体情况</h3><p>${esc(item.husbandry_summary||'暂无公开的成长与进食记录，可在咨询时进一步了解。')}</p></article><article><h3>谱系资料</h3><p>${esc(item.pedigree_summary||'暂无已确认公开的亲本资料。')}</p></article></div>`;
+    $('#detailView').innerHTML=`<nav class="breadcrumbs" aria-label="面包屑"><a href="/">首页</a><span>/</span><a href="/collection${esc(sessionStorage.getItem('suoha.catalogQuery')||'')}">个体档案</a><span>/ ${esc(item.snake_id)}</span></nav><div class="detail-layout"><div><button class="detail-main-photo" id="detailPhoto" type="button" aria-label="放大个体照片" ${!item.photos.length?'disabled':''}>${photo(item,true)}</button><div class="detail-thumbnails">${item.photos.map((p,i)=>`<button type="button" data-photo="${i}" aria-pressed="${i===0}" aria-label="照片 ${i+1}">${photoImage(p,item.title,true)}</button>`).join('')}</div><p class="photo-caption" id="photoCaption">${esc(item.photos[0]?.caption||'仅展示此个体的真实照片')}${item.photos[0]?.date?' · '+esc(item.photos[0].date):''}</p></div><div class="detail-copy"><span class="sale-tag">${esc(statuses[item.sale_status])}</span><p class="eyebrow">SPECIMEN / ${esc(item.snake_id)}</p><h1>${esc(item.title)}</h1><div class="detail-price">${item.sale_status==='display'?'种群展示 · 不出售':item.sale_status==='sold'?'已售留档 · 不再出售':money(item)}</div><dl class="detail-facts"><div><dt>性别</dt><dd>${esc(sexes[item.sex]||sexes.U)}</dd></div><div><dt>出生时间</dt><dd>${esc(item.birth||'待确认')}</dd></div><div><dt>系列</dt><dd>${esc(item.series||'未分类')}</dd></div></dl><p>${esc(item.description||'更多个体资料正在整理中。')}</p><div class="gene-tags">${genes||'<span class="uncertain">结构化基因资料待补充</span>'}</div><p>基因状态以已记录资料为依据，可能携带不等于确定携带。</p><div class="detail-purchase">${canInquire?`<button class="button button-dark" id="openInquiry">${item.sale_status==='reserved'?'提交候补咨询':'咨询购买'} <span>↗</span></button>`:'<a class="button button-dark" href="/collection?status=available">探索其他在售个体 <span>↗</span></a>'}<p>${item.sale_status==='display'?'留种个体仅作展示，不提供售卖或预留。':canInquire?'无需注册 · 提交不扣款 · 预留由人工确认':'该个体已售出，仅保留档案展示。'}</p></div></div></div><div class="detail-notes"><article><h3>个体情况</h3><p>${esc(item.husbandry_summary||'暂无公开的成长与进食记录，可在咨询时进一步了解。')}</p></article><article><h3>谱系资料</h3><p>${esc(item.pedigree_summary||'暂无已确认公开的亲本资料。')}</p></article></div>`;
     window.SuohaAuctionPublic?.mount(item);
     $('#openInquiry')?.addEventListener('click',openInquiry);
     $('#detailPhoto')?.addEventListener('click',()=>{const img=$('#detailPhoto img');if(!img)return;$('#lightbox .photo-load-error')?.remove();$('#lightbox img').hidden=false;$('#lightbox img').setAttribute('data-specimen-photo','');delete $('#lightbox img').dataset.original;$('#lightbox img').dataset.fallback=img.dataset.fallback||'';$('#lightbox img').src=img.src;$('#lightbox img').alt=item.title;$('#lightbox').showModal();});
@@ -95,7 +108,7 @@
   document.querySelectorAll('[data-close-dialog]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
   document.querySelectorAll('dialog').forEach(d=>{d.addEventListener('click',event=>{if(event.target===d){const rect=d.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)d.close();}});d.addEventListener('close',()=>lastTrigger?.focus());});
   $('#catalogFilters').addEventListener('submit',event=>{event.preventDefault();const params=new URLSearchParams();new FormData(event.currentTarget).forEach((v,k)=>{if(v)params.set(k,v);});sessionStorage.setItem('suoha.catalogQuery','?'+params);sessionStorage.setItem('suoha.catalogScroll','0');navigate('/collection?'+params);});
-  $('#catalogFilters').addEventListener('reset',()=>{sessionStorage.setItem('suoha.catalogQuery','');navigate('/collection');});
+  $('#catalogFilters').addEventListener('reset',event=>{event.preventDefault();const form=event.target;sessionStorage.setItem('suoha.catalogQuery','');navigate('/collection'+(['available','reserved','sold'].includes(form.elements.status.value)?'?status='+form.elements.status.value:''));});
   $('#pagination').addEventListener('click',event=>{const b=event.target.closest('[data-page]');if(!b)return;const p=new URLSearchParams(location.search);p.set('page',b.dataset.page);navigate('/collection?'+p);});
   document.addEventListener('click',event=>{const link=event.target.closest('a');if(!link||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button>0)return;const url=new URL(link.href,location.href);if(url.origin!==location.origin||url.pathname.startsWith('/admin')||url.hash)return;if(url.pathname==='/'||url.pathname==='/collection'||url.pathname.startsWith('/specimens/')){event.preventDefault();navigate(url.pathname+url.search);}});
   addEventListener('popstate',()=>{history.replaceState({restore:true},'');route();});

@@ -157,7 +157,7 @@ test('room adapter reports missing migration and retries ambiguous writes with t
   assert.equal(calls[0].args.p_request,calls[1].args.p_request);
 });
 
-test('040 keeps immutable rule versions and confirmed preparation while validating labels and actual results',async()=>{
+for(const upgradeIncubators of [false,true])test(`${upgradeIncubators?'042 upgrade preserves':'040 keeps'} immutable rule versions and confirmed preparation while validating labels and actual results`,async()=>{
  const db=new PGlite();
  try{
   await db.exec(`create role anon;create role authenticated;create schema auth;
@@ -172,6 +172,17 @@ test('040 keeps immutable rule versions and confirmed preparation while validati
   await db.exec("set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';set role authenticated");
   await db.query('select room_save_layout($1,$2,$3)',[0,config(),randomUUID()]);
   await db.exec('reset role');await db.exec(fs.readFileSync('supabase/migrations/040_room_rules_and_batches.sql','utf8'));
+  await db.exec(fs.readFileSync('supabase/migrations/041_room_label_font_size.sql','utf8'));
+  if(upgradeIncubators){
+   await db.exec(`create role service_role;
+    alter table snakes add column sex text;
+    alter table snake_measurements add column weight_g numeric;
+    create table annual_breeding_plans(id bigint primary key,project_name text,plan_year integer,status text,review_status text,female_snake_id text,male_snake_id text,expected_hatching_date date);
+    create table breeding_events(id bigint primary key,plan_id bigint,female_snake_id text,male_snake_id text,paired_at date,status text);
+    create table clutches(id bigint primary key,clutch_code text,breeding_event_id bigint,female_snake_id text,male_snake_id text,laid_date date,egg_count integer,fertile_egg_count integer,hatched_count integer,status text,expected_hatch_date date);`);
+   await db.exec(fs.readFileSync('supabase/migrations/042_room_incubators.sql','utf8'));
+  }
+  await db.exec(fs.readFileSync('supabase/migrations/050_room_environment.sql','utf8'));
   await db.exec('set role authenticated');
   const snap=async()=>(await db.query('select room_snapshot() data')).rows[0].data;
   let state=await snap();assert.equal(state.revision,1);assert.equal(state.rule_versions.length,1);const firstRule=state.active_rule_version_id;
@@ -188,6 +199,9 @@ test('040 keeps immutable rule versions and confirmed preparation while validati
   let c=structuredClone(state.config);c.rules[1].mouseMax=7;state=await save(c);assert.equal(state.rule_versions.length,3);
   c=structuredClone(state.config);c.labelTemplate={name:'简单标签',lines:['{{id}} · {{sex}}','{{weight}} / {{mouse}}','{{note}}'],fontSize:14,align:'left'};
   c.cabinets[0].labelTemplate=null;c.slotNotes={s1:'个体观察备注'};state=await save(c);
+  c.labelTemplate.fontSize=10;c.cabinets[0].labelTemplate={...c.labelTemplate,fontSize:11};state=await save(c);
+  assert.equal(state.config.labelTemplate.fontSize,10);assert.equal(state.config.cabinets[0].labelTemplate.fontSize,11);
+  await assert.rejects(db.query('select room_validate_label_template($1)',[c.labelTemplate]),/permission denied/);
   for(const mutation of [x=>x.labelTemplate.lines=['{{password}}'],x=>x.labelTemplate.fontSize=9,x=>x.labelTemplate.lines=['{{id}'],x=>x.slotNotes={unknown:'不存在的格子'},x=>x.slotNotes={s1:'a'.repeat(301)}]){
    const invalid=structuredClone(c);mutation(invalid);await assert.rejects(save(invalid));
   }

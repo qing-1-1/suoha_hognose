@@ -87,6 +87,7 @@ button{color:inherit}
 @media(max-width:700px){.heroPairGrid{grid-template-columns:1fr}}
 
 .yearBreedingCard{margin-top:12px}
+.unplannedAnimalsCard{margin-top:12px}.unplannedSummary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 12px;color:var(--muted);font-size:12px}.unplannedSummary strong{color:var(--text);font-size:15px}.unplannedSummary span{margin-left:auto}.unplannedList{display:flex;flex-wrap:wrap;gap:8px}.unplannedAnimal{border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--text);padding:8px 10px;font:inherit;font-size:11px;cursor:pointer}.unplannedAnimal:hover{border-color:#0066cc}.unplannedEmpty{margin:0;color:var(--muted);font-size:12px}
 .yearBreedingHead{display:flex;align-items:flex-end;gap:14px;padding:14px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(232,183,109,.035),transparent 55%)}
 .yearBreedingHead h3{font-size:12px;margin:0}.yearBreedingHead p{font-size:8px;color:#68768a;margin:4px 0 0}.yearBreedingSummary{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .planSummaryChip{border:1px solid var(--line);border-radius:8px;background:#0b1118;padding:6px 8px}.planSummaryChip label{display:block;font-size:6.8px;color:#566477;text-transform:uppercase;letter-spacing:.7px}.planSummaryChip strong{display:block;font-size:9px;margin-top:2px}

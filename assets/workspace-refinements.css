@@ -49,6 +49,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .ws-form:has(.ws-form-fields){display:flex;flex-direction:column;min-height:0;gap:0;overflow:hidden}
 .ws-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-height:0;overflow:auto;padding:2px 6px 16px 2px;overscroll-behavior:contain}
 .ws-form-fields>*{min-width:0}
+.ws-form-fields>label{align-content:start;align-self:start}
+.ws-form-fields>label>input:not([type=checkbox]),.ws-form-fields>label>select{min-height:44px;height:44px}
 .ws-form:has(.ws-form-fields)>.ws-actions{flex-shrink:0;padding-top:14px;border-top:1px solid var(--line);margin-top:0}
 .ws-form:has(.ws-form-fields)>.ws-form-message{flex-shrink:0;max-height:100px;overflow:auto;margin:8px 0}
 .ws-form-message:empty{display:none}
@@ -60,3 +62,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .ws-animal-photo img{width:100%;height:100%;object-fit:cover}
 .ws-date-help{margin:0;padding:12px;border-radius:8px;background:#edf2f7;color:#405773}
 @media(max-width:600px){.ws-form-fields{grid-template-columns:minmax(0,1fr)}.ws-dialog .ws-form input,.ws-dialog .ws-form select,.ws-dialog .ws-form textarea{font-size:16px}.ws-dialog:has(.ws-form-fields){padding:18px}.ws-dialog:has(.ws-form-fields) .ws-dialog-head p{font-size:11px}.ws-animal-preview{align-items:flex-start}.ws-form:has(.ws-form-fields)>.ws-actions .ws-action{flex:1;justify-content:center}}
+
+.ws-form-message details{margin-top:8px}.ws-form-message summary{cursor:pointer;font-size:12px}.ws-form-message pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;margin:8px 0}

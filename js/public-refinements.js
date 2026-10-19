@@ -13,14 +13,14 @@
   function chips() {
     geneState();
     const params = new URLSearchParams(location.search);
-    const labels = {q:'搜索',series:'系列',sex:'性别',status:'状态',year:'出生',gene:'基因',gene_state:'基因状态',sort:'排序'};
+    const labels = {q:'搜索',series:'系列',sex:'性别',year:'出生',gene:'基因',gene_state:'基因状态',sort:'排序'};
     $('#activeCatalogFilters').innerHTML = [...params].filter(([key,value]) => labels[key] && value && !(key==='sort'&&value==='newest')).map(([key,value]) => {
       const field = form.elements[key];
       const selected = field?.selectedOptions?.[0];
       const text = selected?.value === value ? selected.textContent : value;
       return `<button type="button" data-clear-filter="${key}" aria-label="移除${labels[key]}筛选">${labels[key]}：${esc(text)} <span aria-hidden="true">×</span></button>`;
-    }).join('') + (params.size ? '<button type="button" data-clear-all>清空全部</button>' : '');
-    document.querySelectorAll('#catalogGrid .empty-collection a').forEach(a => {a.textContent = params.size ? '清空筛选，查看全部 ↗' : '查看全部档案 ↗';});
+    }).join('') + ([...params].some(([key,value])=>labels[key]&&value) ? '<button type="button" data-clear-all>清空全部</button>' : '');
+    document.querySelectorAll('#catalogGrid .empty-collection a').forEach(a => {a.textContent = params.size ? '清空本分类筛选 ↗' : '查看本分类档案 ↗';});
   }
   addEventListener('suoha:catalog', chips);
   // A cached catalog response may finish before this deferred script is evaluated.
