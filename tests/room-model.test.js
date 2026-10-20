@@ -3,6 +3,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const M = require('../js/room-model.js');
 
+test('only the nearest pending meal is highlighted after three local calendar days since feeding',()=>{
+ const tasks=['2026-10-24','2026-10-27'].map(date=>({snakeId:'A',slotId:'new-slot',status:'pending',date,time:'18:00',dueAt:date+'T10:00:00Z'}));
+ const records=[{snake_id:'A',slot_id:'old-slot',planned_at:'2026-10-19T10:00:00Z',occurred_at:'2026-10-20T10:00:00Z',result:'fed'}];
+ const before=structuredClone({tasks,records});
+ for(const now of ['2026-10-20T10:00:00Z','2026-10-22T15:59:59Z'])assert.deepEqual(M.feedingReminders(tasks,records,{now}),[]);
+ assert.deepEqual(M.feedingReminders(tasks,records,{now:'2026-10-22T16:00:00Z'}),[tasks[0]]);
+ assert.deepEqual(M.feedingReminders(tasks,records,{now:'2026-10-22T16:00:00Z',timezone:'UTC'}),[]);
+ assert.deepEqual(M.feedingReminders(tasks,[],{now:'2026-10-20T10:00:00Z'}),[tasks[0]]);
+ for(const result of ['offered','skipped','refused','cancelled'])assert.deepEqual(M.feedingReminders(tasks,[{...records[0],result}],{now:'2026-10-20T10:00:00Z'}),[tasks[0]]);
+ const corrected=[...records,{...records[0],result:'refused',occurred_at:'2026-10-20T11:00:00Z'}];
+ assert.deepEqual(M.feedingReminders(tasks,corrected,{now:'2026-10-20T12:00:00Z'}),[tasks[0]]);
+ assert.deepEqual({tasks,records},before);
+});
+
+test('reminder chooses actual due time, includes overdue tasks and ignores completed/cancelled tasks',()=>{
+ const base={snakeId:'A',status:'pending',date:'2026-10-20',time:'18:00'};
+ const earlier={...base,date:'2026-10-19',dueAt:'2026-10-19T10:00:00Z'};
+ assert.deepEqual(M.feedingReminders([{...base,dueAt:'2026-10-24T10:00:00Z'},earlier,{...base,status:'completed'},{...earlier,status:'cancelled'}],[]),[earlier]);
+});
+
 test('live daily preparation recalculates latest weight, counts quantities across cabinets and preserves confirmed history',()=>{
   const config=M.defaultConfig(),snakes=[{id:'F',sex:'F'},{id:'M',sex:'M'},{id:'U',sex:'U'}];
   const measurements=[{id:1,snake_id:'F',weight_g:10,measured_at:'2026-10-01'},{id:2,snake_id:'F',weight_g:160,measured_at:'2026-10-14'},{id:3,snake_id:'M',weight_g:300,measured_at:'2026-10-14'}];

@@ -370,6 +370,30 @@
     }
     return {groups:[...groups.values()].sort((a,b)=>a.mouseMin-b.mouseMin || a.mouseMax-b.mouseMax),pendingCount,completedCount,unknownCount,suspendedCount,taskCount:unique.length,snakeCount:new Set(unique.map(t=>t.snakeId)).size};
   }
+  function feedingReminders(tasks,records,{now=Date.now(),timezone='Asia/Shanghai'}={}) {
+    const today=localDate(now,timezone),results=new Map(),lastFed=new Map(),next=new Map();
+    // Resolve corrections before looking for successful meals. Cooldown follows the animal,
+    // not its cabinet, and starts on the actual feeding date in the room's timezone.
+    for(const record of records||[]){
+      const planned=Date.parse(record.planned_at);
+      if(!Number.isFinite(planned))continue;
+      const key=record.snake_id+':'+new Date(planned).toISOString(),old=results.get(key);
+      if(!old||String(record.occurred_at||'')>=String(old.occurred_at||''))results.set(key,record);
+    }
+    for(const record of results.values()){
+      if(!['fed','eaten','completed'].includes(record.result))continue;
+      const time=Date.parse(record.occurred_at||record.due_at||record.planned_at);
+      if(!Number.isFinite(time)||time>new Date(now).getTime())continue;
+      const date=localDate(time,timezone),id=String(record.snake_id);
+      if(!lastFed.has(id)||date>lastFed.get(id))lastFed.set(id,date);
+    }
+    const ordered=tasks.filter(t=>t.status==='pending').slice().sort((a,b)=>String(a.dueAt||a.date+'T'+(a.time||'')).localeCompare(String(b.dueAt||b.date+'T'+(b.time||''))));
+    for(const task of ordered){
+      const id=String(task.snakeId),fed=lastFed.get(id);
+      if(!next.has(id)&&(!fed||today>=addDays(fed,3)))next.set(id,task);
+    }
+    return [...next.values()];
+  }
   function feedingOverview(config,assignments,snakes,measurements,records,{now=Date.now(),lookaheadDays=366,plannedTasks=[],lockedTasks=[]}={}) {
     if(!Number.isInteger(lookaheadDays)||lookaheadDays<1||lookaheadDays>366)throw new Error('查询未来天数须为 1–366');
     const today=localDate(now,config.timezone),through=addDays(today,lookaheadDays),tasks=generateTasks(config,assignments,snakes,measurements,records,{from:today,to:through,now,plannedTasks,lockedTasks});
@@ -382,7 +406,13 @@
     // Preparation is day-based: include today's outstanding meals, even after their scheduled time.
     const nextFeedingDate=tasks.find(t=>t.status==='pending')?.date||null;
     const nextFeedingTasks=preparationTasks(tasks.filter(t=>t.status==='pending'&&t.date===nextFeedingDate),config,snakes,measurements,{now});
-    return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake,nextFeedingDate,nextFeedingTasks,nextFeedingSummary:summarize(nextFeedingTasks)};
+    const nextFeedingByCabinet={};
+    for(const cabinet of config.cabinets||[]){
+      const pending=tasks.filter(t=>t.status==='pending'&&t.cabinetId===cabinet.id),date=pending[0]?.date||null;
+      nextFeedingByCabinet[cabinet.id]={date,tasks:preparationTasks(pending.filter(t=>t.date===date),config,snakes,measurements,{now})};
+    }
+    const reminderTasks=preparationTasks(feedingReminders([...overdueTasks,...tasks],records,{now,timezone:config.timezone}),config,snakes,measurements,{now});
+    return {today,through,lookaheadDays,todayTasks,todaySummary:summarize(todayTasks),overdueTasks,unknownTasks:todayTasks.filter(t=>t.status==='pending'&&(!positive(t.mouseMin)||!positive(t.mouseMax)||!Number.isInteger(t.quantity)||t.quantity<1)),nextTask:future[0]||null,nextByCabinet,nextBySnake,nextFeedingDate,nextFeedingTasks,nextFeedingSummary:summarize(nextFeedingTasks),nextFeedingByCabinet,reminderTasks};
   }
-  return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,preparationTasks,mouseColor,summarize,dayColors,cabinetCorners};
+  return {defaultConfig,createCabinet,createIncubator,resizeIncubator,incubatorLayout,cloneCabinet,cloneLevel,resizeLevels,effectiveSchedule,previewMove,validateConfig,matchMouse,latestWeight,weekDates,localDate,localDateTimeToInstant,generateTasks,feedingOverview,feedingReminders,preparationTasks,mouseColor,summarize,dayColors,cabinetCorners};
 });

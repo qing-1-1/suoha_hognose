@@ -14,13 +14,13 @@ function initialFixture(){
   const user={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'1442399241@qq.com'};
   return {user,profiles:[{...user,display_name:'suohama',role:'admin',active:true}],snakes:[['ROOM-A','F','白化',45],['ROOM-B','M','雪花',160],['ROOM-C','U','原色',10]].map(([id,sex,gene_text])=>({id,sex,gene_text,series:'测试系列',status:'active',inventory_library:'stock',birth_date:'2025-01-01'})),snake_measurements:[['ROOM-A',45],['ROOM-B',160],['ROOM-C',10]].map(([snake_id,weight_g],i)=>({id:'weight-'+i,snake_id,weight_g,record_kind:'measurement',measured_at:'2026-10-01'})),specimen_listings:[],specimen_media:[],inventory_transfers:[],calls:[],snapshot:{revision:1,config,assignments:[{slot_id:'slot-0-0-0',snake_id:'ROOM-A',assigned_at:'2026-10-01T00:00:00Z'},{slot_id:'slot-1-0-0',snake_id:'ROOM-B',assigned_at:'2026-10-01T00:00:00Z'}],records:[],moves:[]}};
 }
-async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={}){
+async function boot(page,{missing=false,anonymous=false,data=initialFixture(),now=fixedNow}={}){
   await page.route('**/.netlify/functions/room-environment*',async route=>{
     const response=await page.evaluate(()=>({...window.SuohaRoomEnvironment.snapshot(window.roomFixture.snapshot.config),revision:window.roomFixture.snapshot.revision,deviceIds:[]}));
     await route.fulfill({contentType:'application/json',body:JSON.stringify(response)});
   });
   const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('room browser error:',e.message);});
-  await page.clock.setFixedTime(new Date(fixedNow));
+  await page.clock.setFixedTime(new Date(now));
   await page.route('**/fonts.googleapis.com/**',r=>r.abort());
   await page.route('**/cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'text/javascript',body:`
     window.roomFixture=JSON.parse(sessionStorage.getItem('room-test-db')||'null')||${JSON.stringify(data)};
@@ -102,6 +102,39 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture()}={
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('a completed Tuesday meal stays white until Friday and only Saturday is highlighted',async({page},info)=>{
+ const data=initialFixture(),now='2026-10-20T10:00:00Z';
+ data.snapshot.config.cabinets[0].schedule.weekdays=[2,6];
+ data.snapshot.records=[{id:'fed',snake_id:'ROOM-A',slot_id:'slot-0-0-0',cabinet_id:'rack-a',planned_at:now,due_at:now,occurred_at:now,result:'fed',quantity:1,mouse_min_g:4,mouse_max_g:6}];
+ const errors=await boot(page,{data,now});await openRack(page);
+ const box=room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"])');
+ await expect(box.locator('.rw-box-face')).toHaveAttribute('fill','#fffef8');await expect(box.locator('.rw-box-days')).toHaveCount(0);
+ await expect(room(page).locator('.rw-summary-top')).toContainText('下一个喂食日 · 2026-10-24');
+ await page.clock.setFixedTime(new Date('2026-10-22T15:59:59Z'));await page.reload();await openRack(page);
+ await expect(box.locator('.rw-box-days')).toHaveCount(0);
+ await page.clock.setFixedTime(new Date('2026-10-22T16:00:00Z'));await page.reload();await openRack(page);
+ await expect(box.locator('.rw-box-days')).toHaveText('六');
+ await expect.poll(()=>room(page).locator('[data-rw-canvas]').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+ await room(page).locator('[data-rw-canvas]').evaluate(el=>window.scrollTo({top:el.getBoundingClientRect().top+scrollY-100,behavior:'instant'}));
+ await page.screenshot({path:`artifacts/room-nearest-feeding-${info.project.name}.png`});expect(errors).toEqual([]);
+});
+
+test('mobile short taps open real slot details without rebuilding every box',async({page},info)=>{
+ test.skip(info.project.name!=='mobile');
+ const data=initialFixture(),cabinet=data.snapshot.config.cabinets[0];
+ const dense=M.resizeLevels(cabinet,Array.from({length:11},(_,i)=>({id:cabinet.levels[i]?.id,height:143,count:6,boxWidth:180,boxDepth:460,boxHeight:140})));
+ dense.height=1900;data.snapshot.config.cabinets[0]=dense;
+ const errors=await boot(page,{data});await openRack(page);
+ await expect.poll(()=>room(page).locator('[data-rw-canvas]').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+ const slot=room(page).locator('.rw-scene-world [data-slot="slot-0-0-0"]');
+ await slot.evaluate(el=>el.focus({preventScroll:true}));
+ await page.evaluate(()=>{window.sceneRenderCount=0;const render=SuohaRoomScene.prototype.render;SuohaRoomScene.prototype.render=function(...args){sceneRenderCount++;return render.apply(this,args);};});
+ await slot.tap({timeout:2500});await expect(modal(page)).toBeVisible({timeout:1000});await expect(modal(page)).toContainText('ROOM-A');
+ expect(await page.evaluate(()=>sceneRenderCount)).toBe(0);
+ await closeModal(page);await slot.tap({timeout:2500});await expect(modal(page)).toBeVisible({timeout:1000});
+ expect(errors).toEqual([]);
+});
 
 test('layer telemetry is hidden by default and its display switch never changes bindings',async({page},info)=>{
  const data=initialFixture();data.snapshot.config.cabinets[0].levels[0].environment={temperature:{provider:'mqtt',deviceId:'probe',channel:'temp',label:'温度计',staleAfterSeconds:300}};
@@ -734,13 +767,13 @@ test('building keeps slot actions, saves rotation before assignment and returns 
 async function openRack(page,id='rack-a'){await room(page).locator(`[data-rw="cabinet"][data-cabinet="${id}"]`).click();await expect(room(page).locator('.rw-summary-top')).toContainText(id==='rack-a'?'银柜 A':'银柜 B');const menu=room(page).getByRole('button',{name:'柜体设置',exact:true});if(await menu.isVisible()&&!await room(page).getByRole('button',{name:'柜体配置',exact:true}).isVisible())await menu.click();}
 async function closeModal(page){await modal(page).getByRole('button',{name:'关闭',exact:true}).last().click();}
 
-test('private room renders multi-date colored surfaces and retains date scope across smooth cabinet navigation',async({page},info)=>{
+test('private room defaults to nearest reminder and retains explicit calendar preview across cabinet navigation',async({page},info)=>{
   const errors=await boot(page);
   const mini=room(page).locator('[data-mini-slot="slot-0-0-0"]');
   await expect(mini).toHaveClass(/is-planned/);
-  await expect(mini).toHaveCSS('background-image',/linear-gradient/);
+  await expect(mini).toHaveCSS('background-image','none');
+  // The fixture persists Monday's unfinished meal; overdue work wins over a later meal.
   expect(await mini.evaluate(el=>el.style.background)).toContain('37, 99, 235');
-  expect(await mini.evaluate(el=>el.style.background)).toContain('194, 65, 12');
   expect(await page.evaluate(()=>document.documentElement.scrollHeight)).toBeLessThan(info.project.name==='desktop'?5000:7000);
   await page.screenshot({path:`artifacts/room-overview-${info.project.name}.png`});
   const monday=room(page).locator('[data-rw-date="2026-10-12"]');
@@ -755,7 +788,7 @@ test('private room renders multi-date colored surfaces and retains date scope ac
   await expect(room(page).locator('[data-rw-date="2026-10-12"]')).toHaveAttribute('aria-pressed','true');
   await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"]) .rw-box-face')).toHaveAttribute('fill',/url\(#/);
   await room(page).getByRole('button',{name:'全部日期',exact:true}).click();
-  await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"])')).toContainText(/一\s*\/?\s*三\s*\/?\s*五/);
+  await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"]) .rw-box-days')).toHaveText('一');
   if(info.project.name==='mobile')await expect.poll(()=>room(page).locator('[data-rw-week]').evaluate(el=>el.getBoundingClientRect().top)).toBeLessThan(100);
   await expect.poll(()=>room(page).locator('[data-rw-canvas]').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
   await page.screenshot({path:`artifacts/room-cabinet-${info.project.name}.png`});
@@ -764,7 +797,7 @@ test('private room renders multi-date colored surfaces and retains date scope ac
     await page.screenshot({path:'artifacts/room-cabinet-detail-mobile.png'});
   }
   await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
-  await expect(room(page).locator('[data-mini-slot="slot-0-0-0"]')).toHaveCSS('background-image',/linear-gradient/);
+  await expect(room(page).locator('[data-mini-slot="slot-0-0-0"]')).toHaveCSS('background-image','none');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
 });
 
@@ -822,7 +855,9 @@ test('a snake can be assigned and moved through boxes; feeding result removes on
   await modal(page).getByRole('button',{name:'记录结果',exact:true}).first().click();
   await modal(page).getByRole('combobox',{name:'结果',exact:true}).selectOption('fed');
   await modal(page).getByRole('button',{name:'保存实际记录',exact:true}).click();await expect(modal(page)).toBeHidden();
-  await expect(room(page).locator('[data-summary-cabinet="rack-a"]')).toContainText('2 次待喂');
+  await expect(room(page).locator('[data-summary-cabinet="rack-a"]')).toContainText('1 次待喂');
+  expect(await page.evaluate(()=>{const f=roomFixture;return SuohaRoomModel.generateTasks(f.snapshot.config,f.snapshot.assignments,f.snakes,f.snake_measurements,f.snapshot.records,{from:'2026-10-12',to:'2026-10-18',plannedTasks:f.snapshot.planned_tasks}).filter(t=>t.snakeId==='ROOM-A'&&t.status==='pending').length;})).toBe(2);
+  await expect(room(page).locator('[data-mini-slot="slot-0-0-0"]')).not.toHaveClass(/is-planned/);
   expect(await page.evaluate(()=>roomFixture.snapshot.records.find(r=>r.snake_id==='ROOM-A').result)).toBe('fed');
   await page.reload();await expect(room(page).locator('[data-mini-slot="slot-1-0-1"]')).toHaveText('ROOM-C');expect(errors).toEqual([]);
 });
