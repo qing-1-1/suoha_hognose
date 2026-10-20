@@ -37,6 +37,9 @@ test('cards, clutch groups, retry-safe batch registration and private growth rec
  await baby.getByRole('button',{name:'留存',exact:true}).click();await batch.getByLabel('留存评估（可选）').fill('持续观察体重，保留育种方向。');await batch.getByRole('button',{name:'确认留存',exact:true}).click();await expect(batch).toBeHidden();
  await baby.getByRole('button',{name:'查看档案 ↗',exact:true}).click();await expect(page.locator('#retentionHistory')).toContainText('持续观察体重');
  await expect(page.locator('.weight-trend')).toContainText('2 次测量');
+ await expect(page.locator('.weight-chart-value')).toHaveText(['7 g','10 g']);
+ await expect(page.locator('.weight-chart-tick').first()).toHaveText('0');
+ await expect(page.locator('.weight-chart')).toContainText('重量（g）');
  await page.getByRole('button',{name:'新增成长记录',exact:true}).click();await batch.getByRole('combobox',{name:'记录类型',exact:true}).selectOption('shedding');await batch.getByRole('textbox',{name:'观察与备注',exact:true}).fill('记录本次完整蜕皮，日期已核对。');await batch.getByRole('button',{name:'保存',exact:true}).click();await expect(batch).toBeHidden();
  await page.getByRole('combobox',{name:'成长记录类型',exact:true}).selectOption('shedding');await expect(page.locator('.growth-event')).toHaveCount(1);
  await page.locator('.growth-event').getByRole('button',{name:'编辑记录',exact:true}).click();await batch.getByRole('textbox',{name:'观察与备注',exact:true}).fill('更正后的观察记录');await batch.getByRole('button',{name:'保存',exact:true}).click();await expect(batch).toBeHidden();

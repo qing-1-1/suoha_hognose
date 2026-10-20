@@ -32,7 +32,7 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture(),no
     fixture.snapshot.active_rule_version_id||='version-1';
     const persist=()=>sessionStorage.setItem('room-test-db',JSON.stringify(fixture));
     window.supabase={createClient:()=>({auth:{onAuthStateChange(){},getSession:async()=>({data:{session:${anonymous?'null':'{user,access_token:"test"}'}}})},
-      from(table){let filters=[],mode='',values,range=null,cached;const q={select(){return this},order(){return this},limit(){return this},range(a,b){range=[a,b];return this},eq(k,v){filters.push([k,v]);return this},insert(v){mode='insert';values=v;return this},update(v){mode='update';values=v;return this},delete(){mode='delete';return this},execute(){if(cached)return cached;const list=fixture[table]||[],match=r=>filters.every(([k,v])=>r[k]===v);let selected=list.filter(match);if(mode==='insert'){selected=[{id:crypto.randomUUID(),created_at:new Date().toISOString(),...values}];(fixture[table]??=[]).push(...selected);}if(mode==='update')selected.forEach(r=>Object.assign(r,values));if(mode==='delete')fixture[table]=list.filter(r=>!match(r));const count=selected.length;if(range)selected=selected.slice(range[0],range[1]+1);return cached={data:structuredClone(selected),count,error:null};},maybeSingle(){const r=this.execute();return Promise.resolve({...r,data:r.data[0]||null});},single(){return this.maybeSingle();},then(resolve,reject){return Promise.resolve(this.execute()).then(resolve,reject)}};return q;},
+      from(table){let filters=[],mode='',values,range=null,cached;const q={select(){return this},order(){return this},limit(){return this},range(a,b){range=[a,b];return this},eq(k,v){filters.push([k,v]);return this},insert(v){mode='insert';values=v;return this},update(v){mode='update';values=v;return this},delete(){mode='delete';return this},execute(){if(cached)return cached;const list=fixture[table]||[],match=r=>filters.every(([k,v])=>r[k]===v);let selected=list.filter(match);if(mode==='insert'){selected=[{id:crypto.randomUUID(),created_at:new Date().toISOString(),...values}];(fixture[table]??=[]).push(...selected);}if(mode==='update')selected.forEach(r=>Object.assign(r,values));if(mode==='delete')fixture[table]=list.filter(r=>!match(r));if(mode)persist();const count=selected.length;if(range)selected=selected.slice(range[0],range[1]+1);return cached={data:structuredClone(selected),count,error:null};},maybeSingle(){const r=this.execute();return Promise.resolve({...r,data:r.data[0]||null});},single(){return this.maybeSingle();},then(resolve,reject){return Promise.resolve(this.execute()).then(resolve,reject)}};return q;},
       async rpc(name,args={}){
         if(name==='inventory_sale_states')return {data:fixture.snakes.map(s=>({snake_id:s.id,sale_state:'normal'})),error:null};
         if(!name.startsWith('room_'))return {data:[],error:null};
@@ -102,6 +102,35 @@ async function boot(page,{missing=false,anonymous=false,data=initialFixture(),no
 }
 const room=p=>p.locator('#workspaceRoom');
 const modal=p=>p.locator('#roomDialog');
+
+test('slot details share the individual weight chart, keep all values readable and isolate each snake',async({page},info)=>{
+ const data=initialFixture();data.snake_measurements.push(...Array.from({length:9},(_,i)=>({id:'history-'+i,snake_id:'ROOM-A',record_kind:'measurement',measured_at:`2026-09-${String(i+1).padStart(2,'0')}`,weight_g:20+i/10})));
+ data.snake_measurements=data.snake_measurements.filter(r=>r.snake_id!=='ROOM-C');
+ const errors=await boot(page,{data});
+ await room(page).locator('[data-mini-slot="slot-0-0-0"]').click();
+ const chart=modal(page).locator('.weight-chart');await expect(chart).toContainText('10 次测量');await expect(chart.locator('.weight-chart-point')).toHaveCount(10);
+ await expect(chart.locator('.weight-chart-value').nth(1)).toHaveText('20.1 g');await expect(chart.locator('.weight-chart-tick').first()).toHaveText('0');
+ await expect(chart.locator('.weight-chart-value').last()).toHaveText('45 g');
+ const plot=chart.locator('.weight-chart-scroll');await plot.scrollIntoViewIfNeeded();await plot.focus();
+ await expect(plot).toBeFocused();expect(await plot.evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(true);
+ await plot.evaluate(el=>el.scrollLeft=el.scrollWidth);
+ await expect(chart.locator('.weight-chart-tick').first()).toBeInViewport();
+ await expect(chart.locator('.weight-chart-value').last()).toBeInViewport();
+ expect(await chart.locator('.weight-chart-value').last().evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`artifacts/room-weight-chart-${info.project.name}.png`});
+ await closeModal(page);await room(page).locator('[data-mini-slot="slot-1-0-0"]').click();
+ await expect(chart.locator('.weight-chart-value')).toHaveText('160 g');await expect(chart).toContainText('1 次测量');
+ await closeModal(page);await room(page).locator('[data-mini-slot="slot-0-0-1"]').click();await expect(chart).toHaveCount(0);
+ await modal(page).getByLabel('选择蛇只').selectOption('ROOM-C');await modal(page).getByRole('button',{name:'放入蛇只',exact:true}).click();
+ await room(page).locator('[data-mini-slot="slot-0-0-1"]').click();await expect(modal(page)).toContainText('暂无有效体重记录');
+ await modal(page).getByRole('button',{name:'称重',exact:true}).click();await modal(page).getByLabel('蛇体重 g').fill('12.3');await modal(page).getByRole('button',{name:'保存测量',exact:true}).click();
+ await expect(modal(page)).toBeHidden();await room(page).locator('[data-mini-slot="slot-0-0-1"]').click();await expect(chart.locator('.weight-chart-value')).toHaveText('12.3 g');
+ await closeModal(page);await page.goto('/admin?snake=ROOM-C#individual');
+ await expect(page.locator('#growthTimeline .weight-chart-value')).toHaveText('12.3 g');
+ await expect.poll(()=>page.locator('#page-individual').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
+ await page.locator('#growthTimeline .weight-chart').scrollIntoViewIfNeeded();await page.screenshot({path:`artifacts/individual-weight-single-${info.project.name}.png`});expect(errors).toEqual([]);
+});
 
 test('a completed Tuesday meal stays white until Friday and only Saturday is highlighted',async({page},info)=>{
  const data=initialFixture(),now='2026-10-20T10:00:00Z';
