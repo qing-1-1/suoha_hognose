@@ -380,7 +380,17 @@ test('incubator build, winter occupancy and plan-linked eggs persist through box
   await expect(modal(page)).toHaveAttribute('aria-modal','false');
   await expect(modal(page)).toContainText('冬化期间暂停常规喂食');
   await modal(page).getByRole('button',{name:'关闭',exact:true}).first().click();
+  await room(page).locator(`.rw-slot-hit[data-slot="${winter.levels[0].slots[0].id}"]`).click();
+  await modal(page).getByRole('button',{name:'移动蛇只',exact:true}).click();
+  await modal(page).getByLabel('目标格位',{exact:true}).selectOption('slot-0-0-1');
+  await expect(modal(page).locator('[data-move-preview]')).toContainText('移出冬化箱');
+  await modal(page).getByRole('button',{name:'保存位置',exact:true}).click();
   await room(page).getByRole('button',{name:'← 房间总览',exact:true}).click();
+  await room(page).locator('[data-mini-slot="slot-0-0-1"]').click();
+  await modal(page).getByRole('button',{name:'移动蛇只',exact:true}).click();
+  await modal(page).getByLabel('目标格位',{exact:true}).selectOption(winter.levels[0].slots[0].id);
+  await expect(modal(page).locator('[data-move-preview]')).toContainText('移入冬化箱');
+  await modal(page).getByRole('button',{name:'保存位置',exact:true}).click();
   await room(page).getByRole('button',{name:'搭建房间',exact:true}).click();
   await room(page).getByRole('button',{name:'添加孵化箱',exact:true}).click();
   await modal(page).getByLabel('箱名',{exact:true}).fill('孵蛋一号');

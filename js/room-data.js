@@ -7,7 +7,7 @@
     const { data, error } = await sb.rpc(name, args || {});
     if (error) {
       const message = error.message || '爬房保存失败';
-      const err = new Error(/revision conflict/i.test(message) ? '其他会话已修改爬房，请刷新后再保存。' : /schema cache|does not exist|could not find the function/i.test(message) ? '爬房数据库迁移尚未部署，请依次执行 039–042 爬房迁移。' : message);
+      const err = new Error(/revision conflict/i.test(message) ? '其他会话已修改爬房，请刷新后再保存。' : /incubators are phase two/i.test(message) ? '孵化柜数据库迁移 042 尚未部署，请执行后刷新再保存。' : /schema cache|does not exist|could not find the function/i.test(message) ? '爬房数据库迁移尚未部署，请依次执行 039–042 爬房迁移。' : message);
       err.code = error.code; err.cause = error; throw err;
     }
     if (!data || !Number.isInteger(data.revision)) throw new Error('爬房数据库返回无效，请刷新重试。');

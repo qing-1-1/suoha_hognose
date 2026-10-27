@@ -77,3 +77,14 @@ test('A1 screenshot schema scales current temperature and validates tenths-degre
  await assert.rejects(f.cloud.prepare(f.config,{...body,value:28.65}),e=>e.code==='TEMPERATURE_STEP');
  await assert.rejects(f.cloud.prepare(f.config,{...body,value:40}),e=>e.code==='TEMPERATURE_RANGE');
 });
+
+test('read failures identify stage and safe network cause while command ambiguity is preserved',async()=>{
+ const env={TUYA_ACCESS_ID:'test-id',TUYA_ACCESS_SECRET:'test-secret',TUYA_DEVICE_IDS:'pad1'};
+ for(const [cause,code] of [['ENOTFOUND','TUYA_DNS'],['ETIMEDOUT','TUYA_TIMEOUT'],['ECONNRESET','TUYA_CONNECTION'],['CERT_HAS_EXPIRED','TUYA_TLS'],['UNKNOWN','TUYA_NETWORK']]){
+  const cloud=createTuya({env,fetchImpl:async()=>{throw Object.assign(Error('private secret body'),{cause:{code:cause}});}});
+  await assert.rejects(cloud.checkConnection(),e=>e.code===code&&e.message.includes('获取授权令牌')&&e.message.includes('openapi.tuyacn.com')&&!e.message.includes('private'));
+ }
+ const cloud=createTuya({env,fetchImpl:async url=>url.includes('/token?')?{ok:true,json:async()=>({success:true,result:{access_token:'secret-token',expire_time:7200}})}:{ok:false,status:403,json:async()=>{throw Error('private HTML body');}}});
+ await assert.rejects(cloud.device('pad1'),e=>e.code==='TUYA_RESPONSE_FORMAT'&&e.message.includes('HTTP 403')&&e.message.includes('读取设备')&&!e.message.includes('private'));
+ await assert.rejects(cloud.send('pad1',{code:'switch',value:false}),e=>e.code==='TUYA_TRANSPORT'&&e.message.includes('结果未知'));
+});

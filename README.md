@@ -1,5 +1,7 @@
 # Suoha Hognose
 
+**孵化柜缺失补丁（2026-10-27）：** 已执行到 052，但添加孵化柜报 `Incubators are phase two`，且 `room_incubation_allocations` 表与 `room_save_incubation(integer,jsonb,uuid)` 函数均不存在时，执行 [053_backfill_room_incubators.sql](supabase/migrations/053_backfill_room_incubators.sql)。补丁在现有设备校验链下补齐孵化柜能力，保留 043 的计划生成函数和 048–052 的现有处理；重复执行会跳过安装。无需重跑 042 或 043–052。已完成 042 的数据库会跳过。此补丁仅本地验证，未执行线上 SQL。
+
 **涂鸦云接入（2026-10-16）：** 已实现设备状态/数据点读取、层级绑定和按明确映射设置目标温度/加热开关。凭据尚未配置，真实 A1 未联调。旧项目新增 051，独立重构新增 022 控制审计迁移。详见 [接入步骤与成功案例资料](docs/design/涂鸦云接入与案例.md)。
 
 **温湿度设备预留（2026-10-16）：** 爬房 → 温湿度设备，按层保存温度/湿度来源及设备通道。先部署 [050 温湿度接口迁移](supabase/migrations/050_room_environment.sql)。当前未连接真实加热垫，接入格式与两项目对应接口见 [温湿度设备接入](docs/design/温湿度设备接入.md)。

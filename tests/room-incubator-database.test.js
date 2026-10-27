@@ -19,7 +19,7 @@ test('scheduled male recommendations use 6–8g maximum and match frontend while
   assert.ok(state.planned_tasks.filter(t=>t.snake_id==='B').every(t=>t.mouse_min_g===20&&t.mouse_max_g===24));
  }finally{await db.close();}
 });
-async function setup(){
+async function setup({missingIncubators=false}={}){
  const db=new PGlite();
  await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;
  create table auth.users(id uuid primary key);create table profiles(id uuid primary key,role text,active boolean);
@@ -37,9 +37,54 @@ async function setup(){
  insert into breeding_events values(1,1,'F','M',current_date-30,'successful'),(2,2,'F','M',current_date-30,'successful'),(3,3,'F','M',current_date-30,'successful');
  insert into clutches values(1,'CL-1',1,'F','M',current_date-2,10,8,0,'incubating',current_date+45),(2,'CL-2',2,'F','M',current_date-2,10,8,0,'incubating',null),(3,'CL-3',3,'F','M',current_date-2,10,8,0,'incubating',null);
  insert into snake_measurements(snake_id,record_kind,measured_at,weight_g) values('A','measurement',current_date,23),('B','measurement',current_date,9);`);
- for(const f of ['039_room_workspace.sql','040_room_rules_and_batches.sql','041_room_label_font_size.sql','042_room_incubators.sql','043_male_feeding_cap.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
+ for(const f of ['039_room_workspace.sql','040_room_rules_and_batches.sql','041_room_label_font_size.sql',...(!missingIncubators?['042_room_incubators.sql']:[]),'043_male_feeding_cap.sql',...(missingIncubators?['048_current_weight_preparation.sql','049_room_feeding_measurement_type.sql','050_room_environment.sql','051_room_tuya_cloud.sql','052_room_environment_devices.sql']:[])])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await db.exec("set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';set role authenticated");return db;
 }
+test('053 backfills missing 042 after 052, preserving existing generator, devices, records and occupancy',async()=>{
+ const db=await setup({missingIncubators:true});try{
+  const sql=name=>fs.readFileSync('supabase/migrations/'+name,'utf8');
+  const functionBody=async signature=>(await db.query('select prosrc from pg_proc where oid=to_regprocedure($1)',[signature])).rows[0]?.prosrc;
+  await db.exec('reset role');
+  const generator=await functionBody('room_generate_plans(date,date)'),devicesValidator=await functionBody('room_validate_config(jsonb)'),cloudValidator=await functionBody('room_validate_config_v051(jsonb)'),baseValidator=await functionBody('room_validate_config_v049(jsonb)');
+  const priorFunctions=(await db.query("select oid,prosrc from pg_proc where pronamespace='public'::regnamespace")).rows;
+  assert.equal((await db.query("select to_regclass('room_incubation_allocations') t")).rows[0].t,null);
+  const cfg=room(),racksOnly=structuredClone(cfg);racksOnly.cabinets=racksOnly.cabinets.slice(0,1);
+  racksOnly.cabinets[0].levels[0].environment={temperature:{provider:'tuya_cloud',deviceId:'pad1',channel:'temp_current',label:'温控',staleAfterSeconds:300}};
+  const E=require('../js/room-environment.js');E.applyCatalog(racksOnly,E.catalog(racksOnly));
+  await db.exec('set role authenticated');
+  let state=(await db.query('select room_save_layout($1,$2,$3) data',[0,racksOnly,randomUUID()])).rows[0].data;
+  state=(await db.query('select room_assign($1,$2,$3,false,$4) data',[state.revision,'A','racks1',randomUUID()])).rows[0].data;
+  const instant=new Date().toISOString();
+  state=(await db.query('select room_record_feeding($1,$2,$3) data',[state.revision,{snake_id:'A',slot_id:'racks1',cabinet_id:'rack',planned_at:instant,due_at:instant,occurred_at:instant,result:'fed',quantity:1,mouse_min_g:2,mouse_max_g:3},randomUUID()])).rows[0].data;
+  cfg.environmentDevices=structuredClone(racksOnly.environmentDevices);cfg.cabinets[0]=structuredClone(racksOnly.cabinets[0]);
+  await assert.rejects(db.query('select room_save_layout($1,$2,$3)',[state.revision,cfg,randomUUID()]),/Incubators are phase two/);
+  await db.exec('reset role');
+  // Reproduce why the original 042 cannot be applied after 043.
+  await assert.rejects(db.exec(sql('042_room_incubators.sql')),/room_generate_plans.*already exists/);
+  await db.exec('rollback');
+  await db.exec(sql('053_backfill_room_incubators.sql'));
+  for(const f of priorFunctions)assert.equal((await db.query('select prosrc from pg_proc where oid=$1',[f.oid])).rows[0]?.prosrc,f.prosrc);
+  assert.equal(await functionBody('room_generate_plans(date,date)'),generator);
+  assert.equal(await functionBody('room_validate_config(jsonb)'),devicesValidator);
+  assert.equal(await functionBody('room_validate_config_v051(jsonb)'),cloudValidator);
+  assert.equal(await functionBody('room_validate_config_v041(jsonb)'),baseValidator);
+  await db.exec('set role authenticated');
+  let after=(await db.query('select room_snapshot() data')).rows[0].data;
+  for(const k of ['revision','config','assignments','records','moves','rule_versions'])assert.deepEqual(after[k],state[k]);
+  after=(await db.query('select room_save_layout($1,$2,$3) data',[after.revision,cfg,randomUUID()])).rows[0].data;
+  const broken=structuredClone(cfg);broken.cabinets[0].levels[0].environment.temperature.channel='wrong';
+  await assert.rejects(db.query('select room_save_layout($1,$2,$3)',[after.revision,broken,randomUUID()]),/不一致/);
+  after=(await db.query('select room_assign($1,$2,$3,false,$4) data',[after.revision,'A','winters1',randomUUID()])).rows[0].data;
+  assert.equal(after.assignments.find(a=>a.snake_id==='A').slot_id,'winters1');
+  after=(await db.query('select room_assign($1,$2,$3,false,$4) data',[after.revision,'A','racks1',randomUUID()])).rows[0].data;
+  const day=(await db.query("select (now() at time zone 'Asia/Shanghai')::date::text d")).rows[0].d;
+  after=(await db.query('select room_save_incubation($1,$2,$3) data',[after.revision,{slot_id:'eggss1',plan_id:1,clutch_id:1,egg_count:5,started_on:day},randomUUID()])).rows[0].data;
+  assert.equal(after.incubations[0].egg_count,5);
+  await db.exec('reset role');await db.exec(sql('053_backfill_room_incubators.sql'));await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select room_snapshot() data')).rows[0].data,after);
+  await db.exec('reset role;set role anon');await assert.rejects(db.query('select room_snapshot()'),/permission denied/);
+ }finally{await db.close();}
+});
 test('incubator allocations enforce approved lineage, capacity, purpose, transactions and complete history',async()=>{
  const db=await setup();try{
   let state=(await db.query('select room_snapshot() data')).rows[0].data;

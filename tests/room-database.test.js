@@ -155,6 +155,9 @@ test('room adapter reports missing migration and retries ambiguous writes with t
   await assert.rejects(context.window.SuohaRoomData.save({name:'房间'},0),/Network/);
   await context.window.SuohaRoomData.save({name:'房间'},0);
   assert.equal(calls[0].args.p_request,calls[1].args.p_request);
+
+  context.sb.rpc=async()=>({error:{message:'Incubators are phase two'}});
+  await assert.rejects(context.window.SuohaRoomData.save({name:'房间'},1),/042 尚未部署/);
 });
 
 for(const upgradeIncubators of [false,true])test(`${upgradeIncubators?'042 upgrade preserves':'040 keeps'} immutable rule versions and confirmed preparation while validating labels and actual results`,async()=>{

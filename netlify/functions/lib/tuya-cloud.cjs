@@ -28,7 +28,22 @@ function createTuya({env=process.env,fetchImpl=globalThis.fetch,now=Date.now}={}
   const s=settings(),time=String(now()),payload=body===undefined?'':JSON.stringify(body);
   const headers={client_id:env.TUYA_ACCESS_ID,t:time,sign_method:'HMAC-SHA256',sign:signature({clientId:env.TUYA_ACCESS_ID,secret:env.TUYA_ACCESS_SECRET,token:access,time,method,path,body:payload}),'content-type':'application/json'};
   if(access)headers.access_token=access;
-  let response,data;try{response=await fetchImpl(s.base+path,{method,headers,...(payload?{body:payload}:{}),redirect:'error',signal:AbortSignal.timeout(8000)});data=await response.json();}catch{fail('TUYA_TRANSPORT',method==='POST'?'指令结果未知，请查看设备状态，勿自动重发':'涂鸦云连接失败，请稍后重试',502);}
+  const stage=path.startsWith('/v1.0/token')?'获取授权令牌':path.endsWith('/specification')?'读取设备规格':path.endsWith('/status')?'读取设备状态':path.endsWith('/commands')?'发送控制指令':path.endsWith('/properties')?'读取采样时间':'读取设备信息';
+  const context=stage+'（'+new URL(s.base).hostname+'）';
+  function transport(error,parsing=false,httpStatus){
+   if(method==='POST')fail('TUYA_TRANSPORT',context+'：指令结果未知，请查看设备状态，勿自动重发',502);
+   const codes=[];function collect(e,depth=0){if(!e||depth>3)return;codes.push(e.code,e.name);collect(e.cause,depth+1);if(Array.isArray(e.errors))e.errors.slice(0,8).forEach(v=>collect(v,depth+1));}collect(error);
+   let code='TUYA_NETWORK',reason='网络请求失败，请检查云函数出站网络、数据中心及访问限制';
+   if(codes.some(c=>['TimeoutError','AbortError','ETIMEDOUT','UND_ERR_CONNECT_TIMEOUT','UND_ERR_HEADERS_TIMEOUT','UND_ERR_BODY_TIMEOUT'].includes(c))){code='TUYA_TIMEOUT';reason='请求超时（8秒），请检查云函数到涂鸦数据中心的网络';}
+   else if(codes.some(c=>['ENOTFOUND','EAI_AGAIN'].includes(c))){code='TUYA_DNS';reason='域名解析失败，请检查服务器 DNS';}
+   else if(codes.some(c=>['CERT_HAS_EXPIRED','DEPTH_ZERO_SELF_SIGNED_CERT','UNABLE_TO_VERIFY_LEAF_SIGNATURE','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_GET_ISSUER_CERT_LOCALLY'].includes(c))){code='TUYA_TLS';reason='TLS 证书校验失败，请检查服务器证书链或代理';}
+   else if(codes.some(c=>['ECONNRESET','ECONNREFUSED','ENETUNREACH','EHOSTUNREACH','UND_ERR_SOCKET'].includes(c))){code='TUYA_CONNECTION';reason='连接被拒绝、中断或网络不可达';}
+   else if(parsing){code='TUYA_RESPONSE_FORMAT';reason='响应不是有效 JSON'+(Number.isInteger(httpStatus)?'（HTTP '+httpStatus+'）':'')+'，请检查网关、地域或 IP 访问限制';}
+   fail(code,context+'：'+reason,502);
+  }
+  let response,data;try{response=await fetchImpl(s.base+path,{method,headers,...(payload?{body:payload}:{}),redirect:'error',signal:AbortSignal.timeout(8000)});}catch(e){transport(e);}
+  try{data=await response.json();}catch(e){transport(e,true,response.status);}
+
   if(method==='POST'&&(!response.ok||typeof data?.success!=='boolean'))fail('TUYA_TRANSPORT','指令结果未知，请查看设备状态，勿自动重发',502);
   if(!response.ok||data?.success!==true){const code=String(data?.code||response.status);if(!/^[0-9]{1,8}$/.test(code))fail('TUYA_UPSTREAM','涂鸦云拒绝请求',502);fail('TUYA_'+code,'涂鸦云返回错误 '+code+'，请核对区域、设备授权及 API 服务权限',502);}
   return data.result;
