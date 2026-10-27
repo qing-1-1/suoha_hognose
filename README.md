@@ -1,5 +1,7 @@
 # Suoha Hognose
 
+**冬化投喂检查修复（2026-10-27）：** 已执行 053（或已完整安装 042）的数据库只需再执行 [054_room_brumation_pending_feeding.sql](supabase/migrations/054_room_brumation_pending_feeding.sql)，不要重跑 042/053。修复未关联确认备料批次的“已投喂、待确认”记录漏过冬化入箱检查的问题，保留全部记录且可重复执行。已有卡住记录请先移蛇回饲养柜、确认实际投喂结果，再移入冬化箱；补丁不会自动判定进食。前端检查和迁移错误提示需另行部署新版前端。此补丁未代为执行线上 SQL。
+
 **孵化柜缺失补丁（2026-10-27）：** 已执行到 052，但添加孵化柜报 `Incubators are phase two`，且 `room_incubation_allocations` 表与 `room_save_incubation(integer,jsonb,uuid)` 函数均不存在时，执行 [053_backfill_room_incubators.sql](supabase/migrations/053_backfill_room_incubators.sql)。补丁在现有设备校验链下补齐孵化柜能力，保留 043 的计划生成函数和 048–052 的现有处理；重复执行会跳过安装。无需重跑 042 或 043–052。已完成 042 的数据库会跳过。此补丁仅本地验证，未执行线上 SQL。
 
 **涂鸦云接入（2026-10-16）：** 已实现设备状态/数据点读取、层级绑定和按明确映射设置目标温度/加热开关。凭据尚未配置，真实 A1 未联调。旧项目新增 051，独立重构新增 022 控制审计迁移。详见 [接入步骤与成功案例资料](docs/design/涂鸦云接入与案例.md)。

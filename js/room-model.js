@@ -95,6 +95,7 @@
     if(request.wholeBox&&(source?.cabinet.type==='incubator'||target?.cabinet.type==='incubator'))errors.push('孵化箱只支持移动蛇只，不支持整盒交换');
     for(const [animal,destination] of [[request.wholeBox?sourceAssignment?.snake_id:request.snakeId,target],[targetAssignment?.snake_id,source]]){
       if(!animal||destination?.cabinet.type!=='incubator'||destination.cabinet.purpose!=='brumation')continue;
+      if(records.some(r=>r.snake_id===animal&&r.result==='offered'))errors.push('进入冬化前请先确认所有已投喂结果');
       const locked=[...(snapshot.planned_tasks||[]).filter(t=>t.batch_id||t.batch_item_id),...(snapshot.locked_tasks||[]),...(snapshot.batches||[]).flatMap(b=>b.items||[])].filter(t=>t.snake_id===animal);
       if(locked.some(t=>{const r=records.find(r=>r.snake_id===animal&&Date.parse(r.planned_at)===Date.parse(t.planned_at))||t.record;return !r||r.result==='offered';}))errors.push('进入冬化前须先完成或跳过已确认备料批次');
     }

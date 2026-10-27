@@ -40,6 +40,37 @@ async function setup({missingIncubators=false}={}){
  for(const f of ['039_room_workspace.sql','040_room_rules_and_batches.sql','041_room_label_font_size.sql',...(!missingIncubators?['042_room_incubators.sql']:[]),'043_male_feeding_cap.sql',...(missingIncubators?['048_current_weight_preparation.sql','049_room_feeding_measurement_type.sql','050_room_environment.sql','051_room_tuya_cloud.sql','052_room_environment_devices.sql']:[])])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await db.exec("set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';set role authenticated");return db;
 }
+for(const missingIncubators of [false,true])test(`054 prevents unresolved non-batch feeding entering brumation after ${missingIncubators?'053':'042'}`,async()=>{
+ const db=await setup({missingIncubators});try{
+  if(missingIncubators){await db.exec('reset role');await db.exec(fs.readFileSync('supabase/migrations/053_backfill_room_incubators.sql','utf8'));await db.exec('set role authenticated');}
+  let state=(await db.query('select room_save_layout($1,$2,$3) data',[0,room(),randomUUID()])).rows[0].data;
+  const assign=async(snake,slot,swap=false)=>{state=(await db.query('select room_assign($1,$2,$3,$4,$5) data',[state.revision,snake,slot,swap,randomUUID()])).rows[0].data;};
+  await assign('A','racks1');await assign('B','winters1');
+  const now=new Date().toISOString(),payload={snake_id:'A',slot_id:'racks1',cabinet_id:'rack',planned_at:now,due_at:now,occurred_at:now,result:'offered',quantity:1,mouse_min_g:2,mouse_max_g:3};
+  const record=async p=>{state=(await db.query('select room_record_feeding($1,$2,$3) data',[state.revision,p,randomUUID()])).rows[0].data;};
+  await record(payload);
+  const before=structuredClone(state),patch=fs.readFileSync('supabase/migrations/054_room_brumation_pending_feeding.sql','utf8');
+  await db.exec('reset role');await db.exec(patch);await db.exec(patch);await db.exec('set role authenticated');
+  assert.deepEqual((await db.query('select room_snapshot() data')).rows[0].data,before);
+  await assert.rejects(assign('A','winters2'),/确认所有已投喂/);
+  // Swapping B out of winter would move unresolved A into winter; both moves roll back.
+  await assert.rejects(assign('B','racks1',true),/确认所有已投喂/);
+  assert.deepEqual((await db.query('select room_snapshot() data')).rows[0].data,before);
+  for(const result of ['fed','refused','skipped']){
+   await record({...payload,result});await assign('A','winters2');
+   await assert.rejects(record({...payload,slot_id:'winters2',cabinet_id:'winter',planned_at:new Date(Date.now()+1000).toISOString(),result:'fed'}),/冬化期间/);
+   await assign('A','racks1');
+  }
+  await assert.rejects(assign('A','eggss1'),/孵蛋格/);
+  // Existing stuck records are not rewritten: moving back out remains available.
+  await record(payload);await db.exec('reset role');
+  await db.exec('alter table room_assignments disable trigger check_snake_incubator_location');
+  await db.query("update room_assignments set slot_id='winters2' where snake_id='A'");
+  await db.exec('alter table room_assignments enable trigger check_snake_incubator_location;set role authenticated');
+  await assign('A','racks1');await record({...payload,result:'fed'});await assign('A','winters2');
+  await db.exec('reset role;set role anon');await assert.rejects(db.query('select room_check_snake_location()'),/permission denied/);
+ }finally{await db.close();}
+});
 test('053 backfills missing 042 after 052, preserving existing generator, devices, records and occupancy',async()=>{
  const db=await setup({missingIncubators:true});try{
   const sql=name=>fs.readFileSync('supabase/migrations/'+name,'utf8');

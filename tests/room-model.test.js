@@ -111,6 +111,13 @@ test('entering brumation requires resolving confirmed batch including already of
   assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('备料批次')));
   snapshot.records=[{...item,result:'offered'}];assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('备料批次')));
   snapshot.records[0].result='skipped';assert.deepEqual(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors,[]);
+  snapshot.planned_tasks=[];
+  snapshot.records=[{snake_id:'A',planned_at:item.planned_at,result:'offered'}];
+  assert.ok(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors.some(e=>e.includes('确认所有已投喂')));
+  for(const result of ['fed','refused','skipped']){
+    snapshot.records[0].result=result;
+    assert.deepEqual(M.previewMove(snapshot,request,f.snakes,f.measurements,options).errors,[]);
+  }
 });
 
 test('feeding overview searches beyond current week and respects completed meals and timezone date',()=>{

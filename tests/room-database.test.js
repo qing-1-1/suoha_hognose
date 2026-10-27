@@ -157,7 +157,9 @@ test('room adapter reports missing migration and retries ambiguous writes with t
   assert.equal(calls[0].args.p_request,calls[1].args.p_request);
 
   context.sb.rpc=async()=>({error:{message:'Incubators are phase two'}});
-  await assert.rejects(context.window.SuohaRoomData.save({name:'房间'},1),/042 尚未部署/);
+  await assert.rejects(context.window.SuohaRoomData.save({name:'房间'},1),/053 补丁，不要重跑 042/);
+  context.sb.rpc=async()=>({error:{message:'Could not find the function in the schema cache'}});
+  await assert.rejects(context.window.SuohaRoomData.save({name:'房间'},1),/核对迁移记录/);
 });
 
 for(const upgradeIncubators of [false,true])test(`${upgradeIncubators?'042 upgrade preserves':'040 keeps'} immutable rule versions and confirmed preparation while validating labels and actual results`,async()=>{
