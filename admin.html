@@ -13,6 +13,7 @@
 <script src="/js/data.js"></script>
 <link rel="stylesheet" href="/assets/workspace-refinements.css">
 <link rel="stylesheet" href="/assets/workspace-upgrades.css">
+<link rel="stylesheet" href="/assets/weight-chart.css?v=20261020-weight1">
 <link rel="stylesheet" href="/assets/interface-polish.css">
 <link rel="stylesheet" href="/assets/individual-photos.css">
 <link rel="stylesheet" href="/assets/snake-entry.css">
@@ -170,6 +171,10 @@
     </div>
     <div class="breedingPlanList" id="annualPlanList"></div>
   </div>
+  <div class="card unplannedAnimalsCard" id="unplannedAnimalsCard">
+    <div class="cardHead"><div><h3>已成熟但未加入繁育计划</h3><p>按所选年份的预计成熟日期统计；实际适繁状态请人工确认。</p></div></div>
+    <div class="cardBody" id="unplannedAnimals"></div>
+  </div>
   <div class="gridEqual" style="margin-top:12px"><div class="card"><div class="cardHead"><div><h3>规划范围容量</h3><p>成熟母蛇 vs 已录入计划窝数</p></div></div><div class="cardBody"><div class="chartArea" id="prodChart"></div></div></div><div class="card"><div class="cardHead"><div><h3>所选年份项目配额</h3><p>优先旗舰与桥梁项目</p></div></div><div class="cardBody" id="quota"></div></div></div>
   <div class="card" style="margin-top:12px"><div class="cardHead"><div><h3>年度执行层级</h3><p>A 必须优先 / B 条件允许 / C 主动留白</p></div></div><div class="cardBody"><div class="grid3" id="checklist"></div></div></div>
   <div class="analysisSplit"><div class="card"><div class="cardHead"><div><h3>固定规则检查</h3><p>基于实时成熟状态、现有计划与路线依赖</p></div></div><div class="cardBody" id="annualFacts"></div></div><div class="card aiPanel"><div class="cardHead"><div><h3>AI 年度规划草案</h3><p>固定 Prompt 由数据库版本化加载；只生成草案</p></div><div class="spacer"></div><button class="pillBtn writeOnly" id="runAnnualAiBtn">生成草案</button></div><div class="cardBody" id="annualAi"></div></div></div>
@@ -314,10 +319,15 @@
 <script src="/js/inventory.js"></script>
 <script src="/js/breeding-calendar.js"></script>
 <script src="/js/interface-polish.js"></script>
-<script src="/js/workspace-upgrades.js"></script>
+<script src="/js/weight-chart.js?v=20261020-weight1"></script>
+<script src="/js/workspace-upgrades.js?v=20261020-weight1"></script>
 <script src="/js/reminders.js"></script>
 <script src="/js/audit-ui.js"></script>
-<script src="/js/room-entry.js"></script>
+<script src="/js/room-entry.js?v=20261028-room8"></script>
+<script src="/js/profile-panel.js"></script>
+<script src="/js/photo-crop.js"></script>
+<link rel="stylesheet" href="/assets/photo-crop.css">
+<link rel="stylesheet" href="/assets/profile-panel.css">
 <link rel="stylesheet" href="/assets/audit-ui.css">
 
 </body></html>

@@ -9,3 +9,5 @@ playwright-report/
 /artifacts/
 # Original reference photos stay local; published derivatives live in assets/.
 /docs/media/originals/
+
+/bug/

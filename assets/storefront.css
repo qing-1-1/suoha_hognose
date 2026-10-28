@@ -29,3 +29,5 @@ em.hero-line{animation-delay:.16s;text-shadow:0 0 35px #c8dfa516}
 .detail-main-photo>img{animation:photo-arrive 220ms ease both}.detail-thumbnails button{transition:border-color 150ms,opacity 150ms}.detail-thumbnails button:hover{border-color:#66804f}.specimen-card{border-radius:3px}.specimen-photo{overflow:hidden}.specimen-card:focus-visible{outline-offset:6px}.faq summary span{transition:transform 180ms ease}.gene-tags span{line-height:1.5}
 @keyframes photo-arrive{from{opacity:.5}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.hero-line,.detail-main-photo>img{animation:none}.detail-thumbnails button,.faq summary span{transition:none}}
+/* Display the selected photo composition without a second automatic crop. */
+.specimen-photo img,.detail-main-photo img{object-fit:contain}

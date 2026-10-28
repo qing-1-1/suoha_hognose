@@ -34,6 +34,7 @@ exports.handler=async event=>{
   if((event.body||'').length>4500000)return json(413,{error:'图片过大，请缩小后重试'});
   let b;try{b=JSON.parse(event.body||'{}');}catch{return json(400,{error:'无效请求'});}
   if(!b||typeof b!=='object'||Array.isArray(b))return json(400,{error:'无效请求'});
+  if(b.action==='purchase')return json(410,{error:'直接购买已关闭，请联系店铺'});
   if(b.action==='save_channel'){
    const authorization=event.headers?.authorization;if(!/^Bearer [\w.\-]+$/.test(authorization||''))return json(401,{error:'请登录后台'});
    async function staff(name,args){const r=await fetch(`${url}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:key,authorization,'content-type':'application/json'},body:JSON.stringify(args),signal:AbortSignal.timeout(15000)});const data=await r.json().catch(()=>null);if(!r.ok)throw Error('后台权限不足或配置无效');return data;}
@@ -49,10 +50,6 @@ exports.handler=async event=>{
   const ip=event.headers?.['x-nf-client-connection-ip'],rateSecret=process.env.INQUIRY_HASH_SECRET;
   if(!ip||!rateSecret)return json(503,{error:'请求限流尚未配置'});
   if(!await call('auction_rate',{p_key:'payment:'+createHmac('sha256',rateSecret).update(ip).digest('hex')}))return json(429,{error:'操作频繁，请稍后重试'});
-  if(b.action==='purchase'){
-   if(!uuid(b.listing_id)||!uuid(b.request_id))return json(400,{error:'无效购买请求'});
-   return json(200,{id:await call('purchase_now',{p_token:token(event),p_listing:b.listing_id,p_request:b.request_id})});
-  }
   if(b.action!=='receipt'||!uuid(b.order_id)||!uuid(b.request_id)||!['wechat_transfer','wechat','alipay','other'].includes(b.channel))return json(400,{error:'无效付款请求'});
   // Authenticate ownership BEFORE decoding or storing any image.
   const context=await call('read_payment_orders',{p_token:token(event),p_order:b.order_id});

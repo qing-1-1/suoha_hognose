@@ -7,7 +7,7 @@
     const { data, error } = await sb.rpc(name, args || {});
     if (error) {
       const message = error.message || '爬房保存失败';
-      const err = new Error(/revision conflict/i.test(message) ? '其他会话已修改爬房，请刷新后再保存。' : /schema cache|does not exist|could not find the function/i.test(message) ? '爬房数据库迁移尚未部署，请依次执行 039 和 040 爬房迁移。' : message);
+      const err = new Error(/revision conflict/i.test(message) ? '其他会话已修改爬房，请刷新后再保存。' : /incubators are phase two/i.test(message) ? '孵化柜功能尚未安装。若数据库已执行到 052，请检查并执行 053 补丁，不要重跑 042；若已执行 053，请核对连接的数据库和执行结果。' : /schema cache|does not exist|could not find the function/i.test(message) ? '爬房数据库结构或接口缓存尚未就绪，请核对迁移记录和连接的数据库；已执行到 052 但缺少孵化柜时请检查 053 补丁，不要盲目重跑旧迁移。' : message);
       err.code = error.code; err.cause = error; throw err;
     }
     if (!data || !Number.isInteger(data.revision)) throw new Error('爬房数据库返回无效，请刷新重试。');
@@ -24,10 +24,23 @@
       throw error;
     }
   }
+  async function environmentRequest(device,body,check=false){
+    const session=(await sb.auth.getSession()).data?.session;if(!session?.access_token)throw Error('请登录后台');
+    const response=await fetch('/.netlify/functions/room-environment'+(check?'?check=connection':device?'?device='+encodeURIComponent(device):''),{method:body?'POST':'GET',headers:{authorization:'Bearer '+session.access_token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
+    const data=await response.json();if(!response.ok)throw Error(data.error?.message||'温湿度服务暂不可用');return data;
+  }
   window.SuohaRoomData = Object.freeze({
     load: () => rpc('room_snapshot'),
+    environment: () => environmentRequest(),
+    environmentConnection: () => environmentRequest(null,null,true),
+    environmentDevice: id => environmentRequest(id),
+    environmentCommand: body => environmentRequest(null,body),
     save: (config, revision) => write('room_save_layout', { p_revision: revision, p_config: config }),
     assign: (snakeId, slotId, revision, swap = false, scheduleMode = 'inherit') => write('room_assign', { p_revision: revision, p_snake: snakeId, p_target_slot: slotId ?? null, p_swap: !!swap, p_schedule_mode: scheduleMode }),
+    assignBatch: (items, revision) => write('room_assign_batch', { p_revision: revision, p_items: items }),
+    saveIncubation: (payload, revision) => write('room_save_incubation', { p_revision: revision, p_payload: payload }),
+    moveIncubation: (source, target, revision) => write('room_move_incubation', { p_revision: revision, p_source: source, p_target: target }),
+    clearIncubation: (slot, revision) => write('room_clear_incubation', { p_revision: revision, p_slot: slot }),
     record: (payload, revision) => write('room_record_feeding', { p_revision: revision, p_payload: payload }),
     syncPlans: (tasks, from, to, revision) => write('room_sync_plans', { p_revision: revision, p_tasks: tasks, p_from: from, p_to: to }),
     saveRuleVersion: (name, rules, revision, activate = true) => write('room_save_rule_version', { p_revision: revision, p_name: name, p_rules: rules, p_activate: !!activate }),

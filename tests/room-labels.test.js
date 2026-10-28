@@ -12,8 +12,9 @@ test('HTML and expression inputs are data, never template code',()=>{
   for(const token of ['constructor','__proto__','id.toUpperCase()','unknown'])assert.equal(L.validateTemplate({...template,lines:[`{{${token}}}`]}).valid,false);
 });
 test('malformed templates reject unknown fields, unclosed braces and oversized settings',()=>{
-  const defaults=L.defaultTemplate();for(const patch of [{lines:['{{id']},{lines:['id}}']},{lines:[]},{lines:Array(7).fill('x')},{lines:['x'.repeat(161)]},{lines:['a\nb']},{fontSize:21},{fontSize:11},{fontSize:'12'},{align:'justify'},{name:''}])assert.equal(L.validateTemplate({...defaults,...patch}).valid,false,JSON.stringify(patch));
+  const defaults=L.defaultTemplate();for(const patch of [{lines:['{{id']},{lines:['id}}']},{lines:[]},{lines:Array(7).fill('x')},{lines:['x'.repeat(161)]},{lines:['a\nb']},{fontSize:21},{fontSize:9},{fontSize:10.5},{fontSize:'12'},{align:'justify'},{name:''}])assert.equal(L.validateTemplate({...defaults,...patch}).valid,false,JSON.stringify(patch));
   assert.equal(L.validateTemplate(defaults).valid,true);
+  for(const fontSize of [10,11,20]){const template={...defaults,fontSize};assert.equal(L.validateTemplate(template).valid,true);assert.equal(L.renderLabel({template}).fontSize,fontSize);}
 });
 test('legacy labels remain opt-in without stray separators and invalid templates fall back safely',()=>{
   const values={id:'S-1',sex:'♀',gene:'Conda',weight:'35g',mouse:'3–4g',next:'周二 18:00'};
