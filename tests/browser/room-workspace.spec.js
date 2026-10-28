@@ -149,6 +149,26 @@ test('a completed Tuesday meal stays white until Friday and only Saturday is hig
  await page.screenshot({path:`artifacts/room-nearest-feeding-${info.project.name}.png`});expect(errors).toEqual([]);
 });
 
+test('old Saturday work stays in overdue history while Wednesday box colors match preparation',async({page})=>{
+ const data=initialFixture(),now='2026-10-28T03:00:00Z';
+ data.snapshot.config.cabinets[0].schedule.weekdays=[3,7];
+ data.snapshot.assignments.push({snake_id:'ROOM-C',slot_id:'slot-0-0-1',assigned_at:'2026-10-01T00:00:00Z'});
+ data.snapshot.planned_tasks=[{id:'old-saturday',snake_id:'ROOM-A',slot_id:'slot-0-0-0',cabinet_id:'rack-a',planned_at:'2026-10-24T10:00:00Z',due_at:'2026-10-24T10:00:00Z',mouse_min_g:4,mouse_max_g:6,quantity:1}];
+ const errors=await boot(page,{data,now});
+ for(const slot of ['slot-0-0-0','slot-0-0-1'])expect(await room(page).locator(`[data-mini-slot="${slot}"]`).evaluate(el=>el.style.background)).toContain('194, 65, 12');
+ await openRack(page);
+ await expect(room(page).locator('.rw-summary-top')).toContainText('下一个喂食日 · 2026-10-28');
+ for(const slot of ['slot-0-0-0','slot-0-0-1']){
+  const box=room(page).locator(`.rw-model-slot:has([data-slot="${slot}"])`);
+  await expect(box.locator('.rw-box-days')).toHaveText('三');
+  await expect(box.locator('.rw-box-face')).toHaveAttribute('stroke','#C2410C');
+ }
+ await room(page).locator('[data-kind="overdue"]').click();
+ await expect(modal(page)).toContainText('ROOM-A');await expect(modal(page)).toContainText('2026-10-24');
+ expect(await page.evaluate(()=>roomFixture.snapshot.planned_tasks.some(t=>t.id==='old-saturday'))).toBe(true);
+ expect(errors).toEqual([]);
+});
+
 test('mobile short taps open real slot details without rebuilding every box',async({page},info)=>{
  test.skip(info.project.name!=='mobile');
  const data=initialFixture(),cabinet=data.snapshot.config.cabinets[0];
@@ -811,8 +831,8 @@ test('private room defaults to nearest reminder and retains explicit calendar pr
   const mini=room(page).locator('[data-mini-slot="slot-0-0-0"]');
   await expect(mini).toHaveClass(/is-planned/);
   await expect(mini).toHaveCSS('background-image','none');
-  // The fixture persists Monday's unfinished meal; overdue work wins over a later meal.
-  expect(await mini.evaluate(el=>el.style.background)).toContain('37, 99, 235');
+  // Older unfinished meals stay in history; Friday is the next meal from Thursday.
+  expect(await mini.evaluate(el=>el.style.background)).toContain('14, 116, 144');
   expect(await page.evaluate(()=>document.documentElement.scrollHeight)).toBeLessThan(info.project.name==='desktop'?5000:7000);
   await page.screenshot({path:`artifacts/room-overview-${info.project.name}.png`});
   const monday=room(page).locator('[data-rw-date="2026-10-12"]');
@@ -827,7 +847,7 @@ test('private room defaults to nearest reminder and retains explicit calendar pr
   await expect(room(page).locator('[data-rw-date="2026-10-12"]')).toHaveAttribute('aria-pressed','true');
   await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"]) .rw-box-face')).toHaveAttribute('fill',/url\(#/);
   await room(page).getByRole('button',{name:'全部日期',exact:true}).click();
-  await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"]) .rw-box-days')).toHaveText('一');
+  await expect(room(page).locator('.rw-model-slot:has([data-slot="slot-0-0-0"]) .rw-box-days')).toHaveText('五');
   if(info.project.name==='mobile')await expect.poll(()=>room(page).locator('[data-rw-week]').evaluate(el=>el.getBoundingClientRect().top)).toBeLessThan(100);
   await expect.poll(()=>room(page).locator('[data-rw-canvas]').evaluate(el=>el.getAnimations({subtree:true}).filter(a=>a.playState==='running').length)).toBe(0);
   await page.screenshot({path:`artifacts/room-cabinet-${info.project.name}.png`});

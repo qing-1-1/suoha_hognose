@@ -17,10 +17,27 @@ test('only the nearest pending meal is highlighted after three local calendar da
  assert.deepEqual({tasks,records},before);
 });
 
-test('reminder chooses actual due time, includes overdue tasks and ignores completed/cancelled tasks',()=>{
- const base={snakeId:'A',status:'pending',date:'2026-10-20',time:'18:00'};
- const earlier={...base,date:'2026-10-19',dueAt:'2026-10-19T10:00:00Z'};
- assert.deepEqual(M.feedingReminders([{...base,dueAt:'2026-10-24T10:00:00Z'},earlier,{...base,status:'completed'},{...earlier,status:'cancelled'}],[]),[earlier]);
+test('reminder ignores earlier days but retains overdue times today using the room timezone',()=>{
+ const task=(date,time='10:00')=>({snakeId:'A',status:'pending',date,time,dueAt:date+'T'+time+':00Z'});
+ const past=task('2026-10-24'),today=task('2026-10-28'),future=task('2026-10-31');
+ const tasks=[future,past,today,{...today,status:'completed'},{...past,status:'cancelled'}];
+ assert.deepEqual(M.feedingReminders(tasks,[],{now:'2026-10-28T12:00:00Z'}),[today]);
+ assert.deepEqual(M.feedingReminders(tasks,[],{now:'2026-10-28T16:00:00Z'}),[future]);
+ assert.deepEqual(M.feedingReminders(tasks,[],{now:'2026-10-28T16:00:00Z',timezone:'UTC'}),[today]);
+ assert.deepEqual(M.feedingReminders([past],[],{now:'2026-10-28T12:00:00Z'}),[]);
+});
+
+test('old Saturday snapshots cannot mask Wednesday reminders or disappear from overdue history',()=>{
+ const f=fixture(),now='2026-10-28T03:00:00Z';f.cabinet.schedule.weekdays=[3,7];
+ const old={snake_id:'A',slot_id:f.slot.id,cabinet_id:f.cabinet.id,planned_at:'2026-10-24T10:00:00Z',due_at:'2026-10-24T10:00:00Z',mouse_min_g:7,mouse_max_g:11,quantity:2};
+ for(const locked of [false,true]){
+  const stored=locked?{...old,batch_id:'batch',batch_item_id:'item'}:old;
+  const view=M.feedingOverview(f.config,f.assignments,f.snakes,f.measurements,[],{now,plannedTasks:[stored]});
+  assert.equal(view.nextFeedingDate,'2026-10-28');
+  assert.deepEqual(view.reminderTasks.map(t=>t.date),['2026-10-28']);
+  assert.deepEqual(view.overdueTasks.map(t=>t.date),['2026-10-24']);
+  assert.equal(view.overdueTasks[0].locked,locked);
+ }
 });
 
 test('live daily preparation recalculates latest weight, counts quantities across cabinets and preserves confirmed history',()=>{

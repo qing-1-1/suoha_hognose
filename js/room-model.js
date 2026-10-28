@@ -388,7 +388,9 @@
       const date=localDate(time,timezone),id=String(record.snake_id);
       if(!lastFed.has(id)||date>lastFed.get(id))lastFed.set(id,date);
     }
-    const ordered=tasks.filter(t=>t.status==='pending').slice().sort((a,b)=>String(a.dueAt||a.date+'T'+(a.time||'')).localeCompare(String(b.dueAt||b.date+'T'+(b.time||''))));
+    // Box colors show the next meal from today, not the oldest unfinished meal.
+    // Keep earlier days in overdueTasks; today's late meals still need highlighting.
+    const ordered=tasks.filter(t=>t.status==='pending'&&t.date>=today).slice().sort((a,b)=>String(a.dueAt||a.date+'T'+(a.time||'')).localeCompare(String(b.dueAt||b.date+'T'+(b.time||''))));
     for(const task of ordered){
       const id=String(task.snakeId),fed=lastFed.get(id);
       if(!next.has(id)&&(!fed||today>=addDays(fed,3)))next.set(id,task);

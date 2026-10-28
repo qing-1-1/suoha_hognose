@@ -5,7 +5,7 @@
   const files = ['room-environment', 'room-model', 'room-data', 'room-labels', 'room-scene', 'room-extras', 'room-workflows', 'room-workspace'];
   function script(name) {
     return new Promise((resolve, reject) => {
-      const el = document.createElement('script'); el.src = `/js/${name}.js?v=20261027-room7`;
+      const el = document.createElement('script'); el.src = `/js/${name}.js?v=20261028-room8`;
       el.onload = resolve; el.onerror = () => { el.remove(); reject(Error('爬房资源加载失败，请重试。')); };
       document.body.append(el);
     });
